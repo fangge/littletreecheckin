@@ -16,6 +16,7 @@ import GoalSetting from './views/GoalSetting';
 import Register from './views/Register';
 import Login from './views/Login';
 import Profile from './views/Profile';
+import RewardsManagement from './views/RewardsManagement';
 import { useAuth } from './contexts/AuthContext';
 import { GoalData } from './services/api';
 
@@ -86,6 +87,7 @@ export default function App() {
             onBack={() => setCurrentView('forest')}
             onLogout={handleLogout}
             onViewParentControl={() => setCurrentView('parent-control')}
+            onViewRewardsManagement={() => setCurrentView('rewards-management')}
           />
         );
       case 'profile':
@@ -94,10 +96,13 @@ export default function App() {
             onBack={() => setCurrentView('forest')}
             onLogout={handleLogout}
             onViewParentControl={() => setCurrentView('parent-control')}
+            onViewRewardsManagement={() => setCurrentView('rewards-management')}
           />
         );
       case 'parent-control':
         return <ParentControl onBack={() => setCurrentView('parent')} />;
+      case 'rewards-management':
+        return <RewardsManagement onBack={() => setCurrentView('parent')} />;
       case 'register':
         return (
           <Register

@@ -174,8 +174,8 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
             const goal = getGoalForTree(tree);
             return (
               <div key={tree.id} className="relative group">
-                {/* 编辑按钮：绝对定位在卡片右上角 */}
-                {goal && goal.is_active && (
+                {/* 编辑按钮：绝对定位在卡片右上角（进行中和已完成的目标均可编辑） */}
+                {goal && (
                   <button
                     className="absolute top-2 right-2 z-10 bg-white/90 backdrop-blur-sm rounded-lg p-1.5 shadow-sm hover:bg-white active:scale-90 transition-all"
                     onClick={e => { e.stopPropagation(); handleEditTree(tree); }}

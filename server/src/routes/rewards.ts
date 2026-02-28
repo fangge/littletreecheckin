@@ -155,4 +155,135 @@ router.get('/children/:childId/redemptions', authMiddleware, async (req: AuthReq
   res.json({ data: data || [] });
 });
 
+// PUT /api/v1/rewards/redemptions/:redemptionId/complete  (家长确认奖励已发放)
+router.put('/redemptions/:redemptionId/complete', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { redemptionId } = req.params;
+
+  const { error } = await supabase
+    .from('reward_redemptions')
+    .update({ status: 'completed' })
+    .eq('id', redemptionId);
+
+  if (error) {
+    res.status(500).json({ error: '确认失败' });
+    return;
+  }
+
+  res.json({ message: '已确认奖励发放' });
+});
+
+// POST /api/v1/rewards  (创建奖品)
+router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { name, price, image, category } = req.body;
+
+  if (!name || !price || !category) {
+    res.status(400).json({ error: '名称、价格和分类不能为空' });
+    return;
+  }
+
+  if (!['activity', 'toy', 'snack'].includes(category)) {
+    res.status(400).json({ error: '分类必须是 activity/toy/snack 之一' });
+    return;
+  }
+
+  if (price <= 0) {
+    res.status(400).json({ error: '价格必须大于0' });
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from('rewards')
+    .insert({ name, price, image: image || null, category, is_active: true })
+    .select('id, name, price, image, category, is_active')
+    .single();
+
+  if (error || !data) {
+    res.status(500).json({ error: '创建奖品失败' });
+    return;
+  }
+
+  res.status(201).json({ data, message: '奖品创建成功' });
+});
+
+// PUT /api/v1/rewards/:rewardId  (更新奖品)
+router.put('/:rewardId', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { rewardId } = req.params;
+  const { name, price, image, category, is_active } = req.body;
+
+  const { data: existing } = await supabase
+    .from('rewards')
+    .select('id')
+    .eq('id', rewardId)
+    .single();
+
+  if (!existing) {
+    res.status(404).json({ error: '奖品不存在' });
+    return;
+  }
+
+  const updateData: Record<string, unknown> = {};
+  if (name !== undefined) updateData.name = name;
+  if (price !== undefined) updateData.price = price;
+  if (image !== undefined) updateData.image = image;
+  if (category !== undefined) updateData.category = category;
+  if (is_active !== undefined) updateData.is_active = is_active;
+
+  const { data, error } = await supabase
+    .from('rewards')
+    .update(updateData)
+    .eq('id', rewardId)
+    .select('id, name, price, image, category, is_active')
+    .single();
+
+  if (error || !data) {
+    res.status(500).json({ error: '更新奖品失败' });
+    return;
+  }
+
+  res.json({ data, message: '奖品更新成功' });
+});
+
+// DELETE /api/v1/rewards/:rewardId  (软删除奖品，设置 is_active = false)
+router.delete('/:rewardId', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { rewardId } = req.params;
+
+  const { data: existing } = await supabase
+    .from('rewards')
+    .select('id')
+    .eq('id', rewardId)
+    .single();
+
+  if (!existing) {
+    res.status(404).json({ error: '奖品不存在' });
+    return;
+  }
+
+  const { error } = await supabase
+    .from('rewards')
+    .update({ is_active: false })
+    .eq('id', rewardId);
+
+  if (error) {
+    res.status(500).json({ error: '删除奖品失败' });
+    return;
+  }
+
+  res.json({ message: '奖品已下架' });
+});
+
+// GET /api/v1/rewards/all  (获取所有奖品，含已下架，供家长管理)
+router.get('/all', authMiddleware, async (_req: AuthRequest, res: Response): Promise<void> => {
+  const { data, error } = await supabase
+    .from('rewards')
+    .select('id, name, price, image, category, is_active')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    res.status(500).json({ error: '获取奖品列表失败' });
+    return;
+  }
+
+  res.json({ data: data || [] });
+});
+
 export default router;

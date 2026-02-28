@@ -1,4 +1,4 @@
-export type ViewType = 'forest' | 'tasks' | 'messages' | 'medals' | 'parent' | 'store' | 'add-goal' | 'register' | 'profile' | 'parent-control' | 'login';
+export type ViewType = 'forest' | 'tasks' | 'messages' | 'medals' | 'parent' | 'store' | 'add-goal' | 'register' | 'profile' | 'parent-control' | 'login' | 'rewards-management';
 
 export interface Tree {
   id: string;

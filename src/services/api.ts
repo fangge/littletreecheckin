@@ -116,6 +116,18 @@ export interface RewardData {
   category: 'activity' | 'toy' | 'snack';
 }
 
+export interface RedemptionData {
+  id: string;
+  redeemed_at: string;
+  status: 'pending' | 'completed';
+  rewards?: {
+    name: string;
+    image?: string;
+    price: number;
+    category: string;
+  };
+}
+
 export interface MessageData {
   id: string;
   sender_type: 'parent' | 'child' | 'system';
@@ -285,7 +297,28 @@ export const rewardsApi = {
     ),
 
   redemptions: (childId: string) =>
-    request<{ data: unknown[] }>(`/api/v1/rewards/children/${childId}/redemptions`),
+    request<{ data: RedemptionData[] }>(`/api/v1/rewards/children/${childId}/redemptions`),
+
+  confirmRedemption: (redemptionId: string) =>
+    request<{ message: string }>(`/api/v1/rewards/redemptions/${redemptionId}/complete`, { method: 'PUT' }),
+
+  listAll: () =>
+    request<{ data: (RewardData & { is_active: boolean })[] }>('/api/v1/rewards/all'),
+
+  create: (data: { name: string; price: number; image?: string; category: string }) =>
+    request<{ data: RewardData }>('/api/v1/rewards', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (rewardId: string, data: { name?: string; price?: number; image?: string; category?: string; is_active?: boolean }) =>
+    request<{ data: RewardData & { is_active: boolean } }>(`/api/v1/rewards/${rewardId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (rewardId: string) =>
+    request<{ message: string }>(`/api/v1/rewards/${rewardId}`, { method: 'DELETE' }),
 };
 
 // ============================================================

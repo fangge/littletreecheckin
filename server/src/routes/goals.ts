@@ -3,6 +3,106 @@ import { supabase } from '../config/supabase.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { AuthRequest } from '../types.js';
 
+// 删除目标后重新校验并清理不再满足条件的勋章
+const revokeInvalidMedals = async (childId: string): Promise<void> => {
+  // 获取所有勋章定义
+  const { data: allMedals } = await supabase
+    .from('medals')
+    .select('id, unlock_condition');
+
+  if (!allMedals || allMedals.length === 0) return;
+
+  // 获取孩子已解锁的勋章
+  const { data: unlockedMedals } = await supabase
+    .from('child_medals')
+    .select('id, medal_id')
+    .eq('child_id', childId);
+
+  if (!unlockedMedals || unlockedMedals.length === 0) return;
+
+  // 重新计算孩子统计数据
+  const { count: totalApproved } = await supabase
+    .from('tasks')
+    .select('id', { count: 'exact' })
+    .eq('child_id', childId)
+    .eq('status', 'approved');
+
+  const { count: completedTrees } = await supabase
+    .from('trees')
+    .select('id', { count: 'exact' })
+    .eq('child_id', childId)
+    .eq('status', 'completed');
+
+  const { data: childData } = await supabase
+    .from('children')
+    .select('fruits_balance')
+    .eq('id', childId)
+    .single();
+
+  // 计算连续打卡天数
+  const { data: recentTasks } = await supabase
+    .from('tasks')
+    .select('checkin_time')
+    .eq('child_id', childId)
+    .eq('status', 'approved')
+    .order('checkin_time', { ascending: false })
+    .limit(30);
+
+  let consecutiveDays = 0;
+  if (recentTasks && recentTasks.length > 0) {
+    const dates = new Set(
+      recentTasks.map((t: { checkin_time: string }) =>
+        new Date(t.checkin_time).toISOString().split('T')[0]
+      )
+    );
+    const today = new Date();
+    for (let i = 0; i < 30; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      if (dates.has(date.toISOString().split('T')[0])) {
+        consecutiveDays++;
+      } else {
+        break;
+      }
+    }
+  }
+
+  const stats = {
+    total_tasks: totalApproved || 0,
+    trees_completed: completedTrees || 0,
+    total_fruits: childData?.fruits_balance || 0,
+    consecutive_days: consecutiveDays,
+  };
+
+  // 找出不再满足条件的已解锁勋章
+  const medalMap = new Map(allMedals.map((m: { id: string; unlock_condition: { type: string; threshold: number } }) => [m.id, m.unlock_condition]));
+  const toRevoke: string[] = [];
+
+  for (const unlocked of unlockedMedals) {
+    const condition = medalMap.get(unlocked.medal_id) as { type: string; threshold: number } | undefined;
+    if (!condition) continue;
+
+    let stillValid = false;
+    switch (condition.type) {
+      case 'total_tasks': stillValid = stats.total_tasks >= condition.threshold; break;
+      case 'trees_completed': stillValid = stats.trees_completed >= condition.threshold; break;
+      case 'total_fruits': stillValid = stats.total_fruits >= condition.threshold; break;
+      case 'consecutive_days':
+      case 'early_checkin': stillValid = stats.consecutive_days >= condition.threshold; break;
+      default: stillValid = true;
+    }
+
+    if (!stillValid) {
+      toRevoke.push(unlocked.id);
+    }
+  }
+
+  // 批量删除不再满足条件的勋章
+  if (toRevoke.length > 0) {
+    await supabase.from('child_medals').delete().in('id', toRevoke);
+  }
+};
+
 const router: Router = Router();
 
 // PUT /api/v1/goals/:goalId  (更新目标信息)
@@ -100,6 +200,9 @@ router.delete('/:goalId', authMiddleware, async (req: AuthRequest, res: Response
     res.status(500).json({ error: '删除目标失败' });
     return;
   }
+
+  // 删除目标后重新校验并清理不再满足条件的勋章（异步，不阻塞响应）
+  revokeInvalidMedals(goal.child_id).catch(console.error);
 
   res.json({ message: '目标已删除' });
 });

@@ -8,7 +8,7 @@ interface MedalsProps {
 }
 
 export default function Medals({ onBack }: MedalsProps) {
-  const { currentChild } = useAuth();
+  const { user, currentChild, setCurrentChild } = useAuth();
   const [medals, setMedals] = useState<MedalData[]>([]);
   const [filter, setFilter] = useState<'all' | 'unlocked' | 'locked'>('all');
   const [isLoading, setIsLoading] = useState(true);
@@ -47,16 +47,40 @@ export default function Medals({ onBack }: MedalsProps) {
       animate={{ opacity: 1, scale: 1 }}
       className="flex-1 overflow-y-auto pb-32"
     >
-      <header className="sticky top-0 z-10 bg-background-light/80 backdrop-blur-md px-4 py-4 flex items-center justify-between border-b border-primary/10">
-        <button
-          onClick={onBack}
-          className="w-10 h-10 flex items-center justify-center rounded-full bg-white shadow-sm border border-primary/20"
-          aria-label="返回"
-        >
-          <span className="material-symbols-outlined text-slate-700">arrow_back</span>
-        </button>
-        <h1 className="text-xl font-extrabold tracking-tight text-slate-900">我的勋章墙</h1>
-        <div className="w-10 h-10" />
+      <header className="sticky top-0 z-10 bg-background-light/80 backdrop-blur-md border-b border-primary/10">
+        <div className="px-4 py-4 flex items-center justify-between">
+          <button
+            onClick={onBack}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-white shadow-sm border border-primary/20"
+            aria-label="返回"
+          >
+            <span className="material-symbols-outlined text-slate-700">arrow_back</span>
+          </button>
+          <h1 className="text-xl font-extrabold tracking-tight text-slate-900">我的勋章墙</h1>
+          <div className="w-10 h-10" />
+        </div>
+        {/* 多孩子切换器 */}
+        {user?.children && user.children.length > 1 && (
+          <div className="flex gap-2 px-4 pb-3 overflow-x-auto no-scrollbar">
+            {user.children.map(child => (
+              <button
+                key={child.id}
+                className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                  currentChild?.id === child.id
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:border-primary/40'
+                }`}
+                onClick={() => setCurrentChild(child)}
+                aria-label={`切换到${child.name}`}
+              >
+                <span className="material-symbols-outlined text-sm">
+                  {child.gender === 'female' ? 'face_3' : 'face'}
+                </span>
+                {child.name}
+              </button>
+            ))}
+          </div>
+        )}
       </header>
 
       <section className="p-6 flex flex-col items-center text-center">
