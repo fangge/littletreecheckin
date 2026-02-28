@@ -8,7 +8,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "server:dev": "cd server && pnpm dev",
+    "server:start": "cd server && pnpm start",
+    "dev:all": "concurrently \"pnpm dev\" \"pnpm server:dev\""
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

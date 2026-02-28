@@ -1,12 +1,72 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { TASKS } from '../constants';
+import { useAuth } from '../contexts/AuthContext';
+import { tasksApi, messagesApi, TaskData } from '../services/api';
 
 interface ParentControlProps {
   onBack: () => void;
 }
 
 export default function ParentControl({ onBack }: ParentControlProps) {
+  const { currentChild } = useAuth();
+  const [tasks, setTasks] = useState<TaskData[]>([]);
+  const [activeTab, setActiveTab] = useState<'pending' | 'approved'>('pending');
+  const [isLoading, setIsLoading] = useState(true);
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [processingId, setProcessingId] = useState<string | null>(null);
+
+  const fetchTasks = async () => {
+    if (!currentChild) return;
+    setIsLoading(true);
+    try {
+      const res = await tasksApi.list(currentChild.id, activeTab);
+      setTasks(res.data);
+    } catch (err) {
+      console.error('获取任务失败:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTasks();
+  }, [currentChild, activeTab]);
+
+  const handleApprove = async (task: TaskData) => {
+    setProcessingId(task.id);
+    try {
+      await tasksApi.approve(task.id);
+      // 发送鼓励消息
+      const note = notes[task.id];
+      if (note && currentChild) {
+        await messagesApi.send(currentChild.id, note);
+      }
+      await fetchTasks();
+    } catch (err) {
+      console.error('审核失败:', err);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleReject = async (task: TaskData) => {
+    setProcessingId(task.id);
+    try {
+      await tasksApi.reject(task.id, notes[task.id]);
+      await fetchTasks();
+    } catch (err) {
+      console.error('拒绝失败:', err);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleQuickNote = (taskId: string, text: string) => {
+    setNotes(prev => ({ ...prev, [taskId]: text }));
+  };
+
+  const pendingCount = tasks.filter(t => t.status === 'pending').length;
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -16,9 +76,10 @@ export default function ParentControl({ onBack }: ParentControlProps) {
       <header className="sticky top-0 z-10 bg-background-light/80 backdrop-blur-md border-b border-primary/10 px-4 py-4">
         <div className="flex items-center justify-between max-w-md mx-auto">
           <div className="flex items-center gap-3">
-            <button 
+            <button
               onClick={onBack}
               className="p-2 hover:bg-primary/10 rounded-full transition-colors"
+              aria-label="返回"
             >
               <span className="material-symbols-outlined">arrow_back</span>
             </button>
@@ -27,79 +88,131 @@ export default function ParentControl({ onBack }: ParentControlProps) {
             </div>
             <h1 className="text-xl font-bold tracking-tight">家长控制</h1>
           </div>
-          <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
-            <span className="material-symbols-outlined">settings</span>
-          </button>
         </div>
       </header>
 
       <div className="px-4 py-4 max-w-md mx-auto w-full">
         <div className="flex p-1 bg-primary/10 rounded-xl">
-          <button className="flex-1 py-2 text-sm font-semibold rounded-lg bg-white shadow-sm text-slate-900">
-            待审核 ({TASKS.length})
+          <button
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${activeTab === 'pending' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-primary'}`}
+            onClick={() => setActiveTab('pending')}
+          >
+            待审核 {pendingCount > 0 && `(${pendingCount})`}
           </button>
-          <button className="flex-1 py-2 text-sm font-semibold text-slate-500 hover:text-primary transition-colors">
+          <button
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${activeTab === 'approved' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-primary'}`}
+            onClick={() => setActiveTab('approved')}
+          >
             已批准
           </button>
         </div>
       </div>
 
       <main className="flex-1 px-4 pb-32 overflow-y-auto max-w-md mx-auto w-full space-y-4">
-        {TASKS.map((task) => (
-          <div key={task.id} className="bg-white rounded-2xl shadow-sm border border-primary/5 overflow-hidden">
-            <div className="p-4 flex gap-4">
-              <div className="w-20 h-20 rounded-xl bg-primary/5 flex items-center justify-center relative overflow-hidden shrink-0 border border-primary/10">
-                <div 
-                  className="absolute inset-0 bg-cover bg-center opacity-80" 
-                  style={{ backgroundImage: `url("${task.image}")` }}
-                ></div>
-                <div className="absolute bottom-1 right-1 bg-white/90 px-1 rounded text-[10px] font-bold text-primary">{task.progress}%</div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start">
-                  <p className="text-xs font-bold uppercase tracking-wider text-primary">{task.type}</p>
-                  <span className="text-[10px] text-slate-400">{task.time}</span>
-                </div>
-                <h3 className="text-lg font-bold text-slate-900 truncate">{task.title}</h3>
-                <p className="text-sm text-slate-500 mt-1">虚拟树：{task.treeName}</p>
-              </div>
-            </div>
-            
-            <div className="px-4 pb-4 space-y-3">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">添加鼓励的话</label>
-                <div className="relative">
-                  <input 
-                    className="w-full bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 placeholder:text-slate-400" 
-                    placeholder="留个便条..." 
-                    type="text" 
-                  />
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
-                    <button className="p-1 hover:bg-primary/10 rounded-full text-lg">❤️</button>
-                    <button className="p-1 hover:bg-primary/10 rounded-full text-lg">⭐</button>
-                    <button className="p-1 hover:bg-primary/10 rounded-full text-lg">👍</button>
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button className="text-[10px] font-semibold px-2 py-1 rounded-full bg-primary/5 text-primary border border-primary/10 hover:bg-primary hover:text-white transition-colors">太棒了！</button>
-                <button className="text-[10px] font-semibold px-2 py-1 rounded-full bg-primary/5 text-primary border border-primary/10 hover:bg-primary hover:text-white transition-colors">继续加油！</button>
-                <button className="text-[10px] font-semibold px-2 py-1 rounded-full bg-primary/5 text-primary border border-primary/10 hover:bg-primary hover:text-white transition-colors">为你感到骄傲！</button>
-              </div>
-            </div>
-            
-            <div className="flex border-t border-primary/5">
-              <button className="flex-1 py-4 flex items-center justify-center gap-2 hover:bg-red-50 text-red-500 transition-colors border-r border-primary/5">
-                <span className="material-symbols-outlined text-xl">cancel</span>
-                <span className="font-bold text-sm">需改进</span>
-              </button>
-              <button className="flex-1 py-4 flex items-center justify-center gap-2 bg-primary/10 hover:bg-primary text-primary hover:text-white transition-all group">
-                <span className="material-symbols-outlined fill-icon text-xl">check_circle</span>
-                <span className="font-bold text-sm">批准并发送</span>
-              </button>
-            </div>
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <span className="material-symbols-outlined text-primary text-4xl animate-pulse">hourglass_empty</span>
           </div>
-        ))}
+        ) : tasks.length === 0 ? (
+          <div className="text-center py-12 text-slate-400">
+            <span className="material-symbols-outlined text-5xl mb-3 block">task_alt</span>
+            <p>{activeTab === 'pending' ? '暂无待审核任务' : '暂无已批准任务'}</p>
+          </div>
+        ) : (
+          tasks.map((task) => (
+            <div key={task.id} className="bg-white rounded-2xl shadow-sm border border-primary/5 overflow-hidden">
+              <div className="p-4 flex gap-4">
+                <div className="w-20 h-20 rounded-xl bg-primary/5 flex items-center justify-center relative overflow-hidden shrink-0 border border-primary/10">
+                  {task.image_url ? (
+                    <div
+                      className="absolute inset-0 bg-cover bg-center opacity-80"
+                      style={{ backgroundImage: `url("${task.image_url}")` }}
+                    />
+                  ) : (
+                    <span className="material-symbols-outlined text-primary text-3xl">task_alt</span>
+                  )}
+                  <div className="absolute bottom-1 right-1 bg-white/90 px-1 rounded text-[10px] font-bold text-primary">{task.progress}%</div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-start">
+                    <p className="text-xs font-bold uppercase tracking-wider text-primary">{task.type}</p>
+                    <span className="text-[10px] text-slate-400">
+                      {new Date(task.checkin_time).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 truncate">{task.title}</h3>
+                  {task.trees && (
+                    <p className="text-sm text-slate-500 mt-1">虚拟树：{task.trees.name}</p>
+                  )}
+                </div>
+              </div>
+
+              {task.status === 'pending' && (
+                <>
+                  <div className="px-4 pb-4 space-y-3">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">添加鼓励的话</label>
+                      <div className="relative">
+                        <input
+                          className="w-full bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 placeholder:text-slate-400 pr-24"
+                          placeholder="留个便条..."
+                          type="text"
+                          value={notes[task.id] || ''}
+                          onChange={e => setNotes(prev => ({ ...prev, [task.id]: e.target.value }))}
+                          aria-label="鼓励留言"
+                        />
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
+                          <button className="p-1 hover:bg-primary/10 rounded-full text-lg" onClick={() => handleQuickNote(task.id, '❤️ 太棒了！')}>❤️</button>
+                          <button className="p-1 hover:bg-primary/10 rounded-full text-lg" onClick={() => handleQuickNote(task.id, '⭐ 继续加油！')}>⭐</button>
+                          <button className="p-1 hover:bg-primary/10 rounded-full text-lg" onClick={() => handleQuickNote(task.id, '👍 为你骄傲！')}>👍</button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {['太棒了！', '继续加油！', '为你感到骄傲！'].map(text => (
+                        <button
+                          key={text}
+                          className="text-[10px] font-semibold px-2 py-1 rounded-full bg-primary/5 text-primary border border-primary/10 hover:bg-primary hover:text-white transition-colors"
+                          onClick={() => handleQuickNote(task.id, text)}
+                        >
+                          {text}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex border-t border-primary/5">
+                    <button
+                      className="flex-1 py-4 flex items-center justify-center gap-2 hover:bg-red-50 text-red-500 transition-colors border-r border-primary/5 disabled:opacity-50"
+                      onClick={() => handleReject(task)}
+                      disabled={processingId === task.id}
+                      aria-label="拒绝任务"
+                    >
+                      <span className="material-symbols-outlined text-xl">cancel</span>
+                      <span className="font-bold text-sm">需改进</span>
+                    </button>
+                    <button
+                      className="flex-1 py-4 flex items-center justify-center gap-2 bg-primary/10 hover:bg-primary text-primary hover:text-white transition-all disabled:opacity-50"
+                      onClick={() => handleApprove(task)}
+                      disabled={processingId === task.id}
+                      aria-label="批准任务"
+                    >
+                      <span className="material-symbols-outlined fill-icon text-xl">check_circle</span>
+                      <span className="font-bold text-sm">{processingId === task.id ? '处理中...' : '批准并发送'}</span>
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {task.status === 'approved' && (
+                <div className="px-4 pb-4 flex items-center gap-2 text-primary">
+                  <span className="material-symbols-outlined fill-icon">check_circle</span>
+                  <span className="text-sm font-semibold">已批准</span>
+                </div>
+              )}
+            </div>
+          ))
+        )}
       </main>
     </motion.div>
   );
