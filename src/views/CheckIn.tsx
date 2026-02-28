@@ -3,9 +3,10 @@ import { motion } from 'motion/react';
 
 interface CheckInProps {
   onViewMessages: () => void;
+  onViewProfile: () => void;
 }
 
-export default function CheckIn({ onViewMessages }: CheckInProps) {
+export default function CheckIn({ onViewMessages, onViewProfile }: CheckInProps) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -13,9 +14,12 @@ export default function CheckIn({ onViewMessages }: CheckInProps) {
       className="flex-1 flex flex-col items-center p-6 space-y-8 overflow-y-auto pb-32"
     >
       <header className="w-full flex items-center bg-background-light/80 backdrop-blur-md sticky top-0 z-10 py-4 justify-between">
-        <div className="text-slate-900 flex size-12 shrink-0 items-center justify-start">
+        <button 
+          onClick={onViewProfile}
+          className="text-slate-900 flex size-12 shrink-0 items-center justify-start hover:text-primary transition-colors"
+        >
           <span className="material-symbols-outlined text-2xl">settings</span>
-        </div>
+        </button>
         <h2 className="text-slate-900 text-lg font-bold leading-tight tracking-tight flex-1 text-center font-display">每日打卡</h2>
         <div className="flex w-12 items-center justify-end">
           <button 

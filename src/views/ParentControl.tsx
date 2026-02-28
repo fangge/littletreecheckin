@@ -2,7 +2,11 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { TASKS } from '../constants';
 
-export default function ParentControl() {
+interface ParentControlProps {
+  onBack: () => void;
+}
+
+export default function ParentControl({ onBack }: ParentControlProps) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -12,6 +16,12 @@ export default function ParentControl() {
       <header className="sticky top-0 z-10 bg-background-light/80 backdrop-blur-md border-b border-primary/10 px-4 py-4">
         <div className="flex items-center justify-between max-w-md mx-auto">
           <div className="flex items-center gap-3">
+            <button 
+              onClick={onBack}
+              className="p-2 hover:bg-primary/10 rounded-full transition-colors"
+            >
+              <span className="material-symbols-outlined">arrow_back</span>
+            </button>
             <div className="p-2 rounded-lg bg-primary/10 text-primary">
               <span className="material-symbols-outlined">shield_person</span>
             </div>

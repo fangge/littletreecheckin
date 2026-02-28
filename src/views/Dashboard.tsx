@@ -5,9 +5,10 @@ import { TREES } from '../constants';
 interface DashboardProps {
   onAddGoal: () => void;
   onViewStore: () => void;
+  onViewProfile: () => void;
 }
 
-export default function Dashboard({ onAddGoal, onViewStore }: DashboardProps) {
+export default function Dashboard({ onAddGoal, onViewStore, onViewProfile }: DashboardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -15,9 +16,12 @@ export default function Dashboard({ onAddGoal, onViewStore }: DashboardProps) {
       className="flex-1 overflow-y-auto pb-32"
     >
       <header className="sticky top-0 z-10 flex items-center bg-background-light/80 backdrop-blur-md p-4 pb-2 justify-between border-b border-primary/10">
-        <div className="flex size-12 shrink-0 items-center justify-start">
-          <span className="material-symbols-outlined text-slate-900 text-2xl">settings</span>
-        </div>
+        <button 
+          onClick={onViewProfile}
+          className="flex size-12 shrink-0 items-center justify-start hover:text-primary transition-colors"
+        >
+          <span className="material-symbols-outlined text-2xl">settings</span>
+        </button>
         <h1 className="text-slate-900 text-xl font-bold leading-tight tracking-tight flex-1 text-center">我的森林</h1>
         <div className="flex size-12 items-center justify-end">
           <button 
