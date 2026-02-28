@@ -14,6 +14,7 @@ import ParentControl from './views/ParentControl';
 import Store from './views/Store';
 import GoalSetting from './views/GoalSetting';
 import Register from './views/Register';
+import Login from './views/Login';
 import Profile from './views/Profile';
 import CelebrationPopup from './components/CelebrationPopup';
 
@@ -46,7 +47,7 @@ export default function App() {
         return (
           <Profile 
             onBack={() => setCurrentView('forest')} 
-            onLogout={() => setCurrentView('register')} 
+            onLogout={() => setCurrentView('login')} 
             onViewParentControl={() => setCurrentView('parent-control')}
           />
         );
@@ -54,14 +55,28 @@ export default function App() {
         return (
           <Profile 
             onBack={() => setCurrentView('forest')} 
-            onLogout={() => setCurrentView('register')} 
+            onLogout={() => setCurrentView('login')} 
             onViewParentControl={() => setCurrentView('parent-control')}
           />
         );
       case 'parent-control':
         return <ParentControl onBack={() => setCurrentView('parent')} />;
       case 'register':
-        return <Register onBack={() => setCurrentView('forest')} onLogin={() => setCurrentView('forest')} onRegisterSuccess={() => setCurrentView('forest')} />;
+        return (
+          <Register 
+            onBack={() => setCurrentView('login')} 
+            onLogin={() => setCurrentView('login')} 
+            onRegisterSuccess={() => setCurrentView('forest')} 
+          />
+        );
+      case 'login':
+        return (
+          <Login 
+            onBack={() => setCurrentView('forest')} 
+            onRegister={() => setCurrentView('register')} 
+            onLoginSuccess={() => setCurrentView('forest')} 
+          />
+        );
       case 'store':
         return <Store onBack={() => setCurrentView('forest')} />;
       case 'add-goal':
@@ -81,8 +96,8 @@ export default function App() {
     <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-background-light max-w-md mx-auto shadow-2xl">
       {renderView()}
       
-      {/* Navigation is hidden in GoalSetting and Register views for a cleaner look */}
-      {!['add-goal', 'register'].includes(currentView) && (
+      {/* Navigation is hidden in GoalSetting, Register, and Login views for a cleaner look */}
+      {!['add-goal', 'register', 'login'].includes(currentView) && (
         <Navigation currentView={currentView} onViewChange={setCurrentView} />
       )}
 

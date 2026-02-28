@@ -83,12 +83,13 @@ export default function Register({ onBack, onLogin, onRegisterSuccess }: Registe
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col">
-                <select className="form-select w-full rounded-xl border-slate-200 bg-white text-slate-900 h-12 text-sm focus:border-primary focus:ring-1 focus:ring-primary">
-                  <option disabled selected value="">年龄</option>
-                  {[...Array(10)].map((_, i) => (
-                    <option key={i + 3}>{i + 3}岁</option>
-                  ))}
-                </select>
+                <input 
+                  className="form-input w-full rounded-xl border-slate-200 bg-white text-slate-900 h-12 text-sm placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary" 
+                  placeholder="年龄" 
+                  type="number"
+                  min="1"
+                  max="18"
+                />
               </div>
               <div className="flex gap-1 bg-white rounded-xl border border-slate-200 p-1">
                 <button className="flex-1 rounded-lg text-xs font-medium py-2 bg-primary text-white shadow-sm">男孩</button>
