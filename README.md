@@ -1,20 +1,45 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 成就丛林 (Achievement Forest)
 
-# Run and deploy your AI Studio app
+成就丛林是一款专为儿童和青少年设计的习惯养成与目标管理应用。通过将枯燥的日常任务转化为趣味十足的虚拟森林养成游戏，激发孩子的内在动力，培养良好的生活与学习习惯。
 
-This contains everything you need to run your app locally.
+## 🌟 核心功能
 
-View your app in AI Studio: https://ai.studio/apps/12ef2892-1b82-4eb6-b862-678c2d4830b0
+### 1. 我的森林 (Growth Forest)
+*   **可视化成长**：每个好习惯都对应一棵独特的虚拟树木。随着任务的完成，树木会从幼苗逐渐成长为参天大树。
+*   **森林健康度**：实时展示森林的整体生长状态，激励孩子保持连贯的打卡记录。
+*   **快捷入口**：首页提供明显的“设置新目标”入口，鼓励孩子不断挑战自我。
 
-## Run Locally
+### 2. 每日打卡 (Daily Check-in)
+*   **趣味交互**：沉浸式的打卡界面，通过“浇水”等动作完成任务，体验成长的快乐。
+*   **进度追踪**：清晰展示距离果实成熟还需完成的任务数量。
 
-**Prerequisites:**  Node.js
+### 3. 家长中心与个人管理 (Parent Center & Profile)
+*   **多角色支持**：家长可以注册账户并管理多个孩子的信息。
+*   **家长审核**：家长可以实时查看并审核孩子的任务完成情况，发送鼓励贴纸和评语。
+*   **个人中心**：便捷管理账户设置、修改密码及维护家庭成员信息。
 
+### 4. 奖励与成就 (Rewards & Medals)
+*   **果实商店**：孩子通过努力赚取的“魔法果实”可以在商店兑换家长预设的实物或活动奖励。
+*   **勋章墙**：记录每一个里程碑时刻，收集精美勋章，见证成长足迹。
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### 5. 互动消息 (Messages)
+*   **亲子互动**：孩子可以收到来自家长的即时反馈和鼓励，增强情感纽带。
+
+## 🛠️ 技术栈
+
+*   **前端框架**：React 18
+*   **样式处理**：Tailwind CSS
+*   **动画效果**：Motion (framer-motion)
+*   **图标库**：Material Symbols & Lucide React
+*   **构建工具**：Vite
+
+## 🚀 快速开始
+
+1.  **注册账户**：在注册页面创建家长账户，并添加孩子的信息。
+2.  **设定目标**：在首页点击“添加新目标”，为孩子设定第一个好习惯。
+3.  **开始打卡**：孩子在“任务”页面进行每日打卡。
+4.  **家长审核**：家长通过“家长中心”进入审核页面，批准任务并发送鼓励。
+5.  **兑换奖励**：当果实成熟后，在“果实商店”兑换心仪的奖励。
+
+---
+*成就丛林，让每一个好习惯都开花结果。*
