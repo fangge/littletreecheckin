@@ -86,6 +86,7 @@ export interface GoalData {
 
 export interface TaskData {
   id: string;
+  goal_id?: string;
   title: string;
   type: string;
   status: 'pending' | 'approved' | 'rejected';
@@ -205,6 +206,30 @@ export const treesApi = {
     request<{ data: { goal: GoalData; tree: TreeData } }>(
       `/api/v1/children/${childId}/goals`,
       { method: 'POST', body: JSON.stringify(goal) }
+    ),
+
+  listGoals: (childId: string, activeOnly = false) =>
+    request<{ data: Array<GoalData & { trees?: TreeData[] }> }>(
+      `/api/v1/children/${childId}/goals${activeOnly ? '?active=true' : ''}`
+    ),
+
+  updateGoal: (goalId: string, data: {
+    title?: string;
+    icon?: string;
+    duration_days?: number;
+    duration_minutes?: number;
+    reward_tree_name?: string;
+    child_id?: string;
+  }) =>
+    request<{ data: GoalData }>(
+      `/api/v1/goals/${goalId}`,
+      { method: 'PUT', body: JSON.stringify(data) }
+    ),
+
+  deleteGoal: (goalId: string) =>
+    request<{ message: string }>(
+      `/api/v1/goals/${goalId}`,
+      { method: 'DELETE' }
     ),
 };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { tasksApi, messagesApi, TaskData } from '../services/api';
@@ -7,39 +7,60 @@ interface ParentControlProps {
   onBack: () => void;
 }
 
+// 任务数据扩展：附带孩子姓名
+interface TaskWithChild extends TaskData {
+  childName?: string;
+  childId?: string;
+}
+
 export default function ParentControl({ onBack }: ParentControlProps) {
-  const { currentChild } = useAuth();
-  const [tasks, setTasks] = useState<TaskData[]>([]);
+  const { user } = useAuth();
+  const [tasks, setTasks] = useState<TaskWithChild[]>([]);
   const [activeTab, setActiveTab] = useState<'pending' | 'approved'>('pending');
   const [isLoading, setIsLoading] = useState(true);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [processingId, setProcessingId] = useState<string | null>(null);
 
-  const fetchTasks = async () => {
-    if (!currentChild) return;
+  const fetchTasks = useCallback(async () => {
+    if (!user?.children || user.children.length === 0) return;
     setIsLoading(true);
     try {
-      const res = await tasksApi.list(currentChild.id, activeTab);
-      setTasks(res.data);
+      // 并行获取所有孩子的任务
+      const results = await Promise.all(
+        user.children.map(child =>
+          tasksApi.list(child.id, activeTab).then(res =>
+            res.data.map(task => ({
+              ...task,
+              childName: child.name,
+              childId: child.id,
+            }))
+          )
+        )
+      );
+      // 合并并按打卡时间倒序排列
+      const allTasks = results.flat().sort(
+        (a, b) => new Date(b.checkin_time).getTime() - new Date(a.checkin_time).getTime()
+      );
+      setTasks(allTasks);
     } catch (err) {
       console.error('获取任务失败:', err);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.children, activeTab]);
 
   useEffect(() => {
     fetchTasks();
-  }, [currentChild, activeTab]);
+  }, [fetchTasks]);
 
-  const handleApprove = async (task: TaskData) => {
+  const handleApprove = async (task: TaskWithChild) => {
     setProcessingId(task.id);
     try {
       await tasksApi.approve(task.id);
-      // 发送鼓励消息
+      // 发送鼓励消息给对应孩子
       const note = notes[task.id];
-      if (note && currentChild) {
-        await messagesApi.send(currentChild.id, note);
+      if (note && task.childId) {
+        await messagesApi.send(task.childId, note);
       }
       await fetchTasks();
     } catch (err) {
@@ -49,7 +70,7 @@ export default function ParentControl({ onBack }: ParentControlProps) {
     }
   };
 
-  const handleReject = async (task: TaskData) => {
+  const handleReject = async (task: TaskWithChild) => {
     setProcessingId(task.id);
     try {
       await tasksApi.reject(task.id, notes[task.id]);
@@ -88,6 +109,12 @@ export default function ParentControl({ onBack }: ParentControlProps) {
             </div>
             <h1 className="text-xl font-bold tracking-tight">家长控制</h1>
           </div>
+          {/* 显示孩子数量 */}
+          {user?.children && user.children.length > 1 && (
+            <span className="text-xs text-slate-400 bg-white px-2 py-1 rounded-full border border-slate-200">
+              {user.children.length} 个孩子
+            </span>
+          )}
         </div>
       </header>
 
@@ -135,8 +162,16 @@ export default function ParentControl({ onBack }: ParentControlProps) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start">
-                    <p className="text-xs font-bold uppercase tracking-wider text-primary">{task.type}</p>
-                    <span className="text-[10px] text-slate-400">
+                    <div className="flex items-center gap-1.5">
+                      {/* 孩子姓名标签 */}
+                      {task.childName && (
+                        <span className="text-[10px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                          {task.childName}
+                        </span>
+                      )}
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{task.type}</p>
+                    </div>
+                    <span className="text-[10px] text-slate-400 shrink-0 ml-1">
                       {new Date(task.checkin_time).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
@@ -151,7 +186,9 @@ export default function ParentControl({ onBack }: ParentControlProps) {
                 <>
                   <div className="px-4 pb-4 space-y-3">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">添加鼓励的话</label>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                        给 {task.childName || '孩子'} 留言
+                      </label>
                       <div className="relative">
                         <input
                           className="w-full bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 placeholder:text-slate-400 pr-24"

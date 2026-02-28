@@ -1,6 +1,17 @@
 import express, { Express } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+
+// 使用文件绝对路径定位 .env（server/src/ -> server/ -> 项目根目录）
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const rootDir = resolve(__dirname, '../..');
+// .env.local 优先级高于 .env
+dotenv.config({ path: resolve(rootDir, '.env.local') });
+dotenv.config({ path: resolve(rootDir, '.env') });
+
 import { errorHandler } from './middleware/errorHandler.js';
 import authRouter from './routes/auth.js';
 import childrenRouter from './routes/children.js';
@@ -9,8 +20,7 @@ import tasksRouter from './routes/tasks.js';
 import medalsRouter from './routes/medals.js';
 import rewardsRouter from './routes/rewards.js';
 import messagesRouter from './routes/messages.js';
-
-dotenv.config({ path: '../.env' });
+import goalsRouter from './routes/goals.js';
 
 const app: Express = express();
 const PORT = process.env.PORT || 3001;
@@ -48,6 +58,8 @@ app.use('/api/v1/children', messagesRouter);
 app.use('/api/v1/rewards', rewardsRouter);
 app.use('/api/v1/trees', treesRouter);
 app.use('/api/v1/tasks', tasksRouter);
+app.use('/api/v1/messages', messagesRouter);
+app.use('/api/v1/goals', goalsRouter);
 
 // ============================================================
 // 错误处理

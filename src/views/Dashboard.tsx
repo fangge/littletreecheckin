@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
-import { treesApi, childrenApi, TreeData, StatsData } from '../services/api';
+import { treesApi, childrenApi, TreeData, StatsData, GoalData } from '../services/api';
 
 interface DashboardProps {
   onAddGoal: () => void;
   onViewStore: () => void;
   onViewProfile: () => void;
+  onEditGoal: (goal: GoalData & { childId?: string }) => void;
 }
 
-export default function Dashboard({ onAddGoal, onViewStore, onViewProfile }: DashboardProps) {
-  const { currentChild } = useAuth();
+export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEditGoal }: DashboardProps) {
+  const { user, currentChild, setCurrentChild } = useAuth();
   const [trees, setTrees] = useState<TreeData[]>([]);
+  const [goals, setGoals] = useState<GoalData[]>([]);
   const [stats, setStats] = useState<StatsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -21,12 +23,14 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile }: Das
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const [treesRes, statsRes] = await Promise.all([
+        const [treesRes, statsRes, goalsRes] = await Promise.all([
           treesApi.list(currentChild.id),
           childrenApi.stats(currentChild.id),
+          treesApi.listGoals(currentChild.id),
         ]);
         setTrees(treesRes.data);
         setStats(statsRes.data);
+        setGoals(goalsRes.data);
       } catch (err) {
         console.error('获取数据失败:', err);
       } finally {
@@ -37,32 +41,68 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile }: Das
     fetchData();
   }, [currentChild]);
 
+  // 通过 goal_id 找到对应的目标
+  const getGoalForTree = (tree: TreeData): GoalData | undefined => {
+    if (!tree.goal_id) return undefined;
+    return goals.find(g => g.id === tree.goal_id);
+  };
+
+  const handleEditTree = (tree: TreeData) => {
+    const goal = getGoalForTree(tree);
+    if (!goal) return;
+    onEditGoal({ ...goal, childId: currentChild?.id });
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="flex-1 overflow-y-auto pb-32"
     >
-      <header className="sticky top-0 z-10 flex items-center bg-background-light/80 backdrop-blur-md p-4 pb-2 justify-between border-b border-primary/10">
-        <button
-          onClick={onViewProfile}
-          className="flex size-12 shrink-0 items-center justify-start hover:text-primary transition-colors"
-          aria-label="设置"
-        >
-          <span className="material-symbols-outlined text-2xl">settings</span>
-        </button>
-        <h1 className="text-slate-900 text-xl font-bold leading-tight tracking-tight flex-1 text-center">
-          {currentChild ? `${currentChild.name}的森林` : '我的森林'}
-        </h1>
-        <div className="flex size-12 items-center justify-end">
+      <header className="sticky top-0 z-10 bg-background-light/80 backdrop-blur-md border-b border-primary/10">
+        <div className="flex items-center p-4 pb-2 justify-between">
           <button
-            onClick={onViewStore}
-            className="flex size-10 cursor-pointer items-center justify-center rounded-full bg-primary/20 text-slate-900"
-            aria-label="商店"
+            onClick={onViewProfile}
+            className="flex size-12 shrink-0 items-center justify-start hover:text-primary transition-colors"
+            aria-label="设置"
           >
-            <span className="material-symbols-outlined text-2xl">storefront</span>
+            <span className="material-symbols-outlined text-2xl">settings</span>
           </button>
+          <h1 className="text-slate-900 text-xl font-bold leading-tight tracking-tight flex-1 text-center">
+            {currentChild ? `${currentChild.name}的森林` : '我的森林'}
+          </h1>
+          <div className="flex size-12 items-center justify-end">
+            <button
+              onClick={onViewStore}
+              className="flex size-10 cursor-pointer items-center justify-center rounded-full bg-primary/20 text-slate-900"
+              aria-label="商店"
+            >
+              <span className="material-symbols-outlined text-2xl">storefront</span>
+            </button>
+          </div>
         </div>
+        {/* 多孩子切换器 */}
+        {user?.children && user.children.length > 1 && (
+          <div className="flex gap-2 px-4 pb-3 overflow-x-auto no-scrollbar">
+            {user.children.map(child => (
+              <button
+                key={child.id}
+                className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                  currentChild?.id === child.id
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:border-primary/40'
+                }`}
+                onClick={() => setCurrentChild(child)}
+                aria-label={`切换到${child.name}`}
+              >
+                <span className="material-symbols-outlined text-sm">
+                  {child.gender === 'female' ? 'face_3' : 'face'}
+                </span>
+                {child.name}
+              </button>
+            ))}
+          </div>
+        )}
       </header>
 
       <div className="flex gap-3 p-4 overflow-x-auto no-scrollbar">
@@ -130,37 +170,52 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile }: Das
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4 p-4">
-          {trees.map((tree) => (
-            <div key={tree.id} className="relative group">
-              <div
-                className="bg-cover bg-center flex flex-col gap-3 rounded-xl justify-end p-4 aspect-square overflow-hidden shadow-lg shadow-primary/5"
-                style={{
-                  backgroundImage: tree.image
-                    ? `linear-gradient(0deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 60%), url("${tree.image}")`
-                    : 'linear-gradient(135deg, #4ade80 0%, #16a34a 100%)',
-                }}
-              >
-                <div className="flex items-center justify-between">
-                  <p className="text-white text-base font-bold leading-tight">{tree.name}</p>
-                  {tree.status === 'completed' ? (
-                    <span className="material-symbols-outlined text-primary text-sm font-bold fill-icon">check_circle</span>
-                  ) : (
-                    <div className="bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-sm">
-                      <span className="text-[10px] text-white font-bold">{tree.level} 级</span>
+          {trees.map((tree) => {
+            const goal = getGoalForTree(tree);
+            return (
+              <div key={tree.id} className="relative group">
+                {/* 编辑按钮：绝对定位在卡片右上角 */}
+                {goal && goal.is_active && (
+                  <button
+                    className="absolute top-2 right-2 z-10 bg-white/90 backdrop-blur-sm rounded-lg p-1.5 shadow-sm hover:bg-white active:scale-90 transition-all"
+                    onClick={e => { e.stopPropagation(); handleEditTree(tree); }}
+                    aria-label={`编辑${tree.name}目标`}
+                  >
+                    <span className="material-symbols-outlined text-slate-700 text-base leading-none">edit</span>
+                  </button>
+                )}
+                <div
+                  className="bg-cover bg-center flex flex-col gap-3 rounded-xl justify-end p-4 aspect-square overflow-hidden shadow-lg shadow-primary/5"
+                  style={{
+                    backgroundImage: tree.image
+                      ? `linear-gradient(0deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 60%), url("${tree.image}")`
+                      : 'linear-gradient(135deg, #4ade80 0%, #16a34a 100%)',
+                  }}
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-white text-base font-bold leading-tight">{tree.name}</p>
+                    <div className="flex items-center gap-1.5">
+                      {tree.status === 'completed' ? (
+                        <span className="material-symbols-outlined text-primary text-sm font-bold fill-icon">check_circle</span>
+                      ) : (
+                        <div className="bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-sm">
+                          <span className="text-[10px] text-white font-bold">{tree.level} 级</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {tree.status === 'growing' && (
+                    <div className="w-full bg-white/20 rounded-full h-1.5">
+                      <div
+                        className="bg-primary h-1.5 rounded-full transition-all"
+                        style={{ width: `${tree.progress}%` }}
+                      />
                     </div>
                   )}
                 </div>
-                {tree.status === 'growing' && (
-                  <div className="w-full bg-white/20 rounded-full h-1.5">
-                    <div
-                      className="bg-primary h-1.5 rounded-full transition-all"
-                      style={{ width: `${tree.progress}%` }}
-                    />
-                  </div>
-                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {/* Add Goal Entry */}
           <button

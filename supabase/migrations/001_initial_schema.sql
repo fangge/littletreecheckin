@@ -94,8 +94,8 @@ CREATE TABLE IF NOT EXISTS tasks (
 CREATE INDEX idx_tasks_child_id ON tasks(child_id);
 CREATE INDEX idx_tasks_goal_id ON tasks(goal_id);
 CREATE INDEX idx_tasks_status ON tasks(status);
--- 防止同一天对同一目标重复打卡
-CREATE UNIQUE INDEX idx_tasks_daily_checkin ON tasks(goal_id, DATE(checkin_time));
+-- 打卡时间索引（重复打卡防护由后端业务逻辑控制）
+CREATE INDEX idx_tasks_checkin_time ON tasks(goal_id, checkin_time);
 
 -- ============================================================
 -- 6. 勋章定义表

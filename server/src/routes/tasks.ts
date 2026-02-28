@@ -26,7 +26,7 @@ router.get('/:childId/tasks', authMiddleware, async (req: AuthRequest, res: Resp
   let query = supabase
     .from('tasks')
     .select(`
-      id, title, type, status, checkin_time, image_url, progress, reject_reason, created_at,
+      id, goal_id, title, type, status, checkin_time, image_url, progress, reject_reason, created_at,
       goals(title, icon),
       trees(name, image)
     `)
@@ -74,18 +74,29 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
     return;
   }
 
-  // 检查今日是否已打卡（利用数据库唯一索引）
+  // 获取孩子姓名（用于 type 字段显示）
+  const { data: childInfo } = await supabase
+    .from('children')
+    .select('name')
+    .eq('id', child_id)
+    .single();
+
+  // 检查今日是否已打卡（排除已拒绝的任务，允许重新打卡）
   const today = new Date().toISOString().split('T')[0];
   const { data: existingTask } = await supabase
     .from('tasks')
-    .select('id')
+    .select('id, status')
     .eq('goal_id', goal_id)
+    .neq('status', 'rejected')
     .gte('checkin_time', `${today}T00:00:00.000Z`)
     .lte('checkin_time', `${today}T23:59:59.999Z`)
     .single();
 
   if (existingTask) {
-    res.status(409).json({ error: '今日已打卡，请等待家长审核' });
+    const msg = existingTask.status === 'approved'
+      ? '今日任务已审核通过，无需重复打卡'
+      : '今日已打卡，请等待家长审核';
+    res.status(409).json({ error: msg });
     return;
   }
 
@@ -96,6 +107,8 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
     .eq('goal_id', goal_id)
     .single();
 
+  const childName = childInfo?.name || '孩子';
+
   const { data: task, error } = await supabase
     .from('tasks')
     .insert({
@@ -103,7 +116,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
       child_id,
       tree_id: tree?.id || null,
       title: goal.title,
-      type: `${child_id}的每日习惯`,
+      type: `${childName}的每日习惯`,
       status: 'pending',
       checkin_time: new Date().toISOString(),
       image_url: image_url || null,
