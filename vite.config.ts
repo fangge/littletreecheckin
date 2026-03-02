@@ -17,8 +17,16 @@ export default defineConfig(({mode}) => {
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
+      // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
+      // 本地开发：将 /api 请求代理到后端服务器，避免跨域问题
+      // 生产环境（Vercel）：/api 请求由 Vercel Serverless Function 处理，无需代理
+      proxy: {
+        '/api': {
+          target: `http://localhost:${env.PORT || '3001'}`,
+          changeOrigin: true,
+        },
+      },
     },
   };
 });

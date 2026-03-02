@@ -2,7 +2,9 @@
 // 前端 API 服务层 - 统一封装所有后端 API 调用
 // ============================================================
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// 生产环境（Vercel）：前后端同域，使用相对路径
+// 本地开发：Vite 代理 /api 到 localhost:3001（见 vite.config.ts）
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 // ============================================================
 // HTTP 客户端基础封装

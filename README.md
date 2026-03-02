@@ -363,6 +363,84 @@ littletreecheckin/
 
 ```bash
 pnpm dev              # 启动前端开发服务器（端口 3000）
-pnpm build            # 构建前端生产包
+pnpm build            # 构建前端生产包（输出到 dist/）
+pnpm server:dev       # 启动后端开发服务器（端口 3001，热重载）
+pnpm server:start     # 启动后端生产服务器
+```
+
+---
+
+## 线上部署
+
+本项目采用**前后端分离部署**方案：
+
+| 服务 | 推荐平台 | 说明 |
+|------|----------|------|
+| 前端 | [Vercel](https://vercel.com) | 自动检测 Vite，免费套餐 |
+| 后端 | [Railway](https://railway.app) 或 [Render](https://render.com) | 支持 Node.js，免费套餐 |
+| 数据库 | [Supabase](https://supabase.com) | 已配置，免费套餐 |
+
+### 前端部署到 Vercel
+
+1. 将代码推送到 GitHub 仓库
+
+2. 在 [Vercel](https://vercel.com) 导入该仓库
+
+3. Vercel 会自动检测 Vite 配置，构建命令和输出目录已通过 [`vercel.json`](vercel.json) 预配置
+
+4. 在 Vercel 项目设置 → **Environment Variables** 中添加：
+   ```
+   VITE_API_URL=https://your-backend-url.railway.app
+   ```
+
+5. 点击 **Deploy** 完成部署
+
+### 后端部署到 Railway
+
+1. 在 [Railway](https://railway.app) 创建新项目，选择 **Deploy from GitHub repo**
+
+2. 选择仓库后，在项目设置中指定 **Root Directory** 为 `server`
+
+3. Railway 会自动执行 `pnpm install && pnpm build && pnpm start`
+
+4. 在 Railway 项目的 **Variables** 中添加所有环境变量：
+   ```
+   SUPABASE_URL=...
+   SUPABASE_SERVICE_KEY=...
+   JWT_SECRET=...
+   JWT_EXPIRES_IN=7d
+   PORT=3001
+   NODE_ENV=production
+   ```
+
+5. 在 Railway 的 **Settings → Networking** 中生成公开域名，将该域名填入 Vercel 的 `VITE_API_URL`
+
+### 后端部署到 Render（备选）
+
+1. 在 [Render](https://render.com) 创建 **New Web Service**
+
+2. 连接 GitHub 仓库，设置：
+   - **Root Directory**：`server`
+   - **Build Command**：`pnpm install && pnpm build`
+   - **Start Command**：`pnpm start`
+
+3. 添加环境变量（同 Railway）
+
+4. 部署完成后获取服务 URL，填入 Vercel 的 `VITE_API_URL`
+
+### 生产环境注意事项
+
+- 确保 `JWT_SECRET` 使用强随机密钥（至少 32 位）
+- `SUPABASE_SERVICE_KEY` 只在后端使用，不要暴露给前端
+- 前端的 `VITE_API_URL` 必须指向后端的**完整 URL**（含 `https://`）
+- 后端需要配置 CORS 允许 Vercel 域名（已在 `server/src/index.ts` 中通过 `APP_URL` 环境变量控制）
+
+---
+
+## 可用脚本（开发环境）
+
+```bash
+pnpm dev              # 启动前端开发服务器（端口 3000）
+pnpm build            # 构建前端生产包（输出到 dist/）
 pnpm server:dev       # 启动后端开发服务器（端口 3001，热重载）
 pnpm server:start     # 启动后端生产服务器
