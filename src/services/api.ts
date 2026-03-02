@@ -197,8 +197,10 @@ export const childrenApi = {
       method: 'DELETE',
     }),
 
-  stats: (childId: string) =>
-    request<{ data: StatsData }>(`/api/v1/children/${childId}/stats`),
+  stats: (childId: string, period?: 'month' | 'quarter' | 'year') =>
+    request<{ data: StatsData }>(
+      `/api/v1/children/${childId}/stats${period ? `?period=${period}` : ''}`
+    ),
 };
 
 // ============================================================

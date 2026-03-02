@@ -10,12 +10,21 @@ interface DashboardProps {
   onEditGoal: (goal: GoalData & { childId?: string }) => void;
 }
 
+type TimeFilter = 'month' | 'quarter' | 'year';
+
+const TIME_FILTER_LABELS: Record<TimeFilter, string> = {
+  month: '本月',
+  quarter: '上季度',
+  year: '过去一年',
+};
+
 export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEditGoal }: DashboardProps) {
   const { user, currentChild, setCurrentChild } = useAuth();
   const [trees, setTrees] = useState<TreeData[]>([]);
   const [goals, setGoals] = useState<GoalData[]>([]);
   const [stats, setStats] = useState<StatsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('month');
 
   useEffect(() => {
     if (!currentChild) return;
@@ -25,7 +34,7 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
       try {
         const [treesRes, statsRes, goalsRes] = await Promise.all([
           treesApi.list(currentChild.id),
-          childrenApi.stats(currentChild.id),
+          childrenApi.stats(currentChild.id, timeFilter),
           treesApi.listGoals(currentChild.id),
         ]);
         setTrees(treesRes.data);
@@ -39,7 +48,11 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
     };
 
     fetchData();
-  }, [currentChild]);
+  }, [currentChild, timeFilter]);
+
+  const handleTimeFilterChange = (filter: TimeFilter) => {
+    setTimeFilter(filter);
+  };
 
   // 通过 goal_id 找到对应的目标
   const getGoalForTree = (tree: TreeData): GoalData | undefined => {
@@ -106,15 +119,21 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
       </header>
 
       <div className="flex gap-3 p-4 overflow-x-auto no-scrollbar">
-        <button className="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-full bg-primary px-6 transition-all">
-          <p className="text-white text-sm font-bold leading-normal">本月</p>
-        </button>
-        <button className="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-full bg-primary/10 px-6">
-          <p className="text-slate-700 text-sm font-medium leading-normal">上季度</p>
-        </button>
-        <button className="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-full bg-primary/10 px-6">
-          <p className="text-slate-700 text-sm font-medium leading-normal">过去一年</p>
-        </button>
+        {(Object.keys(TIME_FILTER_LABELS) as TimeFilter[]).map(filter => (
+          <button
+            key={filter}
+            className={`flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-full px-6 transition-all ${
+              timeFilter === filter
+                ? 'bg-primary text-white font-bold'
+                : 'bg-primary/10 text-slate-700 font-medium hover:bg-primary/20'
+            }`}
+            onClick={() => handleTimeFilterChange(filter)}
+            aria-label={`筛选${TIME_FILTER_LABELS[filter]}数据`}
+            aria-pressed={timeFilter === filter}
+          >
+            <p className="text-sm leading-normal">{TIME_FILTER_LABELS[filter]}</p>
+          </button>
+        ))}
       </div>
 
       <div className="px-4 py-2">

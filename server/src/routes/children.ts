@@ -138,9 +138,10 @@ router.delete('/:userId/children/:childId', authMiddleware, async (req: AuthRequ
   res.json({ message: '删除成功' });
 });
 
-// GET /api/v1/children/:childId/stats
+// GET /api/v1/children/:childId/stats?period=month|quarter|year
 router.get('/:childId/stats', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { childId } = req.params;
+  const { period } = req.query; // 'month' | 'quarter' | 'year'，默认最近7天
 
   // 验证孩子属于当前家长
   const { data: child } = await supabase
@@ -155,47 +156,77 @@ router.get('/:childId/stats', authMiddleware, async (req: AuthRequest, res: Resp
     return;
   }
 
-  // 获取最近7天任务完成情况（计算森林健康度）
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  // 根据 period 计算时间范围
+  const now = new Date();
+  let startDate: Date;
+  let endDate: Date = now;
 
-  const { data: recentTasks } = await supabase
+  switch (period) {
+    case 'month': {
+      // 本月：当月1日到今天
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      break;
+    }
+    case 'quarter': {
+      // 上季度：上个季度的完整时间段
+      const currentQuarter = Math.floor(now.getMonth() / 3);
+      if (currentQuarter === 0) {
+        // 当前是Q1，上季度是上年Q4
+        startDate = new Date(now.getFullYear() - 1, 9, 1);
+        endDate = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59);
+      } else {
+        startDate = new Date(now.getFullYear(), (currentQuarter - 1) * 3, 1);
+        endDate = new Date(now.getFullYear(), currentQuarter * 3, 0, 23, 59, 59);
+      }
+      break;
+    }
+    case 'year': {
+      // 过去一年：今天往前365天
+      startDate = new Date(now);
+      startDate.setFullYear(startDate.getFullYear() - 1);
+      break;
+    }
+    default: {
+      // 默认：最近7天
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - 7);
+    }
+  }
+
+  // 获取时间范围内的任务（计算森林健康度和完成数）
+  const { data: periodTasks } = await supabase
     .from('tasks')
     .select('id, status, checkin_time')
     .eq('child_id', childId)
-    .gte('checkin_time', sevenDaysAgo.toISOString());
+    .gte('checkin_time', startDate.toISOString())
+    .lte('checkin_time', endDate.toISOString());
 
-  const totalRecentTasks = recentTasks?.length || 0;
-  const approvedRecentTasks = recentTasks?.filter((t: { status: string }) => t.status === 'approved').length || 0;
-  const forestHealth = totalRecentTasks > 0
-    ? Math.round((approvedRecentTasks / totalRecentTasks) * 100)
+  const totalPeriodTasks = periodTasks?.length || 0;
+  const approvedPeriodTasks = periodTasks?.filter((t: { status: string }) => t.status === 'approved').length || 0;
+  const forestHealth = totalPeriodTasks > 0
+    ? Math.round((approvedPeriodTasks / totalPeriodTasks) * 100)
     : 0;
 
-  // 累计完成任务数
-  const { count: totalApproved } = await supabase
-    .from('tasks')
-    .select('id', { count: 'exact' })
-    .eq('child_id', childId)
-    .eq('status', 'approved');
-
-  // 进行中目标数
+  // 进行中目标数（不受时间范围影响）
   const { count: activeGoals } = await supabase
     .from('goals')
     .select('id', { count: 'exact' })
     .eq('child_id', childId)
     .eq('is_active', true);
 
-  // 已完成树木数
+  // 时间范围内完成的树木数
   const { count: completedTrees } = await supabase
     .from('trees')
     .select('id', { count: 'exact' })
     .eq('child_id', childId)
-    .eq('status', 'completed');
+    .eq('status', 'completed')
+    .gte('updated_at', startDate.toISOString())
+    .lte('updated_at', endDate.toISOString());
 
   res.json({
     data: {
       forestHealth,
-      totalApprovedTasks: totalApproved || 0,
+      totalApprovedTasks: approvedPeriodTasks,
       activeGoals: activeGoals || 0,
       completedTrees: completedTrees || 0,
       fruitsBalance: child.fruits_balance,
