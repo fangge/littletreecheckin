@@ -19,6 +19,7 @@ import Profile from './views/Profile';
 import RewardsManagement from './views/RewardsManagement';
 import { useAuth } from './contexts/AuthContext';
 import { GoalData } from './services/api';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 export default function App() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -147,6 +148,7 @@ export default function App() {
       {!['add-goal', 'register', 'login'].includes(currentView) && isAuthenticated && (
         <Navigation currentView={currentView} onViewChange={setCurrentView} />
       )}
+      <SpeedInsights />
     </div>
   );
 }
