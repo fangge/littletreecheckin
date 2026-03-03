@@ -174,7 +174,7 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
             </div>
             <div className="text-left">
               <p className="font-bold text-sm">准备好迎接新挑战了吗？</p>
-              <p className="text-[10px] opacity-80">点击这里开启你的下一个探险之旅</p>
+              <p className="text-[10px] opacity-80">点击这里种下你的下一个成长之树</p>
             </div>
           </div>
           <span className="material-symbols-outlined">chevron_right</span>
@@ -191,6 +191,21 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
         <div className="grid grid-cols-2 gap-4 p-4">
           {trees.map((tree) => {
             const goal = getGoalForTree(tree);
+            // 构建目标详情标签（时长 / 每日时长 / 每日次数）
+            const goalTags: string[] = [];
+            if (goal) {
+              goalTags.push(`${goal.duration_days}天`);
+              if (goal.duration_minutes && goal.duration_minutes > 0) {
+                goalTags.push(
+                  goal.duration_minutes >= 60
+                    ? `${Math.round(goal.duration_minutes / 60)}h/天`
+                    : `${goal.duration_minutes}min/天`
+                );
+              }
+              if (goal.daily_count && goal.daily_count > 0) {
+                goalTags.push(`${goal.daily_count}次/天`);
+              }
+            }
             return (
               <div key={tree.id} className="relative group">
                 {/* 编辑按钮：绝对定位在卡片右上角（进行中和已完成的目标均可编辑） */}
@@ -204,10 +219,10 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
                   </button>
                 )}
                 <div
-                  className="bg-cover bg-center flex flex-col gap-3 rounded-xl justify-end p-4 aspect-square overflow-hidden shadow-lg shadow-primary/5"
+                  className="bg-cover bg-center flex flex-col gap-2 rounded-xl justify-end p-4 aspect-square overflow-hidden shadow-lg shadow-primary/5"
                   style={{
                     backgroundImage: tree.image
-                      ? `linear-gradient(0deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 60%), url("${tree.image}")`
+                      ? `linear-gradient(0deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0) 65%), url("${tree.image}")`
                       : 'linear-gradient(135deg, #4ade80 0%, #16a34a 100%)',
                   }}
                 >
@@ -223,6 +238,19 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
                       )}
                     </div>
                   </div>
+                  {/* 目标详情标签 */}
+                  {goalTags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {goalTags.map(tag => (
+                        <span
+                          key={tag}
+                          className="text-[10px] text-white/80 bg-black/20 backdrop-blur-sm px-1.5 py-0.5 rounded-full font-medium"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   {tree.status === 'growing' && (
                     <div className="w-full bg-white/20 rounded-full h-1.5">
                       <div

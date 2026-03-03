@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
-import { tasksApi, treesApi, TreeData, TaskData } from '../services/api';
+import { tasksApi, treesApi, TreeData, TaskData, GoalData } from '../services/api';
 import CelebrationPopup from '../components/CelebrationPopup';
 
 interface CheckInProps {
@@ -13,6 +13,7 @@ export default function CheckIn({ onViewMessages, onViewProfile }: CheckInProps)
   const { user, currentChild, setCurrentChild } = useAuth();
   const [growingTrees, setGrowingTrees] = useState<TreeData[]>([]);
   const [selectedTree, setSelectedTree] = useState<TreeData | null>(null);
+  const [goals, setGoals] = useState<GoalData[]>([]);
   const [todayTasks, setTodayTasks] = useState<Record<string, TaskData>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isChecking, setIsChecking] = useState(false);
@@ -28,13 +29,15 @@ export default function CheckIn({ onViewMessages, onViewProfile }: CheckInProps)
     if (!currentChild) return;
     setIsLoading(true);
     try {
-      // 并行获取进行中的树木和今日任务
-      const [treesRes, tasksRes] = await Promise.all([
+      // 并行获取进行中的树木、今日任务和目标列表
+      const [treesRes, tasksRes, goalsRes] = await Promise.all([
         treesApi.list(currentChild.id, 'growing'),
         tasksApi.list(currentChild.id),
+        treesApi.listGoals(currentChild.id),
       ]);
 
       setGrowingTrees(treesRes.data);
+      setGoals(goalsRes.data);
       if (treesRes.data.length > 0) {
         setSelectedTree(prev => {
           const stillExists = treesRes.data.find(t => t.id === prev?.id);
@@ -106,6 +109,9 @@ export default function CheckIn({ onViewMessages, onViewProfile }: CheckInProps)
   };
 
   const currentTree = selectedTree;
+  const currentGoal = currentTree?.goal_id
+    ? goals.find(g => g.id === currentTree.goal_id) ?? null
+    : null;
   const todayTask = getTodayTaskForTree(currentTree);
   const hasCheckedInToday = !!todayTask;
   const taskStatus = todayTask?.status;
@@ -284,6 +290,29 @@ export default function CheckIn({ onViewMessages, onViewProfile }: CheckInProps)
                   ? `还需 ${100 - (currentTree.progress ?? 0)}% 就能结果啦！`
                   : '坚持完成好习惯，让你的幼苗长成参天大树吧。'}
               </p>
+              {/* 目标详情：时长 / 每日时长 / 每日次数 */}
+              {currentGoal && (
+                <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-100">
+                  <span className="flex items-center gap-1 text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded-full">
+                    <span className="material-symbols-outlined text-sm">calendar_month</span>
+                    目标 {currentGoal.duration_days} 天
+                  </span>
+                  {currentGoal.duration_minutes > 0 && (
+                    <span className="flex items-center gap-1 text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded-full">
+                      <span className="material-symbols-outlined text-sm">schedule</span>
+                      {currentGoal.duration_minutes >= 60
+                        ? `每天 ${Math.round(currentGoal.duration_minutes / 60)} 小时`
+                        : `每天 ${currentGoal.duration_minutes} 分钟`}
+                    </span>
+                  )}
+                  {currentGoal.daily_count && currentGoal.daily_count > 0 && (
+                    <span className="flex items-center gap-1 text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded-full">
+                      <span className="material-symbols-outlined text-sm">repeat</span>
+                      每天 {currentGoal.daily_count} 次
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="text-center py-4">

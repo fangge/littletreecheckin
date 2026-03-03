@@ -57,7 +57,7 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
 // POST /api/v1/children/:childId/goals  (创建目标，同时创建树木)
 router.post('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { childId } = req.params;
-  const { title, icon, duration_days, duration_minutes, reward_tree_name } = req.body;
+  const { title, icon, duration_days, duration_minutes, daily_count, reward_tree_name } = req.body;
 
   if (!title || !duration_days) {
     res.status(400).json({ error: '目标标题和持续天数不能为空' });
@@ -91,10 +91,11 @@ router.post('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Res
       icon: icon || null,
       duration_days,
       duration_minutes: duration_minutes || 0,
+      daily_count: daily_count || null,
       reward_tree_name: reward_tree_name || title,
       is_active: true,
     })
-    .select('id, title, icon, duration_days, duration_minutes, reward_tree_name, is_active, created_at')
+    .select('id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, created_at')
     .single();
 
   if (goalError || !goal) {
@@ -185,7 +186,7 @@ router.get('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Resp
   let query = supabase
     .from('goals')
     .select(`
-      id, title, icon, duration_days, duration_minutes, reward_tree_name, is_active, created_at,
+      id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, created_at,
       trees(id, name, image, status, level, progress)
     `)
     .eq('child_id', childId)

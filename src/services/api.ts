@@ -82,6 +82,7 @@ export interface GoalData {
   icon?: string;
   duration_days: number;
   duration_minutes: number;
+  daily_count?: number | null;
   reward_tree_name?: string;
   is_active: boolean;
 }
@@ -217,6 +218,7 @@ export const treesApi = {
     icon?: string;
     duration_days: number;
     duration_minutes?: number;
+    daily_count?: number | null;
     reward_tree_name?: string;
   }) =>
     request<{ data: { goal: GoalData; tree: TreeData } }>(
@@ -234,6 +236,7 @@ export const treesApi = {
     icon?: string;
     duration_days?: number;
     duration_minutes?: number;
+    daily_count?: number | null;
     reward_tree_name?: string;
     child_id?: string;
   }) =>

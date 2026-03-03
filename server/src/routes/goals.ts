@@ -108,7 +108,7 @@ const router: Router = Router();
 // PUT /api/v1/goals/:goalId  (更新目标信息)
 router.put('/:goalId', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { goalId } = req.params;
-  const { title, icon, duration_days, duration_minutes, reward_tree_name, child_id } = req.body;
+  const { title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, child_id } = req.body;
 
   if (duration_days !== undefined && (duration_days < 1 || duration_days > 365)) {
     res.status(400).json({ error: '持续天数必须在1-365之间' });
@@ -146,6 +146,7 @@ router.put('/:goalId', authMiddleware, async (req: AuthRequest, res: Response): 
   if (icon !== undefined) updateData.icon = icon;
   if (duration_days !== undefined) updateData.duration_days = duration_days;
   if (duration_minutes !== undefined) updateData.duration_minutes = duration_minutes;
+  if (daily_count !== undefined) updateData.daily_count = daily_count === 0 ? null : daily_count;
   if (reward_tree_name !== undefined) updateData.reward_tree_name = reward_tree_name;
   if (child_id !== undefined) updateData.child_id = child_id;
 
@@ -153,7 +154,7 @@ router.put('/:goalId', authMiddleware, async (req: AuthRequest, res: Response): 
     .from('goals')
     .update(updateData)
     .eq('id', goalId)
-    .select('id, title, icon, duration_days, duration_minutes, reward_tree_name, is_active, created_at, child_id')
+    .select('id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, created_at, child_id')
     .single();
 
   if (goalError || !updatedGoal) {

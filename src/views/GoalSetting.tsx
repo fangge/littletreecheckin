@@ -73,6 +73,11 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
   );
   const [dailyUnit, setDailyUnit] = useState<DailyUnit>('minutes');
 
+  // 每日次数（编辑模式下预填充）
+  const [dailyCountValue, setDailyCountValue] = useState<string>(
+    editGoal?.daily_count ? String(editGoal.daily_count) : ''
+  );
+
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState('');
@@ -102,6 +107,8 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
     const durationDays = toDays(numDuration, durationUnit);
     const numDaily = dailyValue ? parseFloat(dailyValue) : 0;
     const durationMinutes = dailyValue && !isNaN(numDaily) ? toMinutes(numDaily, dailyUnit) : 0;
+    const numDailyCount = dailyCountValue ? parseInt(dailyCountValue, 10) : null;
+    const dailyCount = dailyCountValue && !isNaN(numDailyCount!) && numDailyCount! > 0 ? numDailyCount : null;
 
     setIsLoading(true);
     setError('');
@@ -114,6 +121,7 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
           icon: selectedIcon,
           duration_days: durationDays,
           duration_minutes: durationMinutes,
+          daily_count: dailyCount,
           reward_tree_name: rewardTreeName.trim() || title.trim(),
           child_id: selectedChild.id !== editGoal.childId ? selectedChild.id : undefined,
         });
@@ -128,6 +136,7 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
           icon: selectedIcon,
           duration_days: durationDays,
           duration_minutes: durationMinutes,
+          daily_count: dailyCount,
           reward_tree_name: rewardTreeName.trim() || title.trim(),
         });
         if (selectedChild.id !== currentChild?.id) {
@@ -210,8 +219,8 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
 
       <div className="flex-1 px-6 pb-32 overflow-y-auto pt-4">
         <h3 className="text-slate-900 tracking-tight text-3xl font-extrabold leading-tight text-center pb-6">
-          {isEditMode ? '调整你的' : '开启你的下一个'}<br />
-          <span className="text-primary">{isEditMode ? '探险计划' : '探险之旅？'}</span>
+          {isEditMode ? '调整你的' : '种下你的下一个'}<br />
+          <span className="text-primary">{isEditMode ? '成长之树' : '成长之树？'}</span>
         </h3>
 
         {/* 孩子选择（多孩子时显示，新建和编辑模式均支持） */}
@@ -398,6 +407,44 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
               每天需完成 {dailyUnit === 'hours'
                 ? `${dailyValue} 小时（${toMinutes(parseFloat(dailyValue), 'hours')} 分钟）`
                 : `${dailyValue} 分钟`}
+            </p>
+          )}
+        </div>
+
+        {/* 每日次数（可选） */}
+        <div className="mb-6">
+          <h3 className="text-slate-700 text-base font-bold ml-1 pb-3">
+            每日次数
+            <span className="text-slate-400 text-xs font-normal ml-2">（可选）</span>
+          </h3>
+
+          <div className="relative">
+            <input
+              className="form-input w-full rounded-xl border-2 border-primary/20 bg-white text-slate-900 h-12 placeholder:text-slate-400 px-4 text-lg font-bold focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all pr-12"
+              type="number"
+              min="1"
+              max="99"
+              placeholder="不限制"
+              value={dailyCountValue}
+              onChange={e => setDailyCountValue(e.target.value)}
+              aria-label="每日次数"
+            />
+            {dailyCountValue ? (
+              <button
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                onClick={() => setDailyCountValue('')}
+                aria-label="清除每日次数"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            ) : (
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">次</span>
+            )}
+          </div>
+
+          {dailyCountValue && !isNaN(parseInt(dailyCountValue, 10)) && parseInt(dailyCountValue, 10) > 0 && (
+            <p className="text-xs text-slate-400 mt-2 ml-1">
+              每天需完成 <span className="text-primary font-bold">{dailyCountValue}</span> 次
             </p>
           )}
         </div>
