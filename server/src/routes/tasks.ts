@@ -179,11 +179,25 @@ router.put('/:taskId/approve', authMiddleware, async (req: AuthRequest, res: Res
     return;
   }
 
-  // 2. 增加果实余额（每次审核通过奖励10个果实）
-  const FRUITS_PER_TASK = 10;
+  // 2. 从 goal 读取 fruits_per_task 和 duration_days（一次查询，供后续步骤复用）
+  let fruitsEarned = 10;
+  let durationDays = 30;
+  if (task.goal_id) {
+    const { data: goalInfo } = await supabase
+      .from('goals')
+      .select('duration_days, fruits_per_task')
+      .eq('id', task.goal_id)
+      .single();
+    if (goalInfo) {
+      fruitsEarned = goalInfo.fruits_per_task ?? 10;
+      durationDays = goalInfo.duration_days || 30;
+    }
+  }
+
+  // 增加果实余额
   await supabase
     .from('children')
-    .update({ fruits_balance: child.fruits_balance + FRUITS_PER_TASK })
+    .update({ fruits_balance: child.fruits_balance + fruitsEarned })
     .eq('id', task.child_id);
 
   // 3. 更新树木成长进度
@@ -195,14 +209,6 @@ router.put('/:taskId/approve', authMiddleware, async (req: AuthRequest, res: Res
       .single();
 
     if (tree && tree.status === 'growing') {
-      // 获取目标总天数
-      const { data: goal } = await supabase
-        .from('goals')
-        .select('duration_days')
-        .eq('id', task.goal_id)
-        .single();
-
-      const durationDays = goal?.duration_days || 30;
       const progressIncrement = Math.round(100 / durationDays);
       const newProgress = Math.min(100, tree.progress + progressIncrement);
       const newLevel = Math.min(5, Math.floor(newProgress / 20) + 1);
@@ -227,7 +233,7 @@ router.put('/:taskId/approve', authMiddleware, async (req: AuthRequest, res: Res
   await supabase.from('messages').insert({
     child_id: task.child_id,
     sender_type: 'system',
-    text: `🎉 太棒了！你的任务"${updatedTask.title}"已通过审核，获得 ${FRUITS_PER_TASK} 个果实！`,
+    text: `🎉 太棒了！你的任务"${updatedTask.title}"已通过审核，获得 ${fruitsEarned} 个果实！`,
     type: 'text',
     is_read: false,
   });

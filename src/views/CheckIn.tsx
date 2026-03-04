@@ -141,9 +141,9 @@ export default function CheckIn({ onViewMessages, onViewProfile }: CheckInProps)
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="flex-1 flex flex-col items-center p-6 space-y-8 overflow-y-auto pb-32"
+      className="flex-1 flex flex-col items-center p-6 space-y-8 overflow-y-auto pb-32 lg:pb-8"
     >
-      <header className="w-full bg-background-light/80 backdrop-blur-md sticky top-0 z-10">
+      <header className="w-full bg-background-light/80 backdrop-blur-md sticky top-0 z-10 lg:max-w-xl">
         <div className="flex items-center py-4 justify-between">
           <button
             onClick={onViewProfile}

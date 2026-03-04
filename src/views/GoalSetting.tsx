@@ -78,6 +78,11 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
     editGoal?.daily_count ? String(editGoal.daily_count) : ''
   );
 
+  // 每次获得果实数（编辑模式下预填充，默认10）
+  const [fruitsPerTaskValue, setFruitsPerTaskValue] = useState<string>(
+    editGoal?.fruits_per_task ? String(editGoal.fruits_per_task) : '10'
+  );
+
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState('');
@@ -109,6 +114,8 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
     const durationMinutes = dailyValue && !isNaN(numDaily) ? toMinutes(numDaily, dailyUnit) : 0;
     const numDailyCount = dailyCountValue ? parseInt(dailyCountValue, 10) : null;
     const dailyCount = dailyCountValue && !isNaN(numDailyCount!) && numDailyCount! > 0 ? numDailyCount : null;
+    const numFruitsPerTask = fruitsPerTaskValue ? parseInt(fruitsPerTaskValue, 10) : 10;
+    const fruitsPerTask = !isNaN(numFruitsPerTask) && numFruitsPerTask > 0 ? numFruitsPerTask : 10;
 
     setIsLoading(true);
     setError('');
@@ -124,6 +131,7 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
           daily_count: dailyCount,
           reward_tree_name: rewardTreeName.trim() || title.trim(),
           child_id: selectedChild.id !== editGoal.childId ? selectedChild.id : undefined,
+          fruits_per_task: fruitsPerTask,
         });
         // 如果修改了归属孩子，自动切换 currentChild 到新孩子
         if (selectedChild.id !== editGoal.childId) {
@@ -138,6 +146,7 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
           duration_minutes: durationMinutes,
           daily_count: dailyCount,
           reward_tree_name: rewardTreeName.trim() || title.trim(),
+          fruits_per_task: fruitsPerTask,
         });
         if (selectedChild.id !== currentChild?.id) {
           setCurrentChild(selectedChild);
@@ -176,7 +185,7 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
       animate={{ opacity: 1, x: 0 }}
       className="flex-1 flex flex-col bg-background-light overflow-x-hidden"
     >
-      <div className="flex items-center p-6 pb-2 justify-between">
+      <div className="flex items-center p-6 pb-2 justify-between lg:max-w-xl lg:mx-auto lg:w-full">
         <button
           onClick={onBack}
           className="text-slate-900 flex size-10 shrink-0 items-center justify-center rounded-full bg-white shadow-sm"
@@ -205,19 +214,20 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
       </div>
 
       {isEditMode && (
-        <div className="mx-6 mt-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-xs flex items-center gap-2">
+        <div className="mx-6 mt-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-xs flex items-center gap-2 lg:max-w-xl lg:mx-auto lg:w-[calc(100%-3rem)]">
           <span className="material-symbols-outlined text-sm">edit</span>
           修改目标信息不会影响已完成的打卡记录
         </div>
       )}
 
       {error && (
-        <div className="mx-6 mt-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+        <div className="mx-6 mt-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm lg:max-w-xl lg:mx-auto lg:w-[calc(100%-3rem)]">
           {error}
         </div>
       )}
 
-      <div className="flex-1 px-6 pb-32 overflow-y-auto pt-4">
+      <div className="flex-1 px-6 pb-32 overflow-y-auto pt-4 lg:pb-8">
+        <div className="lg:max-w-xl lg:mx-auto">
         <h3 className="text-slate-900 tracking-tight text-3xl font-extrabold leading-tight text-center pb-6">
           {isEditMode ? '调整你的' : '种下你的下一个'}<br />
           <span className="text-primary">{isEditMode ? '成长之树' : '成长之树？'}</span>
@@ -449,6 +459,34 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
           )}
         </div>
 
+        {/* 每次获得果实数 */}
+        <div className="mb-6">
+          <h3 className="text-slate-700 text-base font-bold ml-1 pb-3">
+            每次获得果实数
+            <span className="text-slate-400 text-xs font-normal ml-2">（默认10个）</span>
+          </h3>
+
+          <div className="relative">
+            <input
+              className="form-input w-full rounded-xl border-2 border-primary/20 bg-white text-slate-900 h-12 placeholder:text-slate-400 px-4 text-lg font-bold focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all pr-12"
+              type="number"
+              min="1"
+              max="999"
+              placeholder="10"
+              value={fruitsPerTaskValue}
+              onChange={e => setFruitsPerTaskValue(e.target.value)}
+              aria-label="每次获得果实数"
+            />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-lg">🍎</span>
+          </div>
+
+          {fruitsPerTaskValue && !isNaN(parseInt(fruitsPerTaskValue, 10)) && parseInt(fruitsPerTaskValue, 10) > 0 && (
+            <p className="text-xs text-slate-400 mt-2 ml-1">
+              每次任务审核通过后获得 <span className="text-primary font-bold">{fruitsPerTaskValue}</span> 个果实
+            </p>
+          )}
+        </div>
+
         {/* 解锁奖励树木名称 */}
         <div className="mb-6">
           <h3 className="text-slate-700 text-base font-bold ml-1 pb-3">
@@ -477,9 +515,11 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
             </div>
           </div>
         </div>
+        </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background-light via-background-light to-transparent max-w-md mx-auto z-10 space-y-3">
+      <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background-light via-background-light to-transparent z-10 space-y-3 lg:sticky lg:bottom-0 lg:bg-none lg:pt-4 lg:pb-8">
+        <div className="lg:max-w-xl lg:mx-auto space-y-3">
         <button
           className="w-full bg-primary hover:bg-primary/90 text-slate-900 text-lg font-extrabold py-5 rounded-2xl shadow-xl shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
           onClick={handleSubmit}
@@ -509,6 +549,7 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
             {isDeleting ? '删除中...' : '删除此目标（含打卡记录和树木）'}
           </button>
         )}
+        </div>
       </div>
     </motion.div>
   );

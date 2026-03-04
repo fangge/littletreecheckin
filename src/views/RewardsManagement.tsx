@@ -151,7 +151,7 @@ export default function RewardsManagement({ onBack }: RewardsManagementProps) {
       className="flex-1 flex flex-col bg-background-light min-h-screen overflow-hidden"
     >
       <header className="sticky top-0 z-10 bg-background-light/80 backdrop-blur-md border-b border-primary/10">
-        <div className="flex items-center px-4 py-4 justify-between">
+        <div className="flex items-center px-4 py-4 justify-between lg:max-w-2xl lg:mx-auto">
           <button onClick={onBack} className="p-2 hover:bg-primary/10 rounded-full transition-colors" aria-label="返回">
             <span className="material-symbols-outlined">arrow_back</span>
           </button>
@@ -165,7 +165,7 @@ export default function RewardsManagement({ onBack }: RewardsManagementProps) {
           {activeTab === 'redemptions' && <div className="w-16" />}
         </div>
 
-        <div className="flex px-4 pb-3 gap-2">
+        <div className="flex px-4 pb-3 gap-2 lg:max-w-2xl lg:mx-auto">
           <button
             className={`flex-1 py-2 text-sm font-semibold rounded-xl transition-all ${activeTab === 'rewards' ? 'bg-primary text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600'}`}
             onClick={() => setActiveTab('rewards')}
@@ -181,7 +181,7 @@ export default function RewardsManagement({ onBack }: RewardsManagementProps) {
         </div>
       </header>
 
-      <main className="flex-1 px-4 pb-32 overflow-y-auto space-y-4 pt-4">
+      <main className="flex-1 px-4 pb-32 overflow-y-auto space-y-4 pt-4 lg:max-w-2xl lg:mx-auto lg:w-full lg:pb-8">
         {/* 奖品管理 */}
         {activeTab === 'rewards' && (
           <>

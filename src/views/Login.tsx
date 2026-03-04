@@ -43,10 +43,11 @@ export default function Login({ onBack, onRegister, onLoginSuccess }: LoginProps
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex-1 flex flex-col bg-white overflow-y-auto pb-10 min-h-screen"
+      className="flex-1 flex flex-col bg-white overflow-y-auto pb-10 min-h-screen lg:justify-center"
     >
+      <div className="lg:max-w-md lg:mx-auto lg:w-full lg:bg-white lg:rounded-2xl lg:shadow-xl lg:border lg:border-primary/10 lg:my-12">
       {/* Top Navigation */}
-      <div className="flex items-center px-4 pt-6 pb-2 justify-between sticky top-0 bg-white/80 backdrop-blur-md z-10">
+      <div className="flex items-center px-4 pt-6 pb-2 justify-between sticky top-0 bg-white/80 backdrop-blur-md z-10 lg:rounded-t-2xl">
         <button
           onClick={onBack}
           className="text-slate-900 flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
@@ -157,6 +158,7 @@ export default function Login({ onBack, onRegister, onLoginSuccess }: LoginProps
       {/* Background Decoration */}
       <div className="absolute top-0 right-0 w-32 h-32 -mr-12 -mt-12 bg-primary/5 rounded-full blur-3xl -z-10"></div>
       <div className="absolute bottom-40 left-0 w-24 h-24 -ml-12 bg-primary/5 rounded-full blur-2xl -z-10"></div>
+      </div>
     </motion.div>
   );
 }

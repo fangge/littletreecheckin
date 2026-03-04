@@ -51,13 +51,57 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
     return;
   }
 
-  res.json({ data: data || [] });
+  const trees = data || [];
+  const goalIds = trees.map(t => t.goal_id).filter(Boolean) as string[];
+
+  if (goalIds.length === 0) {
+    res.json({ data: trees.map(t => ({ ...t, completed_days: 0, checked_in_today: false })) });
+    return;
+  }
+
+  // 批量查询已完成天数（approved 任务数）
+  const { data: approvedTasks } = await supabase
+    .from('tasks')
+    .select('goal_id')
+    .in('goal_id', goalIds)
+    .eq('status', 'approved');
+
+  // 批量查询今日签到状态（非 rejected 的今日任务）
+  const today = new Date().toISOString().split('T')[0];
+  const { data: todayTasks } = await supabase
+    .from('tasks')
+    .select('goal_id')
+    .in('goal_id', goalIds)
+    .neq('status', 'rejected')
+    .gte('checkin_time', `${today}T00:00:00.000Z`)
+    .lte('checkin_time', `${today}T23:59:59.999Z`);
+
+  // 统计每个 goal 的已完成天数
+  const completedDaysMap = new Map<string, number>();
+  for (const task of approvedTasks || []) {
+    if (task.goal_id) {
+      completedDaysMap.set(task.goal_id, (completedDaysMap.get(task.goal_id) || 0) + 1);
+    }
+  }
+
+  // 统计今日已签到的 goal
+  const checkedInTodaySet = new Set<string>(
+    (todayTasks || []).map((t: { goal_id: string }) => t.goal_id).filter(Boolean)
+  );
+
+  const enrichedTrees = trees.map(tree => ({
+    ...tree,
+    completed_days: tree.goal_id ? (completedDaysMap.get(tree.goal_id) || 0) : 0,
+    checked_in_today: tree.goal_id ? checkedInTodaySet.has(tree.goal_id) : false,
+  }));
+
+  res.json({ data: enrichedTrees });
 });
 
 // POST /api/v1/children/:childId/goals  (创建目标，同时创建树木)
 router.post('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { childId } = req.params;
-  const { title, icon, duration_days, duration_minutes, daily_count, reward_tree_name } = req.body;
+  const { title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, fruits_per_task } = req.body;
 
   if (!title || !duration_days) {
     res.status(400).json({ error: '目标标题和持续天数不能为空' });
@@ -94,8 +138,9 @@ router.post('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Res
       daily_count: daily_count || null,
       reward_tree_name: reward_tree_name || title,
       is_active: true,
+      fruits_per_task: fruits_per_task && fruits_per_task > 0 ? Math.round(fruits_per_task) : 10,
     })
-    .select('id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, created_at')
+    .select('id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, fruits_per_task, created_at')
     .single();
 
   if (goalError || !goal) {
@@ -186,7 +231,7 @@ router.get('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Resp
   let query = supabase
     .from('goals')
     .select(`
-      id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, created_at,
+      id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, fruits_per_task, created_at,
       trees(id, name, image, status, level, progress)
     `)
     .eq('child_id', childId)

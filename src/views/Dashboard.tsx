@@ -70,9 +70,9 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex-1 overflow-y-auto pb-32"
+      className="flex-1 overflow-y-auto pb-32 lg:pb-8"
     >
-      <header className="sticky top-0 z-10 bg-background-light/80 backdrop-blur-md border-b border-primary/10">
+      <header className="sticky top-0 z-10 bg-background-light/80 backdrop-blur-md border-b border-primary/10 lg:max-w-4xl lg:mx-auto lg:border-x lg:border-primary/10">
         <div className="flex items-center p-4 pb-2 justify-between">
           <button
             onClick={onViewProfile}
@@ -118,7 +118,7 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
         )}
       </header>
 
-      <div className="flex gap-3 p-4 overflow-x-auto no-scrollbar">
+      <div className="flex gap-3 p-4 overflow-x-auto no-scrollbar lg:max-w-4xl lg:mx-auto">
         {(Object.keys(TIME_FILTER_LABELS) as TimeFilter[]).map(filter => (
           <button
             key={filter}
@@ -136,7 +136,7 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
         ))}
       </div>
 
-      <div className="px-4 py-2">
+      <div className="px-4 py-2 lg:max-w-4xl lg:mx-auto">
         <div className="bg-primary/5 rounded-xl p-5 border border-primary/20">
           <div className="flex justify-between items-center mb-4">
             <p className="text-slate-600 font-bold uppercase text-xs tracking-widest">森林健康度</p>
@@ -162,7 +162,7 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
       </div>
 
       {/* New Goal CTA Banner */}
-      <div className="px-4 mt-4">
+      <div className="px-4 mt-4 lg:max-w-4xl lg:mx-auto">
         <button
           onClick={onAddGoal}
           className="w-full bg-gradient-to-r from-primary to-emerald-500 p-4 rounded-2xl flex items-center justify-between text-white shadow-lg shadow-primary/20 active:scale-[0.98] transition-all"
@@ -181,20 +181,21 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
         </button>
       </div>
 
-      <h3 className="text-slate-900 tracking-tight text-2xl font-extrabold px-4 pb-4 pt-6">果园花园</h3>
+      <h3 className="text-slate-900 tracking-tight text-2xl font-extrabold px-4 pb-4 pt-6 lg:max-w-4xl lg:mx-auto">果园花园</h3>
 
       {isLoading ? (
         <div className="flex justify-center py-12">
           <span className="material-symbols-outlined text-primary text-4xl animate-pulse">forest</span>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 p-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4 lg:max-w-4xl lg:mx-auto">
           {trees.map((tree) => {
             const goal = getGoalForTree(tree);
-            // 构建目标详情标签（时长 / 每日时长 / 每日次数）
+            // 构建目标详情标签（已完成天数/总天数 / 每日时长 / 每日次数）
             const goalTags: string[] = [];
             if (goal) {
-              goalTags.push(`${goal.duration_days}天`);
+              const completedDays = tree.completed_days ?? 0;
+              goalTags.push(`${completedDays}/${goal.duration_days}天`);
               if (goal.duration_minutes && goal.duration_minutes > 0) {
                 goalTags.push(
                   goal.duration_minutes >= 60
@@ -206,18 +207,33 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
                 goalTags.push(`${goal.daily_count}次/天`);
               }
             }
+            const checkedInToday = tree.checked_in_today ?? false;
             return (
               <div key={tree.id} className="relative group">
                 {/* 编辑按钮：绝对定位在卡片右上角（进行中和已完成的目标均可编辑） */}
                 {goal && (
                   <button
-                    className="absolute top-2 right-2 z-10 bg-white/90 backdrop-blur-sm rounded-lg p-1.5 shadow-sm hover:bg-white active:scale-90 transition-all"
+                    className="absolute top-2 right-2 z-10 bg-white/90 backdrop-blur-sm rounded-lg p-1.5 shadow-sm hover:bg-white active:scale-90 transition-all w-8 h-8 flex items-center justify-center"
                     onClick={e => { e.stopPropagation(); handleEditTree(tree); }}
                     aria-label={`编辑${tree.name}目标`}
                   >
                     <span className="material-symbols-outlined text-slate-700 text-base leading-none">edit</span>
                   </button>
                 )}
+                <div className="absolute top-2 left-2 flex items-center gap-1.5">
+                  {tree.status === 'completed' ? (
+                    <span className="material-symbols-outlined text-primary text-sm font-bold fill-icon">check_circle</span>
+                  ) : checkedInToday ? (
+                    <div className="bg-primary/90 px-2 py-0.5 rounded-full backdrop-blur-sm flex items-center gap-1">
+                      <span className="material-symbols-outlined text-white text-[10px] leading-none">check</span>
+                      <span className="text-[10px] text-white font-bold">今日已打卡</span>
+                    </div>
+                  ) : (
+                    <div className="bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-sm">
+                      <span className="text-[10px] text-white font-bold">{tree.level} 级</span>
+                    </div>
+                  )}
+                </div>
                 <div
                   className="bg-cover bg-center flex flex-col gap-2 rounded-xl justify-end p-4 aspect-square overflow-hidden shadow-lg shadow-primary/5"
                   style={{
@@ -228,15 +244,6 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
                 >
                   <div className="flex items-center justify-between">
                     <p className="text-white text-base font-bold leading-tight">{tree.name}</p>
-                    <div className="flex items-center gap-1.5">
-                      {tree.status === 'completed' ? (
-                        <span className="material-symbols-outlined text-primary text-sm font-bold fill-icon">check_circle</span>
-                      ) : (
-                        <div className="bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-sm">
-                          <span className="text-[10px] text-white font-bold">{tree.level} 级</span>
-                        </div>
-                      )}
-                    </div>
                   </div>
                   {/* 目标详情标签 */}
                   {goalTags.length > 0 && (
@@ -278,11 +285,12 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
         </div>
       )}
 
-      <div className="px-4 pb-8 text-center">
+      <div className="px-4 pb-8 text-center lg:max-w-4xl lg:mx-auto">
         <p className="text-slate-500 text-sm">继续完成任务，解锁更多珍稀树木！</p>
       </div>
 
-      <div className="fixed bottom-24 right-6 z-30">
+      {/* FAB：仅移动端显示，桌面端通过侧边栏导航操作 */}
+      <div className="fixed bottom-24 right-6 z-30 lg:hidden">
         <button
           onClick={onAddGoal}
           className="flex size-14 items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/40 text-white transition-transform active:scale-95"

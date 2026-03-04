@@ -70,9 +70,9 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
     <motion.div
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
-      className="flex-1 flex flex-col bg-background-light min-h-screen overflow-x-hidden pb-32"
+      className="flex-1 flex flex-col bg-background-light min-h-screen overflow-x-hidden pb-32 lg:pb-8"
     >
-      <div className="flex items-center bg-white p-4 pb-2 justify-between sticky top-0 z-10 border-b border-primary/10">
+      <div className="flex items-center bg-white p-4 pb-2 justify-between sticky top-0 z-10 border-b border-primary/10 lg:max-w-2xl lg:mx-auto lg:w-full">
         <button onClick={onBack} className="text-slate-900 flex size-12 shrink-0 items-center justify-center cursor-pointer" aria-label="返回">
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
@@ -80,7 +80,7 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
       </div>
 
       {/* 用户信息头部 */}
-      <div className="flex p-6">
+      <div className="flex p-6 lg:max-w-2xl lg:mx-auto lg:w-full">
         <div className="flex w-full flex-col gap-4">
           <div className="flex gap-4 items-center">
             <div className="size-20 rounded-full border-4 border-primary/20 bg-primary/10 flex items-center justify-center shrink-0">
@@ -95,7 +95,7 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
         </div>
       </div>
 
-      <div className="px-4 space-y-4 flex-grow">
+      <div className="px-4 space-y-4 flex-grow lg:max-w-2xl lg:mx-auto lg:w-full">
         {/* 家长审核入口 */}
         <div className="bg-white rounded-xl p-4 shadow-sm border border-primary/5">
           <h3 className="text-slate-900 text-base font-bold leading-tight mb-4 flex items-center gap-2">
@@ -131,10 +131,7 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
               <p className="text-slate-600 text-sm">用户名</p>
               <p className="text-slate-900 text-sm font-medium">{user?.username || '--'}</p>
             </div>
-            <div className="flex items-center justify-between py-2">
-              <p className="text-slate-600 text-sm">手机号</p>
-              <p className="text-slate-900 text-sm font-medium">{user?.phone || '未绑定'}</p>
-            </div>
+            
           </div>
         </div>
 

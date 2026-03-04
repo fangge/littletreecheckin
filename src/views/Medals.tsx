@@ -45,10 +45,10 @@ export default function Medals({ onBack }: MedalsProps) {
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="flex-1 overflow-y-auto pb-32"
+      className="flex-1 overflow-y-auto pb-32 lg:pb-8"
     >
       <header className="sticky top-0 z-10 bg-background-light/80 backdrop-blur-md border-b border-primary/10">
-        <div className="px-4 py-4 flex items-center justify-between">
+        <div className="px-4 py-4 flex items-center justify-between lg:max-w-2xl lg:mx-auto">
           <button
             onClick={onBack}
             className="w-10 h-10 flex items-center justify-center rounded-full bg-white shadow-sm border border-primary/20"
@@ -61,7 +61,7 @@ export default function Medals({ onBack }: MedalsProps) {
         </div>
         {/* 多孩子切换器 */}
         {user?.children && user.children.length > 1 && (
-          <div className="flex gap-2 px-4 pb-3 overflow-x-auto no-scrollbar">
+          <div className="flex gap-2 px-4 pb-3 overflow-x-auto no-scrollbar lg:max-w-2xl lg:mx-auto">
             {user.children.map(child => (
               <button
                 key={child.id}
@@ -83,6 +83,7 @@ export default function Medals({ onBack }: MedalsProps) {
         )}
       </header>
 
+      <div className="lg:max-w-2xl lg:mx-auto">
       <section className="p-6 flex flex-col items-center text-center">
         <div className="relative mb-4">
           <div className="w-32 h-32 rounded-full border-4 border-primary bg-primary/10 p-1 shadow-lg overflow-hidden flex items-center justify-center">
@@ -119,7 +120,7 @@ export default function Medals({ onBack }: MedalsProps) {
           <span className="material-symbols-outlined text-primary text-4xl animate-pulse">workspace_premium</span>
         </div>
       ) : (
-        <section className="px-6 grid grid-cols-3 gap-y-8 gap-x-4 py-4">
+        <section className="px-6 grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-y-8 gap-x-4 py-4">
           {filteredMedals.map((medal) => (
             <div key={medal.id} className={`flex flex-col items-center gap-2 ${!medal.unlocked ? 'opacity-50 grayscale' : ''}`}>
               <div className={`w-20 h-20 rounded-full bg-gradient-to-br ${medal.color} flex items-center justify-center shadow-lg border-4 border-white relative`}>
@@ -156,6 +157,7 @@ export default function Medals({ onBack }: MedalsProps) {
           </div>
         </div>
       )}
+      </div>
     </motion.div>
   );
 }

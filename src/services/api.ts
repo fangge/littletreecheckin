@@ -74,6 +74,8 @@ export interface TreeData {
   level: number;
   progress: number;
   goal_id?: string;
+  completed_days?: number;
+  checked_in_today?: boolean;
 }
 
 export interface GoalData {
@@ -85,6 +87,7 @@ export interface GoalData {
   daily_count?: number | null;
   reward_tree_name?: string;
   is_active: boolean;
+  fruits_per_task?: number;
 }
 
 export interface TaskData {
@@ -220,6 +223,7 @@ export const treesApi = {
     duration_minutes?: number;
     daily_count?: number | null;
     reward_tree_name?: string;
+    fruits_per_task?: number;
   }) =>
     request<{ data: { goal: GoalData; tree: TreeData } }>(
       `/api/v1/children/${childId}/goals`,
@@ -239,6 +243,7 @@ export const treesApi = {
     daily_count?: number | null;
     reward_tree_name?: string;
     child_id?: string;
+    fruits_per_task?: number;
   }) =>
     request<{ data: GoalData }>(
       `/api/v1/goals/${goalId}`,

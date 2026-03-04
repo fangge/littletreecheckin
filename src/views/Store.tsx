@@ -76,10 +76,10 @@ export default function Store({ onBack }: StoreProps) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex-1 overflow-y-auto pb-32"
+      className="flex-1 overflow-y-auto pb-32 lg:pb-8"
     >
       <div className="sticky top-0 z-10 bg-background-light/80 backdrop-blur-md">
-        <div className="flex items-center px-6 pb-2 pt-6">
+        <div className="flex items-center px-6 pb-2 pt-6 lg:max-w-2xl lg:mx-auto">
           <button
             onClick={onBack}
             className="flex size-10 items-center justify-center rounded-full bg-slate-200/50"
@@ -92,7 +92,7 @@ export default function Store({ onBack }: StoreProps) {
 
         {/* 多孩子切换器 */}
         {user?.children && user.children.length > 1 && (
-          <div className="flex gap-2 px-6 pb-3 overflow-x-auto no-scrollbar">
+          <div className="flex gap-2 px-6 pb-3 overflow-x-auto no-scrollbar lg:max-w-2xl lg:mx-auto">
             {user.children.map(child => (
               <button
                 key={child.id}
@@ -114,7 +114,7 @@ export default function Store({ onBack }: StoreProps) {
         )}
       </div>
 
-      <div className="px-6">
+      <div className="px-6 lg:max-w-2xl lg:mx-auto">
         {/* 果实余额卡片 */}
         <div className="relative mt-2 overflow-hidden rounded-xl bg-gradient-to-br from-primary to-green-500 p-6 text-white shadow-lg shadow-primary/20">
           <div className="relative z-10 flex flex-col gap-1">

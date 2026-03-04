@@ -58,3 +58,62 @@ pnpm server:dev   # 后端 http://localhost:3001
 ```
 
 详细步骤请参阅 [快速开始文档](docs/getting-started.md)。
+
+---
+
+## 更新日志
+
+### v2.0 — 后端服务与 Supabase 数据库集成
+
+将纯前端 mock 数据应用升级为具备完整后端服务和数据库持久化的全栈应用。
+
+- ✅ **新增** Express.js 后端服务（`server/` 目录），提供 RESTful API（`/api/v1/`）
+- ✅ **新增** Supabase 数据库表结构（10 张核心业务表，见 `supabase/migrations/`）
+- ✅ **新增** JWT 用户认证系统（家长注册 / 登录 / 登出）
+- ✅ **新增** 孩子信息管理 API（增删改查、多孩子切换）
+- ✅ **新增** 树木与目标管理 API（创建目标自动生成树木、进度更新）
+- ✅ **新增** 任务打卡与家长审核 API（审核通过自动奖励果实、触发树木成长）
+- ✅ **新增** 勋章成就系统 API（根据累计任务、连续打卡等条件自动解锁）
+- ✅ **新增** 奖励商店与果实兑换 API（家长管理奖励、孩子兑换）
+- ✅ **新增** 家长与孩子消息互动 API（系统自动发送审核通知）
+- ✅ **修改** 前端：将 mock 数据替换为真实 API 调用，新增 `src/services/api.ts` 服务层和 `src/contexts/AuthContext.tsx` 全局状态管理
+
+**数据库迁移**：执行 `supabase/migrations/001_initial_schema.sql` → `002_seed_data.sql` → `003_add_daily_count.sql`
+
+---
+
+### v2.1 — 任务进度展示与可配置果实奖励
+
+增强 Dashboard 可见性，并允许家长为每个目标自定义果实奖励数量。
+
+- ✅ **新增** Dashboard 目标卡片显示已完成天数 / 总天数（如 `1/21天`）
+- ✅ **新增** 今日已打卡的目标卡片显示绿色"今日已打卡"徽章
+- ✅ **新增** 目标设置表单新增"每次获得果实数"字段（默认 10，可自定义）
+- ✅ **修改** 后端任务审核逻辑：从 goal 记录读取 `fruits_per_task`，替换硬编码常量
+- ✅ **修改** 树木列表 API：响应附带 `completed_days` 和 `checked_in_today` 字段
+- ✅ **修改** `GoalData` / `TreeData` 前端类型定义，新增对应字段
+
+**数据库迁移**：执行 `supabase/migrations/004_add_fruits_per_task.sql`
+
+---
+
+### v2.2 — 响应式布局（多端适配）
+
+
+将移动端专属布局升级为完整响应式设计，支持手机、平板、桌面端无缝切换。
+
+- ✅ **修改** `src/App.tsx`：移除 `max-w-md` 硬限制，添加 `lg:flex-row` 双列结构，登录/注册页不应用侧边栏偏移
+- ✅ **修改** `src/components/Navigation.tsx`：移动端保持底部导航栏，桌面端（≥ 1024px）切换为固定左侧边栏（240px，含 Logo + 竖排导航项）
+- ✅ **修改** `src/views/Dashboard.tsx`：树木网格 `2列 → md:3列 → lg:4列`，内容区 `lg:max-w-4xl`，FAB 按钮桌面端隐藏
+- ✅ **修改** `src/views/GoalSetting.tsx`：表单内容 `lg:max-w-xl` 居中，固定底部按钮改为 `lg:sticky`
+- ✅ **修改** `src/views/Medals.tsx`：勋章网格 `3列 → md:4列 → lg:5列`，内容 `lg:max-w-2xl` 居中
+- ✅ **修改** `src/views/Store.tsx` / `CheckIn.tsx` / `ParentControl.tsx` / `Profile.tsx` / `RewardsManagement.tsx`：内容区 `lg:max-w-2xl` 居中，底部 padding 桌面端适配
+- ✅ **修改** `src/views/Login.tsx`：桌面端以卡片形式居中显示（`lg:max-w-md lg:rounded-2xl lg:shadow-xl`）
+
+**断点行为**：
+
+| 断点 | 宽度 | 导航 | 内容 |
+|------|------|------|------|
+| 默认 | < 768px | 底部导航栏 | 全宽，`pb-32` |
+| `md` | ≥ 768px | 底部导航栏 | Dashboard 3列网格 |
+| `lg` | ≥ 1024px | 左侧边栏（240px） | 内容居中，`pb-8`，Dashboard 4列网格 |

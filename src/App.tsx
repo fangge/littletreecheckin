@@ -50,7 +50,7 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen w-full items-center justify-center bg-background-light max-w-md mx-auto">
+      <div className="flex min-h-screen w-full items-center justify-center bg-background-light">
         <div className="flex flex-col items-center gap-4">
           <span className="material-symbols-outlined text-primary text-5xl animate-pulse">forest</span>
           <p className="text-slate-500 text-sm">加载中...</p>
@@ -140,13 +140,16 @@ export default function App() {
     }
   };
 
-  return (
-    <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-background-light max-w-md mx-auto shadow-2xl">
-      {renderView()}
+  const showNav = !['add-goal', 'register', 'login'].includes(currentView) && isAuthenticated;
 
-      {!['add-goal', 'register', 'login'].includes(currentView) && isAuthenticated && (
+  return (
+    <div className="relative flex min-h-screen w-full overflow-x-hidden bg-background-light lg:flex-row">
+      {showNav && (
         <Navigation currentView={currentView} onViewChange={setCurrentView} />
       )}
+      <div className={`flex flex-1 flex-col${showNav ? ' lg:ml-60' : ''}`}>
+        {renderView()}
+      </div>
     </div>
   );
 }
