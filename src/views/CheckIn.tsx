@@ -46,10 +46,13 @@ export default function CheckIn({ onViewMessages, onViewProfile }: CheckInProps)
       }
 
       // 筛选今日任务，按 goal_id 建立映射（只保留最新的一条，因为列表已按时间倒序）
-      const today = new Date().toISOString().split('T')[0];
+      // 使用 UTC+8 时区的今天，避免跨时区导致的日期判断错误
+      const utc8Offset = 8 * 60 * 60 * 1000;
+      const today = new Date(Date.now() + utc8Offset).toISOString().split('T')[0];
       const todayMap: Record<string, TaskData> = {};
       for (const task of tasksRes.data) {
-        const taskDate = new Date(task.checkin_time).toISOString().split('T')[0];
+        // 将 checkin_time 转换为 UTC+8 时区的日期再比较
+        const taskDate = new Date(new Date(task.checkin_time).getTime() + utc8Offset).toISOString().split('T')[0];
         if (taskDate === today && task.goal_id && !todayMap[task.goal_id]) {
           // 只保留第一条（最新的），避免旧的 rejected 记录覆盖新的 pending 记录
           todayMap[task.goal_id] = task;
@@ -115,6 +118,20 @@ export default function CheckIn({ onViewMessages, onViewProfile }: CheckInProps)
   const todayTask = getTodayTaskForTree(currentTree);
   const hasCheckedInToday = !!todayTask;
   const taskStatus = todayTask?.status;
+
+  // 将 ISO 时间字符串格式化为北京时间显示
+  const formatCheckinTime = (isoString: string): string => {
+    return new Date(isoString).toLocaleString('zh-CN', {
+      timeZone: 'Asia/Shanghai',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+  };
 
   const getStatusText = () => {
     if (!hasCheckedInToday) return null;
@@ -263,11 +280,18 @@ export default function CheckIn({ onViewMessages, onViewProfile }: CheckInProps)
 
             {/* 今日打卡状态提示 */}
             {statusInfo && (
-              <div className={`px-4 py-3 border rounded-xl text-sm font-medium flex items-center gap-2 ${statusInfo.bg} ${statusInfo.color}`}>
-                <span className="material-symbols-outlined text-lg">
-                  {taskStatus === 'approved' ? 'check_circle' : taskStatus === 'rejected' ? 'cancel' : 'hourglass_empty'}
-                </span>
-                {statusInfo.text}
+              <div className={`px-4 py-3 border rounded-xl text-sm font-medium flex items-center justify-between gap-2 ${statusInfo.bg} ${statusInfo.color}`}>
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-lg">
+                    {taskStatus === 'approved' ? 'check_circle' : taskStatus === 'rejected' ? 'cancel' : 'hourglass_empty'}
+                  </span>
+                  {statusInfo.text}
+                </div>
+                {todayTask?.checkin_time && (
+                  <span className="text-xs opacity-70 shrink-0">
+                    {formatCheckinTime(todayTask.checkin_time)}
+                  </span>
+                )}
               </div>
             )}
 

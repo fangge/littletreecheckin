@@ -47,9 +47,17 @@ router.get('/:childId/tasks', authMiddleware, async (req: AuthRequest, res: Resp
   res.json({ data: data || [] });
 });
 
+// 获取 UTC+8 时区的今天日期字符串（YYYY-MM-DD）
+const getUTC8Today = (): string => {
+  const now = new Date();
+  const utc8Offset = 8 * 60 * 60 * 1000;
+  const utc8Now = new Date(now.getTime() + utc8Offset);
+  return utc8Now.toISOString().split('T')[0];
+};
+
 // POST /api/v1/tasks  (任务打卡)
 router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
-  const { goal_id, child_id, image_url } = req.body;
+  const { goal_id, child_id, image_url, checkin_time } = req.body;
 
   if (!goal_id || !child_id) {
     res.status(400).json({ error: '目标ID和孩子ID不能为空' });
@@ -82,14 +90,15 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
     .single();
 
   // 检查今日是否已打卡（排除已拒绝的任务，允许重新打卡）
-  const today = new Date().toISOString().split('T')[0];
+  // 使用 UTC+8 时区的今天，避免跨时区导致的日期判断错误
+  const today = getUTC8Today();
   const { data: existingTask } = await supabase
     .from('tasks')
     .select('id, status')
     .eq('goal_id', goal_id)
     .neq('status', 'rejected')
-    .gte('checkin_time', `${today}T00:00:00.000Z`)
-    .lte('checkin_time', `${today}T23:59:59.999Z`)
+    .gte('checkin_time', `${today}T00:00:00+08:00`)
+    .lte('checkin_time', `${today}T23:59:59.999+08:00`)
     .single();
 
   if (existingTask) {
@@ -118,7 +127,13 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
       title: goal.title,
       type: `${childName}的每日习惯`,
       status: 'pending',
-      checkin_time: new Date().toISOString(),
+      // 优先使用前端传来的本地时间（带时区偏移），否则使用服务器 UTC+8 时间
+      checkin_time: checkin_time || (() => {
+        const now = new Date();
+        const utc8Offset = 8 * 60 * 60 * 1000;
+        const localDate = new Date(now.getTime() + utc8Offset);
+        return localDate.toISOString().replace('Z', '+08:00');
+      })(),
       image_url: image_url || null,
       progress: tree?.progress || 0,
     })

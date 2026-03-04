@@ -266,11 +266,22 @@ export const tasksApi = {
       `/api/v1/children/${childId}/tasks${status ? `?status=${status}` : ''}`
     ),
 
-  checkin: (goalId: string, childId: string, imageUrl?: string) =>
-    request<{ data: TaskData }>('/api/v1/tasks', {
+  checkin: (goalId: string, childId: string, imageUrl?: string) => {
+    // 获取设备本地时间（带时区偏移的 ISO 字符串，如 2024-03-04T10:00:00.000+08:00）
+    const now = new Date();
+    const offsetMinutes = -now.getTimezoneOffset(); // 正数表示东时区
+    const sign = offsetMinutes >= 0 ? '+' : '-';
+    const absOffset = Math.abs(offsetMinutes);
+    const offsetHours = String(Math.floor(absOffset / 60)).padStart(2, '0');
+    const offsetMins = String(absOffset % 60).padStart(2, '0');
+    const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+    const checkinTime = localDate.toISOString().replace('Z', `${sign}${offsetHours}:${offsetMins}`);
+
+    return request<{ data: TaskData }>('/api/v1/tasks', {
       method: 'POST',
-      body: JSON.stringify({ goal_id: goalId, child_id: childId, image_url: imageUrl }),
-    }),
+      body: JSON.stringify({ goal_id: goalId, child_id: childId, image_url: imageUrl, checkin_time: checkinTime }),
+    });
+  },
 
   approve: (taskId: string) =>
     request<{ data: TaskData }>(`/api/v1/tasks/${taskId}/approve`, { method: 'PUT' }),

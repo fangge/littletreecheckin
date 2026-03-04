@@ -67,14 +67,16 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
     .eq('status', 'approved');
 
   // 批量查询今日签到状态（非 rejected 的今日任务）
-  const today = new Date().toISOString().split('T')[0];
+  // 使用 UTC+8 时区的今天，避免跨时区导致的日期判断错误
+  const utc8Offset = 8 * 60 * 60 * 1000;
+  const today = new Date(Date.now() + utc8Offset).toISOString().split('T')[0];
   const { data: todayTasks } = await supabase
     .from('tasks')
     .select('goal_id')
     .in('goal_id', goalIds)
     .neq('status', 'rejected')
-    .gte('checkin_time', `${today}T00:00:00.000Z`)
-    .lte('checkin_time', `${today}T23:59:59.999Z`);
+    .gte('checkin_time', `${today}T00:00:00+08:00`)
+    .lte('checkin_time', `${today}T23:59:59.999+08:00`);
 
   // 统计每个 goal 的已完成天数
   const completedDaysMap = new Map<string, number>();
