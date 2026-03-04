@@ -96,6 +96,7 @@ export default function CheckIn({
       setError('请先选择一个目标');
       return;
     }
+    
     setIsChecking(true);
     setError('');
 
