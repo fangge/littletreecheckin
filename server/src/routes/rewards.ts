@@ -243,7 +243,7 @@ router.put('/:rewardId', authMiddleware, async (req: AuthRequest, res: Response)
   res.json({ data, message: '奖品更新成功' });
 });
 
-// DELETE /api/v1/rewards/:rewardId  (软删除奖品，设置 is_active = false)
+// DELETE /api/v1/rewards/:rewardId  (硬删除奖品，关联兑换记录由 ON DELETE CASCADE 自动清理)
 router.delete('/:rewardId', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { rewardId } = req.params;
 
@@ -260,7 +260,7 @@ router.delete('/:rewardId', authMiddleware, async (req: AuthRequest, res: Respon
 
   const { error } = await supabase
     .from('rewards')
-    .update({ is_active: false })
+    .delete()
     .eq('id', rewardId);
 
   if (error) {
@@ -268,7 +268,7 @@ router.delete('/:rewardId', authMiddleware, async (req: AuthRequest, res: Respon
     return;
   }
 
-  res.json({ message: '奖品已下架' });
+  res.json({ message: '奖品已删除' });
 });
 
 // GET /api/v1/rewards/all  (获取所有奖品，含已下架，供家长管理)
