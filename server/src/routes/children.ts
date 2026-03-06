@@ -234,4 +234,94 @@ router.get('/:childId/stats', authMiddleware, async (req: AuthRequest, res: Resp
   });
 });
 
+// GET /api/v1/children/:childId/checkin-calendar?year=&month=
+router.get('/:childId/checkin-calendar', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { childId } = req.params;
+  const { year, month } = req.query;
+
+  const yearNum = parseInt(year as string, 10);
+  const monthNum = parseInt(month as string, 10);
+
+  if (!yearNum || !monthNum || monthNum < 1 || monthNum > 12) {
+    res.status(400).json({ error: '请提供有效的 year 和 month 参数' });
+    return;
+  }
+
+  // 验证孩子属于当前认证用户
+  const { data: child } = await supabase
+    .from('children')
+    .select('id, parent_id')
+    .eq('id', childId)
+    .eq('is_deleted', false)
+    .single();
+
+  if (!child) {
+    res.status(404).json({ error: '孩子不存在' });
+    return;
+  }
+
+  if (child.parent_id !== req.user!.id) {
+    res.status(403).json({ error: '无权访问此资源' });
+    return;
+  }
+
+  // 计算月份的 UTC+8 时间范围
+  // 月份第一天 00:00:00 UTC+8 = 前一天 16:00:00 UTC
+  const startUtc = new Date(Date.UTC(yearNum, monthNum - 1, 1) - 8 * 60 * 60 * 1000);
+  // 月份最后一天 23:59:59 UTC+8 = 当天 15:59:59 UTC
+  const endUtc = new Date(Date.UTC(yearNum, monthNum, 1) - 8 * 60 * 60 * 1000);
+
+  const { data: tasks, error } = await supabase
+    .from('tasks')
+    .select('id, title, status, checkin_time, goal_id, goals(title)')
+    .eq('child_id', childId)
+    .neq('status', 'rejected')
+    .gte('checkin_time', startUtc.toISOString())
+    .lt('checkin_time', endUtc.toISOString())
+    .order('checkin_time', { ascending: true });
+
+  if (error) {
+    res.status(500).json({ error: '获取打卡日历数据失败' });
+    return;
+  }
+
+  // 将 checkin_time 转换为 UTC+8 日期字符串，按日期分组
+  const tasksByDate: Record<string, Array<{
+    id: string;
+    title: string;
+    status: string;
+    checkin_time: string;
+    goal_title?: string;
+  }>> = {};
+
+  for (const task of tasks || []) {
+    // 将 UTC 时间转换为 UTC+8 日期
+    const utcDate = new Date(task.checkin_time);
+    const utc8Date = new Date(utcDate.getTime() + 8 * 60 * 60 * 1000);
+    const dateStr = utc8Date.toISOString().slice(0, 10); // YYYY-MM-DD
+
+    if (!tasksByDate[dateStr]) {
+      tasksByDate[dateStr] = [];
+    }
+
+    const goalsData = task.goals as unknown as { title: string } | null;
+    tasksByDate[dateStr].push({
+      id: task.id,
+      title: task.title,
+      status: task.status,
+      checkin_time: task.checkin_time,
+      goal_title: goalsData?.title,
+    });
+  }
+
+  const checkinDates = Object.keys(tasksByDate).sort();
+
+  res.json({
+    data: {
+      checkin_dates: checkinDates,
+      tasks_by_date: tasksByDate,
+    },
+  });
+});
+
 export default router;

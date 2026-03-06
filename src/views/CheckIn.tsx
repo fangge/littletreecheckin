@@ -300,19 +300,45 @@ export default function CheckIn({
               </div>
 
               <div className="relative z-0 mt-auto mb-12">
-                {currentTree?.image ? (
-                  <div
-                    className="w-48 h-48 bg-contain bg-center bg-no-repeat"
-                    style={{ backgroundImage: `url('${currentTree.image}')` }}
-                  />
-                ) : (
-                  <div className="w-48 h-48 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-primary text-9xl fill-icon">
-                      park
-                    </span>
-                  </div>
-                )}
-                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-32 h-6 bg-slate-900/10 blur-md rounded-full" />
+                {(() => {
+                  // 根据进度计算树的大小：0% → 96px，100% → 192px
+                  const progress = currentTree?.progress ?? 0;
+                  const minSize = 96;
+                  const maxSize = 192;
+                  const treeSize = Math.round(minSize + (maxSize - minSize) * (progress / 100));
+                  const shadowWidth = Math.round(64 + 64 * (progress / 100));
+
+                  return (
+                    <>
+                      {currentTree?.image ? (
+                        <motion.div
+                          animate={{ width: treeSize, height: treeSize }}
+                          transition={{ type: 'spring', damping: 20, stiffness: 120 }}
+                          className="bg-contain bg-center bg-no-repeat"
+                          style={{ backgroundImage: `url('${currentTree.image}')` }}
+                        />
+                      ) : (
+                        <motion.div
+                          animate={{ width: treeSize, height: treeSize }}
+                          transition={{ type: 'spring', damping: 20, stiffness: 120 }}
+                          className="flex items-center justify-center"
+                        >
+                          <span
+                            className="material-symbols-outlined text-primary fill-icon"
+                            style={{ fontSize: treeSize }}
+                          >
+                            park
+                          </span>
+                        </motion.div>
+                      )}
+                      <motion.div
+                        animate={{ width: shadowWidth }}
+                        transition={{ type: 'spring', damping: 20, stiffness: 120 }}
+                        className="absolute -bottom-4 left-1/2 -translate-x-1/2 h-6 bg-slate-900/10 blur-md rounded-full"
+                      />
+                    </>
+                  );
+                })()}
               </div>
 
               <div className="absolute bottom-0 w-full h-12 bg-primary/20 flex items-center justify-center">

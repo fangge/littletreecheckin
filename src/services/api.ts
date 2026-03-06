@@ -152,6 +152,19 @@ export interface StatsData {
   fruitsBalance: number;
 }
 
+export interface CalendarTask {
+  id: string;
+  title: string;
+  status: 'pending' | 'approved' | 'rejected';
+  checkin_time: string;
+  goal_title?: string;
+}
+
+export interface CalendarData {
+  checkin_dates: string[];
+  tasks_by_date: Record<string, CalendarTask[]>;
+}
+
 // ============================================================
 // 认证 API
 // ============================================================
@@ -204,6 +217,11 @@ export const childrenApi = {
   stats: (childId: string, period?: 'month' | 'quarter' | 'year') =>
     request<{ data: StatsData }>(
       `/api/v1/children/${childId}/stats${period ? `?period=${period}` : ''}`
+    ),
+
+  getCheckinCalendar: (childId: string, year: number, month: number) =>
+    request<{ data: CalendarData }>(
+      `/api/v1/children/${childId}/checkin-calendar?year=${year}&month=${month}`
     ),
 };
 

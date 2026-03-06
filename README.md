@@ -117,3 +117,19 @@ pnpm server:dev   # 后端 http://localhost:3001
 | 默认 | < 768px | 底部导航栏 | 全宽，`pb-32` |
 | `md` | ≥ 768px | 底部导航栏 | Dashboard 3列网格 |
 | `lg` | ≥ 1024px | 左侧边栏（240px） | 内容居中，`pb-8`，Dashboard 4列网格 |
+
+---
+
+### v2.3 — Dashboard 打卡日历控件
+
+在 Dashboard 页面新增月度打卡日历，直观展示孩子的成长足迹，并支持点击查看每日打卡详情。
+
+- ✅ **新增** Dashboard 顶部"我的成长足迹"月度日历控件，支持上/下月切换
+- ✅ **新增** 已打卡日期显示绿色叶子图标（`eco`）高亮，今日日期以绿色圆形背景标记
+- ✅ **新增** 点击已打卡日期弹出底部浮层，展示当日所有打卡任务列表（任务名称 + 绿色勾选图标）
+- ✅ **新增** 后端接口 `GET /api/v1/children/:childId/checkin-calendar?year=&month=`，按 UTC+8 时区聚合打卡数据，排除 rejected 任务
+- ✅ **新增** 前端 `CalendarData` / `CalendarTask` 类型定义及 `childrenApi.getCheckinCalendar` 方法
+- ✅ **新增** `src/components/CheckinCalendar.tsx` 纯手写日历组件（无第三方依赖）
+- ✅ **新增** `src/components/CheckinDetailPopup.tsx` 打卡详情浮层（`motion/react` 底部滑入动画）
+
+**无需数据库迁移**：复用现有 `tasks` 表数据

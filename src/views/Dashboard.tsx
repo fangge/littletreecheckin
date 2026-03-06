@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
-import { treesApi, childrenApi, TreeData, StatsData, GoalData } from '../services/api';
+import { treesApi, childrenApi, TreeData, StatsData, GoalData, CalendarData, CalendarTask } from '../services/api';
+import CheckinCalendar from '../components/CheckinCalendar';
+import CheckinDetailPopup from '../components/CheckinDetailPopup';
 
 interface DashboardProps {
   onAddGoal: () => void;
@@ -25,6 +27,14 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
   const [stats, setStats] = useState<StatsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('month');
+
+  // 日历相关状态
+  const [selectedMonth, setSelectedMonth] = useState<Date>(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+  const [calendarData, setCalendarData] = useState<CalendarData | null>(null);
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
 
   useEffect(() => {
     if (!currentChild) return;
@@ -50,9 +60,45 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
     fetchData();
   }, [currentChild, timeFilter]);
 
+  // 获取日历打卡数据
+  useEffect(() => {
+    if (!currentChild) return;
+
+    const fetchCalendar = async () => {
+      try {
+        const year = selectedMonth.getFullYear();
+        const month = selectedMonth.getMonth() + 1;
+        const res = await childrenApi.getCheckinCalendar(currentChild.id, year, month);
+        setCalendarData(res.data);
+      } catch (err) {
+        console.error('获取日历数据失败:', err);
+      }
+    };
+
+    fetchCalendar();
+  }, [currentChild, selectedMonth]);
+
   const handleTimeFilterChange = (filter: TimeFilter) => {
     setTimeFilter(filter);
   };
+
+  const handleMonthChange = (date: Date) => {
+    setSelectedMonth(date);
+  };
+
+  const handleCalendarDateClick = (date: string) => {
+    setSelectedCalendarDate(date);
+  };
+
+  const handleCloseDetailPopup = () => {
+    setSelectedCalendarDate(null);
+  };
+
+  // 获取选中日期的任务列表
+  const selectedDateTasks: CalendarTask[] =
+    selectedCalendarDate && calendarData?.tasks_by_date[selectedCalendarDate]
+      ? calendarData.tasks_by_date[selectedCalendarDate]
+      : [];
 
   // 通过 goal_id 找到对应的目标
   const getGoalForTree = (tree: TreeData): GoalData | undefined => {
@@ -117,6 +163,16 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
           </div>
         )}
       </header>
+
+      {/* 打卡日历 */}
+      <div className="px-4 pt-4 pb-2 lg:max-w-4xl lg:mx-auto">
+        <CheckinCalendar
+          checkinDates={calendarData?.checkin_dates ?? []}
+          selectedMonth={selectedMonth}
+          onMonthChange={handleMonthChange}
+          onDateClick={handleCalendarDateClick}
+        />
+      </div>
 
       <div className="flex gap-3 p-4 overflow-x-auto no-scrollbar lg:max-w-4xl lg:mx-auto">
         {(Object.keys(TIME_FILTER_LABELS) as TimeFilter[]).map(filter => (
@@ -230,7 +286,7 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
                     </div>
                   ) : (
                     <div className="bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-sm">
-                      <span className="text-[10px] text-white font-bold">{tree.level} 级</span>
+                      <span className="text-[10px] text-white font-bold flex items-center">{tree.level} 级</span>
                     </div>
                   )}
                 </div>
@@ -288,6 +344,13 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
       <div className="px-4 pb-8 text-center lg:max-w-4xl lg:mx-auto">
         <p className="text-slate-500 text-sm">继续完成任务，解锁更多珍稀树木！</p>
       </div>
+
+      {/* 打卡详情浮层 */}
+      <CheckinDetailPopup
+        date={selectedCalendarDate}
+        tasks={selectedDateTasks}
+        onClose={handleCloseDetailPopup}
+      />
 
       {/* FAB：仅移动端显示，桌面端通过侧边栏导航操作 */}
       <div className="fixed bottom-24 right-6 z-30 lg:hidden">
