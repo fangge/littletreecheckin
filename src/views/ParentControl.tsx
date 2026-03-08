@@ -18,6 +18,7 @@ export default function ParentControl({ onBack }: ParentControlProps) {
   const [activeTab, setActiveTab] = useState<'pending' | 'approved'>('pending');
   const [isLoading, setIsLoading] = useState(true);
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [bonusFruits, setBonusFruits] = useState<Record<string, number>>({});
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   const fetchTasks = useCallback(async () => {
@@ -49,7 +50,8 @@ export default function ParentControl({ onBack }: ParentControlProps) {
   const handleApprove = async (task: TaskWithChild) => {
     setProcessingId(task.id);
     try {
-      await tasksApi.approve(task.id);
+      const bonus = bonusFruits[task.id] ?? 0;
+      await tasksApi.approve(task.id, bonus > 0 ? bonus : undefined);
       const note = notes[task.id];
       if (note && task.childId) await messagesApi.send(task.childId, note);
       await fetchTasks();
@@ -162,6 +164,13 @@ export default function ParentControl({ onBack }: ParentControlProps) {
               {task.status === 'pending' && (
                 <>
                   <div className="px-4 pb-4 space-y-3">
+                    {/* 基础果实数展示 */}
+                    {task.goals?.fruits_per_task != null && task.goals.fruits_per_task > 0 && (
+                      <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                        <span>基础奖励：</span>
+                        <span className="font-bold text-primary">{task.goals.fruits_per_task} 🍎</span>
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">给 {task.childName || '孩子'} 留言</label>
                       <div className="relative">
@@ -186,6 +195,38 @@ export default function ParentControl({ onBack }: ParentControlProps) {
                           {text}
                         </button>
                       ))}
+                    </div>
+                    {/* 额外奖励果实输入 */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">额外奖励果实</label>
+                      <div className="flex items-center gap-2">
+                        <button
+                          className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-lg flex items-center justify-center hover:bg-primary hover:text-white transition-colors disabled:opacity-40"
+                          onClick={() => setBonusFruits(prev => ({ ...prev, [task.id]: Math.max(0, (prev[task.id] ?? 0) - 1) }))}
+                          disabled={(bonusFruits[task.id] ?? 0) <= 0}
+                          aria-label="减少额外果实"
+                        >−</button>
+                        <input
+                          className="w-16 text-center bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary/20"
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={bonusFruits[task.id] ?? 0}
+                          onChange={e => setBonusFruits(prev => ({ ...prev, [task.id]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                          aria-label="额外奖励果实数量"
+                        />
+                        <button
+                          className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-lg flex items-center justify-center hover:bg-primary hover:text-white transition-colors"
+                          onClick={() => setBonusFruits(prev => ({ ...prev, [task.id]: (prev[task.id] ?? 0) + 1 }))}
+                          aria-label="增加额外果实"
+                        >+</button>
+                        <span className="text-sm">🍎</span>
+                        {(bonusFruits[task.id] ?? 0) > 0 && (
+                          <span className="text-xs text-primary font-semibold">
+                            共 {(task.goals?.fruits_per_task ?? 0) + (bonusFruits[task.id] ?? 0)} 🍎
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex border-t border-primary/5">

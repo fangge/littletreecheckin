@@ -262,6 +262,9 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
               if (goal.daily_count && goal.daily_count > 0) {
                 goalTags.push(`${goal.daily_count}次/天`);
               }
+              if (goal.fruits_per_task && goal.fruits_per_task > 0) {
+                goalTags.push(`🍎 ${goal.fruits_per_task}/次`);
+              }
             }
             const checkedInToday = tree.checked_in_today ?? false;
             return (

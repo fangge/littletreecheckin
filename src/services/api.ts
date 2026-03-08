@@ -100,7 +100,7 @@ export interface TaskData {
   image_url?: string;
   progress: number;
   reject_reason?: string;
-  goals?: { title: string; icon?: string };
+  goals?: { title: string; icon?: string; fruits_per_task?: number };
   trees?: { name: string; image?: string };
 }
 
@@ -301,8 +301,11 @@ export const tasksApi = {
     });
   },
 
-  approve: (taskId: string) =>
-    request<{ data: TaskData }>(`/api/v1/tasks/${taskId}/approve`, { method: 'PUT' }),
+  approve: (taskId: string, bonusFruits?: number) =>
+    request<{ data: TaskData }>(`/api/v1/tasks/${taskId}/approve`, {
+      method: 'PUT',
+      body: JSON.stringify({ bonus_fruits: bonusFruits ?? 0 }),
+    }),
 
   reject: (taskId: string, reason?: string) =>
     request<{ data: TaskData }>(`/api/v1/tasks/${taskId}/reject`, {

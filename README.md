@@ -133,3 +133,18 @@ pnpm server:dev   # 后端 http://localhost:3001
 - ✅ **新增** `src/components/CheckinDetailPopup.tsx` 打卡详情浮层（`motion/react` 底部滑入动画）
 
 **无需数据库迁移**：复用现有 `tasks` 表数据
+
+---
+
+### v2.4 — 家长审核额外奖励果实 & Dashboard 果实数展示
+
+允许家长在审核任务时额外奖励果实，并在 Dashboard 树木卡片上直观展示每次任务的果实收益。
+
+- ✅ **新增** 家长审核待审核任务时，卡片显示该目标的**基础奖励果实数**（如 `基础奖励：5 🍎`）
+- ✅ **新增** 家长审核时可通过 `−` / 输入框 / `+` 控件设置**额外奖励果实**（非负整数），实时显示合计果实数
+- ✅ **修改** 后端 `PUT /api/v1/tasks/:taskId/approve` 接受可选 `bonus_fruits` 参数，总果实 = 基础 + 额外，系统通知消息注明额外奖励（如 `"获得 8 个果实（含额外奖励 3 个）"`）
+- ✅ **修改** 后端任务列表查询：`goals(...)` select 加入 `fruits_per_task`，前端可直接读取
+- ✅ **修改** `tasksApi.approve` 接受可选 `bonusFruits` 参数，`TaskData.goals` 类型加入 `fruits_per_task`
+- ✅ **新增** Dashboard 树木卡片目标标签行显示 `🍎 N/次` 果实标签（`fruits_per_task > 0` 时）
+
+**无需数据库迁移**：复用现有 `goals.fruits_per_task` 字段

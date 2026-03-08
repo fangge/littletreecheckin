@@ -27,7 +27,7 @@ router.get('/:childId/tasks', authMiddleware, async (req: AuthRequest, res: Resp
     .from('tasks')
     .select(`
       id, goal_id, title, type, status, checkin_time, image_url, progress, reject_reason, created_at,
-      goals(title, icon),
+      goals(title, icon, fruits_per_task),
       trees(name, image)
     `)
     .eq('child_id', childId)
@@ -151,6 +151,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
 // PUT /api/v1/tasks/:taskId/approve  (家长审核通过)
 router.put('/:taskId/approve', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { taskId } = req.params;
+  const bonusFruits = Math.max(0, parseInt(req.body?.bonus_fruits ?? '0', 10) || 0);
 
   // 获取任务信息
   const { data: task } = await supabase
@@ -195,7 +196,7 @@ router.put('/:taskId/approve', authMiddleware, async (req: AuthRequest, res: Res
   }
 
   // 2. 从 goal 读取 fruits_per_task 和 duration_days（一次查询，供后续步骤复用）
-  let fruitsEarned = 10;
+  let baseFruits = 10;
   let durationDays = 30;
   if (task.goal_id) {
     const { data: goalInfo } = await supabase
@@ -204,15 +205,16 @@ router.put('/:taskId/approve', authMiddleware, async (req: AuthRequest, res: Res
       .eq('id', task.goal_id)
       .single();
     if (goalInfo) {
-      fruitsEarned = goalInfo.fruits_per_task ?? 10;
+      baseFruits = goalInfo.fruits_per_task ?? 10;
       durationDays = goalInfo.duration_days || 30;
     }
   }
+  const totalFruits = baseFruits + bonusFruits;
 
   // 增加果实余额
   await supabase
     .from('children')
-    .update({ fruits_balance: child.fruits_balance + fruitsEarned })
+    .update({ fruits_balance: child.fruits_balance + totalFruits })
     .eq('id', task.child_id);
 
   // 3. 更新树木成长进度
@@ -245,10 +247,13 @@ router.put('/:taskId/approve', authMiddleware, async (req: AuthRequest, res: Res
   }
 
   // 4. 发送系统消息通知
+  const fruitMsg = bonusFruits > 0
+    ? `获得 ${totalFruits} 个果实（含额外奖励 ${bonusFruits} 个）`
+    : `获得 ${totalFruits} 个果实`;
   await supabase.from('messages').insert({
     child_id: task.child_id,
     sender_type: 'system',
-    text: `🎉 太棒了！你的任务"${updatedTask.title}"已通过审核，获得 ${fruitsEarned} 个果实！`,
+    text: `🎉 太棒了！你的任务"${updatedTask.title}"已通过审核，${fruitMsg}！`,
     type: 'text',
     is_read: false,
   });
