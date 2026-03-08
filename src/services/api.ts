@@ -165,6 +165,14 @@ export interface CalendarData {
   tasks_by_date: Record<string, CalendarTask[]>;
 }
 
+export interface FruitsHistoryItem {
+  id: string;
+  title: string;
+  checkin_time: string;
+  fruits_earned: number;
+  goal_icon?: string | null;
+}
+
 // ============================================================
 // 认证 API
 // ============================================================
@@ -222,6 +230,11 @@ export const childrenApi = {
   getCheckinCalendar: (childId: string, year: number, month: number) =>
     request<{ data: CalendarData }>(
       `/api/v1/children/${childId}/checkin-calendar?year=${year}&month=${month}`
+    ),
+
+  getFruitsHistory: (childId: string) =>
+    request<{ data: FruitsHistoryItem[]; fruits_balance: number }>(
+      `/api/v1/children/${childId}/fruits-history`
     ),
 };
 

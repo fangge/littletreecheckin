@@ -148,3 +148,18 @@ pnpm server:dev   # 后端 http://localhost:3001
 - ✅ **新增** Dashboard 树木卡片目标标签行显示 `🍎 N/次` 果实标签（`fruits_per_task > 0` 时）
 
 **无需数据库迁移**：复用现有 `goals.fruits_per_task` 字段
+
+---
+
+### v2.5 — 果实获取记录页面
+
+在果实商店新增果实获取记录入口，并提供独立的果实获取明细页面，让孩子和家长清晰了解每次任务审核通过后的果实收益历史。
+
+- ✅ **新增** 果实商店余额卡片右侧添加"获取记录"按钮，点击跳转到果实获取记录页面
+- ✅ **新增** `src/views/FruitsHistory.tsx` 果实获取记录页面：顶部橙色渐变余额摘要卡片 + 全量获取明细列表（按时间倒序）
+- ✅ **新增** 明细列表每条记录展示：目标彩色图标、任务名称、打卡时间（`YYYY-MM-DD HH:mm`）、获得果实数（`+N 🍎`）
+- ✅ **新增** 后端接口 `GET /api/v1/children/:childId/fruits-history`，返回所有已审核通过任务的果实获取记录，含权限校验
+- ✅ **新增** 前端 `FruitsHistoryItem` 类型定义及 `childrenApi.getFruitsHistory` 方法
+- ✅ **修改** `ViewType` 加入 `'fruits-history'`，`App.tsx` 新增对应路由 case
+
+**无需数据库迁移**：复用现有 `tasks` 表和 `goals.fruits_per_task` 字段

@@ -5,6 +5,7 @@ import { rewardsApi, RewardData, Child } from '../services/api';
 
 interface StoreProps {
   onBack: () => void;
+  onViewFruitsHistory: () => void;
 }
 
 const CATEGORIES = [
@@ -14,7 +15,7 @@ const CATEGORIES = [
   { key: 'snack', label: '零食' },
 ];
 
-export default function Store({ onBack }: StoreProps) {
+export default function Store({ onBack, onViewFruitsHistory }: StoreProps) {
   const { user, currentChild, setCurrentChild, refreshUser } = useAuth();
   const [selectedChild, setSelectedChild] = useState<Child | null>(currentChild);
   const [rewards, setRewards] = useState<RewardData[]>([]);
@@ -121,9 +122,19 @@ export default function Store({ onBack }: StoreProps) {
             <p className="text-sm font-semibold uppercase tracking-wider opacity-90">
               {selectedChild ? `${selectedChild.name}的果实余额` : '我的果实余额'}
             </p>
-            <div className="flex items-end gap-2">
-              <span className="text-4xl font-extrabold">{fruitsBalance.toLocaleString()}</span>
-              <span className="mb-1 text-2xl">🍎</span>
+            <div className="flex items-end justify-between gap-2">
+              <div className="flex items-end gap-2">
+                <span className="text-4xl font-extrabold">{fruitsBalance.toLocaleString()}</span>
+                <span className="mb-1 text-2xl">🍎</span>
+              </div>
+              <button
+                onClick={onViewFruitsHistory}
+                className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition-colors px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm shrink-0"
+                aria-label="查看果实获取记录"
+              >
+                <span className="material-symbols-outlined text-sm leading-none">history</span>
+                获取记录
+              </button>
             </div>
           </div>
           <div className="absolute -right-8 -top-8 size-32 rounded-full bg-white/20 blur-2xl" />

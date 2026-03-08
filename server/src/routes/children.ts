@@ -324,4 +324,54 @@ router.get('/:childId/checkin-calendar', authMiddleware, async (req: AuthRequest
   });
 });
 
+// GET /api/v1/children/:childId/fruits-history
+router.get('/:childId/fruits-history', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { childId } = req.params;
+
+  // 验证孩子属于当前认证用户
+  const { data: child } = await supabase
+    .from('children')
+    .select('id, parent_id, fruits_balance')
+    .eq('id', childId)
+    .eq('is_deleted', false)
+    .single();
+
+  if (!child) {
+    res.status(404).json({ error: '孩子不存在' });
+    return;
+  }
+
+  if (child.parent_id !== req.user!.id) {
+    res.status(403).json({ error: '无权访问此资源' });
+    return;
+  }
+
+  const { data: tasks, error } = await supabase
+    .from('tasks')
+    .select('id, title, checkin_time, goals(icon, fruits_per_task)')
+    .eq('child_id', childId)
+    .eq('status', 'approved')
+    .order('checkin_time', { ascending: false });
+
+  if (error) {
+    res.status(500).json({ error: '获取果实获取记录失败' });
+    return;
+  }
+
+  const items = (tasks || []).map((task: {
+    id: string;
+    title: string;
+    checkin_time: string;
+    goals: { icon?: string; fruits_per_task?: number } | null;
+  }) => ({
+    id: task.id,
+    title: task.title,
+    checkin_time: task.checkin_time,
+    fruits_earned: task.goals?.fruits_per_task ?? 10,
+    goal_icon: task.goals?.icon ?? null,
+  }));
+
+  res.json({ data: items, fruits_balance: child.fruits_balance });
+});
+
 export default router;

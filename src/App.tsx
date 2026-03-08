@@ -12,6 +12,7 @@ import Messages from './views/Messages';
 import Medals from './views/Medals';
 import ParentControl from './views/ParentControl';
 import Store from './views/Store';
+import FruitsHistory from './views/FruitsHistory';
 import GoalSetting from './views/GoalSetting';
 import Register from './views/Register';
 import Login from './views/Login';
@@ -120,7 +121,9 @@ export default function App() {
           />
         );
       case 'store':
-        return <Store onBack={() => setCurrentView('forest')} />;
+        return <Store onBack={() => setCurrentView('forest')} onViewFruitsHistory={() => setCurrentView('fruits-history')} />;
+      case 'fruits-history':
+        return <FruitsHistory onBack={() => setCurrentView('store')} />;
       case 'add-goal':
         return (
           <GoalSetting
