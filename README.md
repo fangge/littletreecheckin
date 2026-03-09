@@ -163,3 +163,21 @@ pnpm server:dev   # 后端 http://localhost:3001
 - ✅ **修改** `ViewType` 加入 `'fruits-history'`，`App.tsx` 新增对应路由 case
 
 **无需数据库迁移**：复用现有 `tasks` 表和 `goals.fruits_per_task` 字段
+
+---
+
+### v2.6 — 儿童模式
+
+新增儿童模式，家长可一键切换，限制孩子的操作范围，防止误触编辑目标或访问家长管理功能，切换均需账户密码二次确认。
+
+- ✅ **新增** `POST /api/v1/auth/verify-password` 后端接口，使用 `bcrypt.compare` 验证当前登录用户密码（不生成新 token，受 JWT 中间件保护）
+- ✅ **新增** `src/components/PasswordConfirmModal.tsx` 通用密码确认弹窗组件（支持显示/隐藏密码、加载状态、错误提示）
+- ✅ **新增** `src/components/ChildModeBanner.tsx` 儿童模式顶部提示横幅，含"退出儿童模式"快捷按钮
+- ✅ **修改** `src/contexts/AuthContext.tsx`：新增 `isChildMode` 状态（`localStorage` 持久化，key: `child_mode`）、`enableChildMode()` / `disableChildMode()` 方法，登出时自动清除
+- ✅ **修改** `src/services/api.ts`：`authApi` 新增 `verifyPassword()` 方法
+- ✅ **修改** `src/views/Profile.tsx`：新增儿童模式切换卡片（开启/关闭均弹出密码确认弹窗）；儿童模式下隐藏"家长审核"和"奖品与兑换管理"入口
+- ✅ **修改** `src/views/Dashboard.tsx`：儿童模式下隐藏 CTA 横幅、树木卡片编辑按钮、"添加新目标"卡片、FAB 浮动按钮
+- ✅ **修改** `src/components/Navigation.tsx`：儿童模式下过滤"家长中心"导航项（移动端底部导航和桌面端侧边栏均生效）
+- ✅ **修改** `src/App.tsx`：新增路由守卫 `handleViewChange()`，儿童模式下访问 `parent-control`、`add-goal`、`rewards-management` 时自动重定向至 `forest`；全局渲染 `ChildModeBanner`
+
+**无需数据库迁移**：儿童模式状态仅存储在前端 `localStorage`
