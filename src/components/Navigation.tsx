@@ -1,5 +1,6 @@
 import React from 'react';
 import { ViewType } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 interface NavigationProps {
   currentView: ViewType;
@@ -7,12 +8,16 @@ interface NavigationProps {
 }
 
 export default function Navigation({ currentView, onViewChange }: NavigationProps) {
-  const navItems = [
+  const { isChildMode } = useAuth();
+
+  const allNavItems = [
     { id: 'forest' as ViewType, label: '成长树', icon: 'park' },
     { id: 'tasks' as ViewType, label: '任务', icon: 'task_alt' },
     { id: 'medals' as ViewType, label: '勋章', icon: 'workspace_premium' },
-    { id: 'parent' as ViewType, label: '家长中心', icon: 'family_restroom' },
+    { id: 'parent' as ViewType, label: '家长中心', icon: 'family_restroom', parentOnly: true },
   ];
+
+  const navItems = allNavItems.filter(item => !item.parentOnly || !isChildMode);
 
   return (
     <>

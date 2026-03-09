@@ -6,6 +6,7 @@ interface AuthContextType {
   currentChild: Child | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isChildMode: boolean;
   login: (username: string, password: string) => Promise<void>;
   register: (data: {
     username: string;
@@ -16,6 +17,8 @@ interface AuthContextType {
   logout: () => void;
   setCurrentChild: (child: Child) => void;
   refreshUser: () => Promise<void>;
+  enableChildMode: (password: string) => Promise<void>;
+  disableChildMode: (password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -24,6 +27,7 @@ const STORAGE_KEYS = {
   TOKEN: 'auth_token',
   USER: 'auth_user',
   CHILD_ID: 'current_child_id',
+  CHILD_MODE: 'child_mode',
 } as const;
 
 const saveUserToCache = (userData: User) => {
@@ -43,13 +47,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [currentChild, setCurrentChildState] = useState<Child | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isChildMode, setIsChildMode] = useState<boolean>(() => {
+    return localStorage.getItem(STORAGE_KEYS.CHILD_MODE) === 'true';
+  });
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem(STORAGE_KEYS.TOKEN);
     localStorage.removeItem(STORAGE_KEYS.USER);
     localStorage.removeItem(STORAGE_KEYS.CHILD_ID);
+    localStorage.removeItem(STORAGE_KEYS.CHILD_MODE);
     setUser(null);
     setCurrentChildState(null);
+    setIsChildMode(false);
   }, []);
 
   const restoreChild = useCallback((userData: User) => {
@@ -164,17 +173,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const enableChildMode = async (password: string) => {
+    const result = await authApi.verifyPassword(password);
+    if (!result.success) {
+      throw new Error('密码错误，请重试');
+    }
+    localStorage.setItem(STORAGE_KEYS.CHILD_MODE, 'true');
+    setIsChildMode(true);
+  };
+
+  const disableChildMode = async (password: string) => {
+    const result = await authApi.verifyPassword(password);
+    if (!result.success) {
+      throw new Error('密码错误，请重试');
+    }
+    localStorage.removeItem(STORAGE_KEYS.CHILD_MODE);
+    setIsChildMode(false);
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
       currentChild,
       isLoading,
       isAuthenticated: !!user,
+      isChildMode,
       login: handleLogin,
       register: handleRegister,
       logout: handleLogout,
       setCurrentChild: handleSetCurrentChild,
       refreshUser,
+      enableChildMode,
+      disableChildMode,
     }}>
       {children}
     </AuthContext.Provider>

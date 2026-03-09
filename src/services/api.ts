@@ -196,6 +196,12 @@ export const authApi = {
   me: () => request<{ data: User }>('/api/v1/auth/me'),
 
   logout: () => request<{ message: string }>('/api/v1/auth/logout', { method: 'POST' }),
+
+  verifyPassword: (password: string) =>
+    request<{ success: boolean }>('/api/v1/auth/verify-password', {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    }),
 };
 
 // ============================================================

@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { ViewType } from './types';
 import Navigation from './components/Navigation';
+import ChildModeBanner from './components/ChildModeBanner';
 import Dashboard from './views/Dashboard';
 import CheckIn from './views/CheckIn';
 import Messages from './views/Messages';
@@ -21,8 +22,11 @@ import RewardsManagement from './views/RewardsManagement';
 import { useAuth } from './contexts/AuthContext';
 import { GoalData } from './services/api';
 
+// 儿童模式下受限的视图列表
+const CHILD_MODE_RESTRICTED_VIEWS: ViewType[] = ['parent-control', 'add-goal', 'rewards-management'];
+
 export default function App() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, isChildMode } = useAuth();
   const [currentView, setCurrentView] = useState<ViewType>('login');
   const [editingGoal, setEditingGoal] = useState<(GoalData & { childId?: string }) | undefined>(undefined);
 
@@ -35,6 +39,20 @@ export default function App() {
       }
     }
   }, [isAuthenticated, isLoading]);
+
+  // 路由守卫：儿童模式下访问受限视图时重定向到 forest
+  useEffect(() => {
+    if (isChildMode && CHILD_MODE_RESTRICTED_VIEWS.includes(currentView)) {
+      setCurrentView('forest');
+    }
+  }, [isChildMode, currentView]);
+
+  const handleViewChange = (view: ViewType) => {
+    if (isChildMode && CHILD_MODE_RESTRICTED_VIEWS.includes(view)) {
+      return;
+    }
+    setCurrentView(view);
+  };
 
   const handleLoginSuccess = () => setCurrentView('forest');
   const handleLogout = () => setCurrentView('login');
@@ -65,7 +83,7 @@ export default function App() {
       case 'forest':
         return (
           <Dashboard
-            onAddGoal={() => { setEditingGoal(undefined); setCurrentView('add-goal'); }}
+            onAddGoal={() => { setEditingGoal(undefined); handleViewChange('add-goal'); }}
             onViewStore={() => setCurrentView('store')}
             onViewProfile={() => setCurrentView('parent')}
             onEditGoal={handleEditGoal}
@@ -87,8 +105,8 @@ export default function App() {
           <Profile
             onBack={() => setCurrentView('forest')}
             onLogout={handleLogout}
-            onViewParentControl={() => setCurrentView('parent-control')}
-            onViewRewardsManagement={() => setCurrentView('rewards-management')}
+            onViewParentControl={() => handleViewChange('parent-control')}
+            onViewRewardsManagement={() => handleViewChange('rewards-management')}
           />
         );
       case 'profile':
@@ -96,8 +114,8 @@ export default function App() {
           <Profile
             onBack={() => setCurrentView('forest')}
             onLogout={handleLogout}
-            onViewParentControl={() => setCurrentView('parent-control')}
-            onViewRewardsManagement={() => setCurrentView('rewards-management')}
+            onViewParentControl={() => handleViewChange('parent-control')}
+            onViewRewardsManagement={() => handleViewChange('rewards-management')}
           />
         );
       case 'parent-control':
@@ -134,7 +152,7 @@ export default function App() {
       default:
         return (
           <Dashboard
-            onAddGoal={() => { setEditingGoal(undefined); setCurrentView('add-goal'); }}
+            onAddGoal={() => { setEditingGoal(undefined); handleViewChange('add-goal'); }}
             onViewStore={() => setCurrentView('store')}
             onViewProfile={() => setCurrentView('parent')}
             onEditGoal={handleEditGoal}
@@ -148,9 +166,10 @@ export default function App() {
   return (
     <div className="relative flex min-h-screen w-full overflow-x-hidden bg-background-light lg:flex-row">
       {showNav && (
-        <Navigation currentView={currentView} onViewChange={setCurrentView} />
+        <Navigation currentView={currentView} onViewChange={handleViewChange} />
       )}
       <div className={`flex flex-1 flex-col${showNav ? ' lg:ml-60' : ''}`}>
+        {isAuthenticated && <ChildModeBanner />}
         {renderView()}
       </div>
     </div>

@@ -177,4 +177,34 @@ router.post('/logout', authMiddleware, (_req: AuthRequest, res: Response): void 
   res.json({ message: '已退出登录' });
 });
 
+// POST /api/v1/auth/verify-password
+router.post('/verify-password', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { password } = req.body;
+  const userId = req.user!.id;
+
+  if (!password) {
+    res.status(400).json({ error: '密码不能为空' });
+    return;
+  }
+
+  const { data: user } = await supabase
+    .from('users')
+    .select('password_hash')
+    .eq('id', userId)
+    .single();
+
+  if (!user) {
+    res.status(404).json({ error: '用户不存在' });
+    return;
+  }
+
+  const isValid = await bcrypt.compare(password, user.password_hash);
+  if (!isValid) {
+    res.status(401).json({ success: false, error: '密码错误' });
+    return;
+  }
+
+  res.json({ success: true });
+});
+
 export default router;

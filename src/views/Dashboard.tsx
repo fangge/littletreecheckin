@@ -21,7 +21,7 @@ const TIME_FILTER_LABELS: Record<TimeFilter, string> = {
 };
 
 export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEditGoal }: DashboardProps) {
-  const { user, currentChild, setCurrentChild } = useAuth();
+  const { user, currentChild, setCurrentChild, isChildMode } = useAuth();
   const [trees, setTrees] = useState<TreeData[]>([]);
   const [goals, setGoals] = useState<GoalData[]>([]);
   const [stats, setStats] = useState<StatsData | null>(null);
@@ -217,25 +217,27 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
         </div>
       </div>
 
-      {/* New Goal CTA Banner */}
-      <div className="px-4 mt-4 lg:max-w-4xl lg:mx-auto">
-        <button
-          onClick={onAddGoal}
-          className="w-full bg-gradient-to-r from-primary to-emerald-500 p-4 rounded-2xl flex items-center justify-between text-white shadow-lg shadow-primary/20 active:scale-[0.98] transition-all"
-          aria-label="添加新目标"
-        >
-          <div className="flex items-center gap-3">
-            <div className="size-10 bg-white/20 rounded-xl flex items-center justify-center">
-              <span className="material-symbols-outlined text-2xl">rocket_launch</span>
+      {/* New Goal CTA Banner（儿童模式下隐藏） */}
+      {!isChildMode && (
+        <div className="px-4 mt-4 lg:max-w-4xl lg:mx-auto">
+          <button
+            onClick={onAddGoal}
+            className="w-full bg-gradient-to-r from-primary to-emerald-500 p-4 rounded-2xl flex items-center justify-between text-white shadow-lg shadow-primary/20 active:scale-[0.98] transition-all"
+            aria-label="添加新目标"
+          >
+            <div className="flex items-center gap-3">
+              <div className="size-10 bg-white/20 rounded-xl flex items-center justify-center">
+                <span className="material-symbols-outlined text-2xl">rocket_launch</span>
+              </div>
+              <div className="text-left">
+                <p className="font-bold text-sm">准备好迎接新挑战了吗？</p>
+                <p className="text-[10px] opacity-80">点击这里种下你的下一个成长之树</p>
+              </div>
             </div>
-            <div className="text-left">
-              <p className="font-bold text-sm">准备好迎接新挑战了吗？</p>
-              <p className="text-[10px] opacity-80">点击这里种下你的下一个成长之树</p>
-            </div>
-          </div>
-          <span className="material-symbols-outlined">chevron_right</span>
-        </button>
-      </div>
+            <span className="material-symbols-outlined">chevron_right</span>
+          </button>
+        </div>
+      )}
 
       <h3 className="text-slate-900 tracking-tight text-2xl font-extrabold px-4 pb-4 pt-6 lg:max-w-4xl lg:mx-auto">果园花园</h3>
 
@@ -269,8 +271,8 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
             const checkedInToday = tree.checked_in_today ?? false;
             return (
               <div key={tree.id} className="relative group">
-                {/* 编辑按钮：绝对定位在卡片右上角（进行中和已完成的目标均可编辑） */}
-                {goal && (
+                {/* 编辑按钮：儿童模式下隐藏 */}
+                {goal && !isChildMode && (
                   <button
                     className="absolute top-2 right-2 z-10 bg-white/90 backdrop-blur-sm rounded-lg p-1.5 shadow-sm hover:bg-white active:scale-90 transition-all w-8 h-8 flex items-center justify-center"
                     onClick={e => { e.stopPropagation(); handleEditTree(tree); }}
@@ -330,17 +332,19 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
             );
           })}
 
-          {/* Add Goal Entry */}
-          <button
-            onClick={onAddGoal}
-            className="relative flex flex-col items-center justify-center gap-3 rounded-xl aspect-square border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors group"
-            aria-label="添加新目标"
-          >
-            <div className="size-12 rounded-full bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-              <span className="material-symbols-outlined text-3xl">add</span>
-            </div>
-            <p className="text-primary font-bold text-sm">添加新目标</p>
-          </button>
+          {/* Add Goal Entry（儿童模式下隐藏） */}
+          {!isChildMode && (
+            <button
+              onClick={onAddGoal}
+              className="relative flex flex-col items-center justify-center gap-3 rounded-xl aspect-square border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors group"
+              aria-label="添加新目标"
+            >
+              <div className="size-12 rounded-full bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                <span className="material-symbols-outlined text-3xl">add</span>
+              </div>
+              <p className="text-primary font-bold text-sm">添加新目标</p>
+            </button>
+          )}
         </div>
       )}
 
@@ -355,16 +359,18 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
         onClose={handleCloseDetailPopup}
       />
 
-      {/* FAB：仅移动端显示，桌面端通过侧边栏导航操作 */}
-      <div className="fixed bottom-24 right-6 z-30 lg:hidden">
-        <button
-          onClick={onAddGoal}
-          className="flex size-14 items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/40 text-white transition-transform active:scale-95"
-          aria-label="快速添加目标"
-        >
-          <span className="material-symbols-outlined text-3xl">add</span>
-        </button>
-      </div>
+      {/* FAB：仅移动端显示，儿童模式下隐藏 */}
+      {!isChildMode && (
+        <div className="fixed bottom-24 right-6 z-30 lg:hidden">
+          <button
+            onClick={onAddGoal}
+            className="flex size-14 items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/40 text-white transition-transform active:scale-95"
+            aria-label="快速添加目标"
+          >
+            <span className="material-symbols-outlined text-3xl">add</span>
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 }

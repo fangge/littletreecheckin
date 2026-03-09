@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { childrenApi, Child } from '../services/api';
+import PasswordConfirmModal from '../components/PasswordConfirmModal';
 
 interface ProfileProps {
   onBack: () => void;
@@ -17,17 +18,49 @@ interface AddChildForm {
 }
 
 export default function Profile({ onBack, onLogout, onViewParentControl, onViewRewardsManagement }: ProfileProps) {
-  const { user, currentChild, setCurrentChild, logout } = useAuth();
+  const { user, currentChild, setCurrentChild, logout, isChildMode, enableChildMode, disableChildMode } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState<AddChildForm>({ name: '', age: '', gender: 'male' });
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState('');
 
+  // 儿童模式弹窗状态
+  const [showChildModeModal, setShowChildModeModal] = useState(false);
+  const [childModeLoading, setChildModeLoading] = useState(false);
+  const [childModeError, setChildModeError] = useState('');
+
   const handleLogout = () => {
     setIsLoggingOut(true);
     logout();
     onLogout();
+  };
+
+  const handleChildModeToggleClick = () => {
+    setChildModeError('');
+    setShowChildModeModal(true);
+  };
+
+  const handleChildModeConfirm = async (password: string) => {
+    setChildModeLoading(true);
+    setChildModeError('');
+    try {
+      if (isChildMode) {
+        await disableChildMode(password);
+      } else {
+        await enableChildMode(password);
+      }
+      setShowChildModeModal(false);
+    } catch (err) {
+      setChildModeError(err instanceof Error ? err.message : '验证失败，请重试');
+    } finally {
+      setChildModeLoading(false);
+    }
+  };
+
+  const handleChildModeCancel = () => {
+    setShowChildModeModal(false);
+    setChildModeError('');
   };
 
   const handleSwitchChild = (child: Child) => setCurrentChild(child);
@@ -96,29 +129,33 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
       </div>
 
       <div className="px-4 space-y-4 flex-grow lg:max-w-2xl lg:mx-auto lg:w-full">
-        {/* 家长审核入口 */}
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-primary/5">
-          <h3 className="text-slate-900 text-base font-bold leading-tight mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-sm">shield_person</span>
-            家长审核
-          </h3>
-          <button onClick={onViewParentControl} className="w-full flex items-center justify-between py-2 hover:bg-slate-50 transition-colors rounded-lg px-2" aria-label="进入待审核任务">
-            <p className="text-slate-600 text-sm">进入待审核任务</p>
-            <span className="material-symbols-outlined text-slate-400">chevron_right</span>
-          </button>
-        </div>
+        {/* 家长审核入口（儿童模式下隐藏） */}
+        {!isChildMode && (
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-primary/5">
+            <h3 className="text-slate-900 text-base font-bold leading-tight mb-4 flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary text-sm">shield_person</span>
+              家长审核
+            </h3>
+            <button onClick={onViewParentControl} className="w-full flex items-center justify-between py-2 hover:bg-slate-50 transition-colors rounded-lg px-2" aria-label="进入待审核任务">
+              <p className="text-slate-600 text-sm">进入待审核任务</p>
+              <span className="material-symbols-outlined text-slate-400">chevron_right</span>
+            </button>
+          </div>
+        )}
 
-        {/* 奖品与兑换管理入口 */}
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-primary/5">
-          <h3 className="text-slate-900 text-base font-bold leading-tight mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-sm">redeem</span>
-            奖品与兑换
-          </h3>
-          <button onClick={onViewRewardsManagement} className="w-full flex items-center justify-between py-2 hover:bg-slate-50 transition-colors rounded-lg px-2" aria-label="管理奖品和兑换记录">
-            <p className="text-slate-600 text-sm">管理奖品 · 查看兑换记录</p>
-            <span className="material-symbols-outlined text-slate-400">chevron_right</span>
-          </button>
-        </div>
+        {/* 奖品与兑换管理入口（儿童模式下隐藏） */}
+        {!isChildMode && (
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-primary/5">
+            <h3 className="text-slate-900 text-base font-bold leading-tight mb-4 flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary text-sm">redeem</span>
+              奖品与兑换
+            </h3>
+            <button onClick={onViewRewardsManagement} className="w-full flex items-center justify-between py-2 hover:bg-slate-50 transition-colors rounded-lg px-2" aria-label="管理奖品和兑换记录">
+              <p className="text-slate-600 text-sm">管理奖品 · 查看兑换记录</p>
+              <span className="material-symbols-outlined text-slate-400">chevron_right</span>
+            </button>
+          </div>
+        )}
 
         {/* 账户设置 */}
         <div className="bg-white rounded-xl p-4 shadow-sm border border-primary/5">
@@ -131,7 +168,42 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
               <p className="text-slate-600 text-sm">用户名</p>
               <p className="text-slate-900 text-sm font-medium">{user?.username || '--'}</p>
             </div>
-            
+          </div>
+        </div>
+
+        {/* 儿童模式切换 */}
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-primary/5">
+          <h3 className="text-slate-900 text-base font-bold leading-tight mb-4 flex items-center gap-2">
+            <span className="material-symbols-outlined text-amber-500 text-sm">child_care</span>
+            儿童模式
+          </h3>
+          <div className="flex items-center justify-between py-2">
+            <div className="flex-1 min-w-0 mr-4">
+              <p className="text-slate-600 text-sm">
+                {isChildMode ? '儿童模式已开启' : '儿童模式已关闭'}
+              </p>
+              <p className="text-slate-400 text-xs mt-0.5">
+                {isChildMode
+                  ? '已隐藏任务编辑、目标添加和家长中心功能'
+                  : '开启后将隐藏编辑和家长管理功能，需密码验证'}
+              </p>
+            </div>
+            <button
+              onClick={handleChildModeToggleClick}
+              className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 ${
+                isChildMode
+                  ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                  : 'bg-primary/10 text-primary hover:bg-primary/20'
+              }`}
+              aria-label={isChildMode ? '关闭儿童模式' : '开启儿童模式'}
+              tabIndex={0}
+              onKeyDown={e => e.key === 'Enter' && handleChildModeToggleClick()}
+            >
+              <span className="material-symbols-outlined text-sm">
+                {isChildMode ? 'lock_open' : 'lock'}
+              </span>
+              {isChildMode ? '关闭' : '开启'}
+            </button>
           </div>
         </div>
 
@@ -206,6 +278,21 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
           {isLoggingOut ? '退出中...' : '退出登录'}
         </button>
       </div>
+
+      <PasswordConfirmModal
+        isOpen={showChildModeModal}
+        title={isChildMode ? '关闭儿童模式' : '开启儿童模式'}
+        description={
+          isChildMode
+            ? '请输入账户登录密码以关闭儿童模式，恢复完整功能'
+            : '请输入账户登录密码以开启儿童模式，开启后将隐藏编辑和家长管理功能'
+        }
+        confirmLabel={isChildMode ? '关闭儿童模式' : '开启儿童模式'}
+        isLoading={childModeLoading}
+        error={childModeError}
+        onConfirm={handleChildModeConfirm}
+        onCancel={handleChildModeCancel}
+      />
     </motion.div>
   );
 }
