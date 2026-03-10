@@ -303,7 +303,7 @@ export const tasksApi = {
       `/api/v1/children/${childId}/tasks${status ? `?status=${status}` : ''}`
     ),
 
-  checkin: (goalId: string, childId: string, imageUrl?: string) => {
+  checkin: (goalId: string, childId: string, imageUrl?: string, checkinDate?: string) => {
     // 获取设备本地时间（带时区偏移的 ISO 字符串，如 2024-03-04T10:00:00.000+08:00）
     const now = new Date();
     const offsetMinutes = -now.getTimezoneOffset(); // 正数表示东时区
@@ -311,8 +311,17 @@ export const tasksApi = {
     const absOffset = Math.abs(offsetMinutes);
     const offsetHours = String(Math.floor(absOffset / 60)).padStart(2, '0');
     const offsetMins = String(absOffset % 60).padStart(2, '0');
-    const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
-    const checkinTime = localDate.toISOString().replace('Z', `${sign}${offsetHours}:${offsetMins}`);
+
+    let checkinTime: string;
+    if (checkinDate) {
+      // 补打卡：使用指定日期 + 当前时间的时分秒
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+      checkinTime = `${checkinDate}T${timeStr}${sign}${offsetHours}:${offsetMins}`;
+    } else {
+      // 正常打卡：使用当前本地时间
+      const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+      checkinTime = localDate.toISOString().replace('Z', `${sign}${offsetHours}:${offsetMins}`);
+    }
 
     return request<{ data: TaskData }>('/api/v1/tasks', {
       method: 'POST',

@@ -34,6 +34,14 @@ export default function CheckIn({
     isTreeCompleted: boolean;
   }>({ treeProgress: 0, treeName: '小树', isTreeCompleted: false });
 
+  // 获取 UTC+8 今天的日期字符串 YYYY-MM-DD
+  const getUTC8Today = (): string => {
+    const utc8Offset = 8 * 60 * 60 * 1000;
+    return new Date(Date.now() + utc8Offset).toISOString().split('T')[0];
+  };
+
+  const [selectedDate, setSelectedDate] = useState<string>(getUTC8Today());
+
   const fetchData = useCallback(async () => {
     if (!currentChild) return;
     setIsLoading(true);
@@ -54,13 +62,10 @@ export default function CheckIn({
         });
       }
 
-      // 筛选今日任务，按 goal_id 建立映射（只保留最新的一条，因为列表已按时间倒序）
-      // 使用 UTC+8 时区的今天，避免跨时区导致的日期判断错误
+      // 按 "日期_goal_id" 建立任务映射（只保留最新的一条，因为列表已按时间倒序）
+      // 使用 UTC+8 时区的日期，避免跨时区导致的日期判断错误
       const utc8Offset = 8 * 60 * 60 * 1000;
-      const today = new Date(Date.now() + utc8Offset)
-        .toISOString()
-        .split('T')[0];
-      const todayMap: Record<string, TaskData> = {};
+      const taskMap: Record<string, TaskData> = {};
       for (const task of tasksRes.data) {
         // 将 checkin_time 转换为 UTC+8 时区的日期再比较
         const taskDate = new Date(
@@ -68,12 +73,15 @@ export default function CheckIn({
         )
           .toISOString()
           .split('T')[0];
-        if (taskDate === today && task.goal_id && !todayMap[task.goal_id]) {
-          // 只保留第一条（最新的），避免旧的 rejected 记录覆盖新的 pending 记录
-          todayMap[task.goal_id] = task;
+        if (task.goal_id) {
+          const key = `${taskDate}_${task.goal_id}`;
+          if (!taskMap[key]) {
+            // 只保留第一条（最新的），避免旧的 rejected 记录覆盖新的 pending 记录
+            taskMap[key] = task;
+          }
         }
       }
-      setTodayTasks(todayMap);
+      setTodayTasks(taskMap);
     } catch (err) {
       console.error('获取数据失败:', err);
     } finally {
@@ -85,10 +93,10 @@ export default function CheckIn({
     fetchData();
   }, [fetchData]);
 
-  // 获取当前选中树木今日的打卡状态
-  const getTodayTaskForTree = (tree: TreeData | null): TaskData | null => {
+  // 获取当前选中树木在指定日期的打卡状态
+  const getTaskForTreeOnDate = (tree: TreeData | null, date: string): TaskData | null => {
     if (!tree?.goal_id) return null;
-    return todayTasks[tree.goal_id] || null;
+    return todayTasks[`${date}_${tree.goal_id}`] || null;
   };
 
   const handleCheckin = async () => {
@@ -101,11 +109,17 @@ export default function CheckIn({
     setError('');
 
     try {
-      const res = await tasksApi.checkin(selectedTree.goal_id, currentChild.id);
-      // 更新今日任务映射
+      const isBackfill = selectedDate !== getUTC8Today();
+      const res = await tasksApi.checkin(
+        selectedTree.goal_id,
+        currentChild.id,
+        undefined,
+        isBackfill ? selectedDate : undefined
+      );
+      // 更新任务映射
       setTodayTasks((prev) => ({
         ...prev,
-        [selectedTree.goal_id!]: res.data
+        [`${selectedDate}_${selectedTree.goal_id!}`]: res.data
       }));
       // 打卡成功后弹出庆祝弹窗，传递最新树木进度
       // 从刷新后的数据中获取当前树木的最新状态
@@ -132,7 +146,7 @@ export default function CheckIn({
   const currentGoal = currentTree?.goal_id
     ? (goals.find((g) => g.id === currentTree.goal_id) ?? null)
     : null;
-  const todayTask = getTodayTaskForTree(currentTree);
+  const todayTask = getTaskForTreeOnDate(currentTree, selectedDate);
   const hasCheckedInToday = !!todayTask;
   const taskStatus = todayTask?.status;
 
@@ -150,8 +164,23 @@ export default function CheckIn({
     });
   };
 
+  const today = getUTC8Today();
+  const isBackfillDate = selectedDate !== today;
+
+  // 格式化日期为中文显示
+  const formatDateDisplay = (dateStr: string): string => {
+    if (dateStr === today) return '今天';
+    const date = new Date(dateStr + 'T00:00:00+08:00');
+    return date.toLocaleDateString('zh-CN', {
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'Asia/Shanghai'
+    });
+  };
+
   const getStatusText = () => {
     if (!hasCheckedInToday) return null;
+    const dateLabel = isBackfillDate ? formatDateDisplay(selectedDate) : '今日';
     switch (taskStatus) {
       case 'pending':
         return {
@@ -161,7 +190,7 @@ export default function CheckIn({
         };
       case 'approved':
         return {
-          text: '今日任务已通过 🎉',
+          text: `${dateLabel}任务已通过 🎉`,
           color: 'text-green-600',
           bg: 'bg-green-50 border-green-200'
         };
@@ -191,7 +220,7 @@ export default function CheckIn({
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="flex-1 flex flex-col items-center p-6 space-y-8 overflow-y-auto pb-32 lg:pb-8"
+        className="flex-1 flex flex-col items-center p-3 space-y-8 overflow-y-auto pb-32 lg:pb-8 min-w-0 w-full"
       >
         <header className="w-full bg-background-light/80 backdrop-blur-md sticky top-0 z-10 lg:max-w-xl">
           <div className="flex items-center py-4 justify-between">
@@ -261,9 +290,9 @@ export default function CheckIn({
           <>
             {/* 树木选择 */}
             {growingTrees.length > 1 && (
-              <div className="w-full flex gap-2 overflow-x-auto no-scrollbar">
+              <div className="max-w-sm w-full max-w-sm min-w-0 flex gap-2 overflow-x-auto no-scrollbar">
                 {growingTrees.map((tree) => {
-                  const treeTask = getTodayTaskForTree(tree);
+                  const treeTask = getTaskForTreeOnDate(tree, selectedDate);
                   return (
                     <button
                       key={tree.id}
@@ -435,16 +464,18 @@ export default function CheckIn({
               <div className="text-center py-4">
                 <h1 className="text-slate-900 tracking-tight text-3xl font-extrabold leading-tight">
                   {!hasCheckedInToday
-                    ? '浇水时间到！'
+                    ? (isBackfillDate ? '补打卡' : '浇水时间到！')
                     : taskStatus === 'approved'
-                      ? '今日已完成！🎉'
+                      ? `${isBackfillDate ? formatDateDisplay(selectedDate) : '今日'}已完成！🎉`
                       : taskStatus === 'rejected'
                         ? '需要重新打卡'
-                        : '今日已打卡！'}
+                        : `${isBackfillDate ? formatDateDisplay(selectedDate) : '今日'}已打卡！`}
                 </h1>
                 <p className="text-slate-500 mt-2">
                   {!hasCheckedInToday
-                    ? '坚持完成好习惯，让你的幼苗长成参天大树吧。'
+                    ? (isBackfillDate
+                        ? `为 ${formatDateDisplay(selectedDate)} 补打卡，记录你的坚持！`
+                        : '坚持完成好习惯，让你的幼苗长成参天大树吧。')
                     : taskStatus === 'approved'
                       ? '家长已审核通过，树木正在成长！'
                       : taskStatus === 'rejected'
@@ -454,11 +485,39 @@ export default function CheckIn({
                 </p>
               </div>
 
+              {/* 打卡日期选择器 */}
+              <div className="flex items-center justify-center">
+                <label className="relative flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-full shadow-sm cursor-pointer hover:border-primary/40 transition-colors">
+                  <span className="material-symbols-outlined text-primary text-xl">
+                    calendar_month
+                  </span>
+                  <span className="text-slate-600 text-sm font-medium">
+                    打卡日期：
+                  </span>
+                  <span className="text-primary font-bold text-sm">
+                    {formatDateDisplay(selectedDate)}
+                  </span>
+                  <span className="material-symbols-outlined text-slate-400 text-base">
+                    expand_more
+                  </span>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    max={today}
+                    onChange={(e) => {
+                      if (e.target.value) setSelectedDate(e.target.value);
+                    }}
+                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                    aria-label="选择打卡日期"
+                  />
+                </label>
+              </div>
+
               <button
                 className="w-full py-6 bg-primary text-background-dark text-xl font-extrabold rounded-2xl shadow-lg shadow-primary/30 active:scale-95 transition-transform flex items-center justify-center gap-3 disabled:opacity-60 disabled:cursor-not-allowed"
                 onClick={handleCheckin}
                 disabled={isChecking || !canCheckin}
-                aria-label="立即打卡"
+                aria-label={isBackfillDate ? '补打卡' : '立即打卡'}
               >
                 <span className="material-symbols-outlined text-3xl">
                   task_alt
@@ -467,11 +526,13 @@ export default function CheckIn({
                   ? '打卡中...'
                   : !canCheckin
                     ? taskStatus === 'approved'
-                      ? '今日已完成'
+                      ? `${isBackfillDate ? formatDateDisplay(selectedDate) : '今日'}已完成`
                       : '等待审核中'
                     : taskStatus === 'rejected'
                       ? '重新打卡'
-                      : '立即打卡'}
+                      : isBackfillDate
+                        ? `补打卡 · ${formatDateDisplay(selectedDate)}`
+                        : '立即打卡'}
               </button>
             </div>
           </>

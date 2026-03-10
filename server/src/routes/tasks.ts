@@ -89,22 +89,33 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
     .eq('id', child_id)
     .single();
 
-  // 检查今日是否已打卡（排除已拒绝的任务，允许重新打卡）
-  // 使用 UTC+8 时区的今天，避免跨时区导致的日期判断错误
-  const today = getUTC8Today();
+  // 检查指定日期是否已打卡（排除已拒绝的任务，允许重新打卡）
+  // 如果前端传入了 checkin_time，则检查该日期；否则检查今天（UTC+8）
+  let checkDate: string;
+  if (checkin_time) {
+    // 将前端传入的时间转换为 UTC+8 日期
+    const utc8Offset = 8 * 60 * 60 * 1000;
+    checkDate = new Date(new Date(checkin_time).getTime() + utc8Offset)
+      .toISOString()
+      .split('T')[0];
+  } else {
+    checkDate = getUTC8Today();
+  }
+
   const { data: existingTask } = await supabase
     .from('tasks')
     .select('id, status')
     .eq('goal_id', goal_id)
     .neq('status', 'rejected')
-    .gte('checkin_time', `${today}T00:00:00+08:00`)
-    .lte('checkin_time', `${today}T23:59:59.999+08:00`)
+    .gte('checkin_time', `${checkDate}T00:00:00+08:00`)
+    .lte('checkin_time', `${checkDate}T23:59:59.999+08:00`)
     .single();
 
   if (existingTask) {
+    const isToday = checkDate === getUTC8Today();
     const msg = existingTask.status === 'approved'
-      ? '今日任务已审核通过，无需重复打卡'
-      : '今日已打卡，请等待家长审核';
+      ? (isToday ? '今日任务已审核通过，无需重复打卡' : '该日期任务已审核通过，无需重复打卡')
+      : (isToday ? '今日已打卡，请等待家长审核' : '该日期已打卡，请等待家长审核');
     res.status(409).json({ error: msg });
     return;
   }
