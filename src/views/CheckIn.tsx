@@ -290,13 +290,13 @@ export default function CheckIn({
           <>
             {/* 树木选择 */}
             {growingTrees.length > 1 && (
-              <div className="max-w-sm w-full max-w-sm min-w-0 flex gap-2 overflow-x-auto no-scrollbar">
+              <div className="w-full max-w-sm min-w-0 flex gap-2 overflow-x-auto no-scrollbar lg:overflow-x-visible lg:flex-wrap">
                 {growingTrees.map((tree) => {
                   const treeTask = getTaskForTreeOnDate(tree, selectedDate);
                   return (
                     <button
                       key={tree.id}
-                      className={`shrink-0 px-4 py-2 rounded-full text-sm font-bold transition-all flex items-center gap-1.5 ${
+                      className={`px-4 py-2 rounded-full text-sm font-bold transition-all flex items-center gap-1.5 ${
                         selectedTree?.id === tree.id
                           ? 'bg-primary text-white'
                           : 'bg-primary/10 text-slate-700'
