@@ -220,9 +220,9 @@ export default function CheckIn({
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="flex-1 flex flex-col items-center p-3 space-y-4 overflow-y-auto pb-32 lg:pb-8 min-w-0 w-full"
+        className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden pb-32 lg:pb-8 w-full"
       >
-        <header className="w-full bg-background-light/80 backdrop-blur-md sticky top-0 z-10 lg:max-w-xl">
+        <header className="w-full bg-background-light/80 backdrop-blur-md sticky top-0 z-10 px-3 lg:max-w-xl lg:mx-auto">
           <div className="flex items-center py-4 justify-between">
             <button
               onClick={onViewProfile}
@@ -273,13 +273,13 @@ export default function CheckIn({
         </header>
 
         {isLoading ? (
-          <div className="flex justify-center py-12">
+          <div className="flex justify-center py-12 px-3">
             <span className="material-symbols-outlined text-primary text-5xl animate-pulse">
               forest
             </span>
           </div>
         ) : growingTrees.length === 0 ? (
-          <div className="text-center py-12 text-slate-400 space-y-4">
+          <div className="text-center py-12 px-3 text-slate-400 space-y-4">
             <span className="material-symbols-outlined text-6xl block">
               park
             </span>
@@ -287,10 +287,10 @@ export default function CheckIn({
             <p className="text-sm">去首页添加一个新目标吧！</p>
           </div>
         ) : (
-          <>
+          <div className="w-full space-y-4 pb-4 px-3">
             {/* 树木选择 */}
             {growingTrees.length > 1 && (
-              <div className="w-full max-w-sm min-w-0 flex gap-2 overflow-x-auto no-scrollbar lg:overflow-visible lg:flex-wrap">
+              <div className="w-0 min-w-full flex gap-2 overflow-x-auto no-scrollbar lg:overflow-visible lg:flex-wrap">
                 {growingTrees.map((tree) => {
                   const treeTask = getTaskForTreeOnDate(tree, selectedDate);
                   return (
@@ -316,7 +316,7 @@ export default function CheckIn({
               </div>
             )}
 
-            <div className="relative w-full max-w-sm h-52 bg-gradient-to-b from-blue-100 to-primary/5 rounded-3xl overflow-hidden shadow-inner flex flex-col items-center justify-center border-4 border-white">
+            <div className="relative w-full max-w-sm mx-auto h-52 bg-gradient-to-b from-blue-100 to-primary/5 rounded-3xl overflow-hidden shadow-inner flex flex-col items-center justify-center border-4 border-white">
               <div className="absolute top-8 left-8 text-yellow-400">
                 <span className="material-symbols-outlined text-6xl fill-icon">
                   light_mode
@@ -379,7 +379,7 @@ export default function CheckIn({
               </div>
             </div>
 
-            <div className="w-full max-w-sm space-y-4">
+            <div className="w-full max-w-sm mx-auto space-y-4">
               {error && (
                 <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
                   {error}
@@ -535,7 +535,7 @@ export default function CheckIn({
                         : '立即打卡'}
               </button>
             </div>
-          </>
+          </div>
         )}
       </motion.div>
     </>
