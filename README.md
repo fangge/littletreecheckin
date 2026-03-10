@@ -213,3 +213,25 @@ pnpm server:dev   # 后端 http://localhost:3001
 - ✅ **修复** 外层容器新增 `min-w-0 w-full`，防止 flex 子元素撑开父容器导致布局异常
 
 **无需数据库迁移**：复用现有 `tasks` 表的 `checkin_time` 字段
+
+---
+
+### v2.9 — PWA 支持（可安装到主屏幕）
+
+将 Web 应用升级为 Progressive Web App，支持 Android / iOS 设备安装到主屏幕，以全屏 App 模式运行，并提供静态资源离线缓存能力。
+
+- ✅ **新增** `public/manifest.json`：PWA 应用清单，配置应用名称（成就丛林 HappyGrow）、主题色（`#16a34a`）、全屏独立显示模式（`standalone`）、横竖屏自由旋转（`orientation: any`）、快捷方式（长按图标直接跳转打卡页）
+- ✅ **新增** `public/sw.js`：Service Worker，实现三种缓存策略：
+  - API 请求（`/api/*`）：网络优先，离线时返回 503 JSON 错误
+  - 外部字体（Google Fonts）：缓存优先，减少重复加载
+  - 同域静态资源（JS/CSS/图片）：Stale-While-Revalidate，立即响应 + 后台更新
+  - 预留推送通知处理逻辑（`push` + `notificationclick` 事件）
+- ✅ **修改** `index.html`：添加 `<link rel="manifest">`、iOS/Android/Windows 全平台 PWA meta 标签、Service Worker 注册脚本（含版本更新检测）
+- ✅ **修改** `vercel.json`：将 `rewrites` 改为有序 `routes` 规则，确保 `sw.js`（附加 `Service-Worker-Allowed: /` 响应头）和 `manifest.json` 不被 SPA 通配符规则拦截
+- ✅ **新增** `public/` 目录：将 `logo.png`、`logo2.png`、`favicon.ico` 移入，确保 Vite 构建时正确复制到 `dist/` 根目录
+
+**安装方式**：
+- Android Chrome：访问网站后地址栏出现"添加到主屏幕"提示
+- iOS Safari：点击分享按钮 → "添加到主屏幕"
+
+**无需数据库迁移**：纯前端配置变更
