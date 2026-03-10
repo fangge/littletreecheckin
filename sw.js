@@ -10,7 +10,6 @@ const STATIC_ASSETS = [
   '/',
   '/manifest.json',
   '/favicon.ico',
-  '/logo.png',
   '/logo2.png',
 ];
 
@@ -164,8 +163,8 @@ self.addEventListener('push', (event) => {
   const data = event.data.json();
   const options = {
     body: data.body || '你有新的消息',
-    icon: '/logo.png',
-    badge: '/logo.png',
+    icon: '/logo2.png',
+    badge: '/logo2.png',
     vibrate: [100, 50, 100],
     data: {
       url: data.url || '/',
