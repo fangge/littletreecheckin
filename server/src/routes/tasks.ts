@@ -232,19 +232,18 @@ router.put('/:taskId/approve', authMiddleware, async (req: AuthRequest, res: Res
   if (task.tree_id) {
     const { data: tree } = await supabase
       .from('trees')
-      .select('id, progress, level, status, goal_id')
+      .select('id, progress, status, goal_id')
       .eq('id', task.tree_id)
       .single();
 
     if (tree && tree.status === 'growing') {
       const progressIncrement = Math.round(100 / durationDays);
       const newProgress = Math.min(100, tree.progress + progressIncrement);
-      const newLevel = Math.min(5, Math.floor(newProgress / 20) + 1);
       const newStatus = newProgress >= 100 ? 'completed' : 'growing';
 
       await supabase
         .from('trees')
-        .update({ progress: newProgress, level: newLevel, status: newStatus })
+        .update({ progress: newProgress, status: newStatus })
         .eq('id', task.tree_id);
 
       // 如果树木完成，将目标标记为非活跃

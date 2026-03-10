@@ -71,7 +71,6 @@ export interface TreeData {
   name: string;
   image?: string;
   status: 'growing' | 'completed';
-  level: number;
   progress: number;
   goal_id?: string;
   completed_days?: number;

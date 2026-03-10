@@ -5,7 +5,6 @@ export interface Tree {
   name: string;
   image: string;
   status: 'growing' | 'completed';
-  level?: number;
   progress: number; // 0-100
 }
 

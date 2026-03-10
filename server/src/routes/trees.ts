@@ -36,7 +36,7 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
 
   let query = supabase
     .from('trees')
-    .select('id, name, image, status, level, progress, goal_id, created_at')
+    .select('id, name, image, status, progress, goal_id, created_at')
     .eq('child_id', childId)
     .order('created_at', { ascending: false });
 
@@ -159,10 +159,9 @@ router.post('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Res
       name: reward_tree_name || title,
       image: null,
       status: 'growing',
-      level: 1,
       progress: 0,
     })
-    .select('id, name, image, status, level, progress, goal_id, created_at')
+    .select('id, name, image, status, progress, goal_id, created_at')
     .single();
 
   if (treeError || !tree) {
@@ -202,7 +201,7 @@ router.put('/:treeId', authMiddleware, async (req: AuthRequest, res: Response): 
     .from('trees')
     .update(updateData)
     .eq('id', treeId)
-    .select('id, name, image, status, level, progress, goal_id, created_at')
+    .select('id, name, image, status, progress, goal_id, created_at')
     .single();
 
   if (error || !data) {
@@ -234,7 +233,7 @@ router.get('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Resp
     .from('goals')
     .select(`
       id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, fruits_per_task, created_at,
-      trees(id, name, image, status, level, progress)
+      trees(id, name, image, status, progress)
     `)
     .eq('child_id', childId)
     .order('created_at', { ascending: false });

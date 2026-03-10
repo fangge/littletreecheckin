@@ -27,7 +27,6 @@ export const TREES: Tree[] = [
     name: '樱桃树',
     image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuANBYQXFgiTcQRNOSeh-cD6xJQQkBVQGSx_yUB1858eWau6VPv5_A1B36WMTrIr7TpV1sLJpkTFTB4iS7qQlSQtiT6-vpLQFY6ui-1PKDAjQLHESzHUvEf-osnRoHjgn6eIxpiOfUU77Z6q1iGbJTs9AtofoF7pU3yXk7kfycxc-Si8H1wdOqWGY8XnWMsy9ESleMowzBapVLbRopWKEVk4siNMwl1fvoscZFysWlnBKEd-Jgz127FVw17h3zYi6nzhbgnzX3Qa6k61',
     status: 'growing',
-    level: 5,
     progress: 40
   },
   {

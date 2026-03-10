@@ -289,11 +289,7 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
                       <span className="material-symbols-outlined text-white text-[10px] leading-none">check</span>
                       <span className="text-[10px] text-white font-bold">今日已打卡</span>
                     </div>
-                  ) : (
-                    <div className="bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-sm">
-                      <span className="text-[10px] text-white font-bold flex items-center">{tree.level} 级</span>
-                    </div>
-                  )}
+                  ) : null}
                 </div>
                 <div
                   className="bg-cover bg-center flex flex-col gap-2 rounded-xl justify-end p-4 aspect-square overflow-hidden shadow-lg shadow-primary/5"

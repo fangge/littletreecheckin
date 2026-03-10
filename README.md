@@ -184,6 +184,22 @@ pnpm server:dev   # 后端 http://localhost:3001
 
 ---
 
+### v2.8 — 删除树木 level 字段
+
+移除冗余的树木等级字段，简化数据模型。`level` 是 `progress` 的派生值（每 20% 进度提升 1 级），在业务中无实质作用。
+
+- ✅ **删除** `trees` 表 `level` 列（迁移文件：`supabase/migrations/005_remove_tree_level.sql`）
+- ✅ **删除** 后端 `POST /api/v1/tasks/:taskId/approve` 中的 `newLevel` 计算逻辑及 `level` 字段更新
+- ✅ **删除** 后端 `server/src/routes/trees.ts` 所有 `select`/`insert` 中的 `level` 字段
+- ✅ **删除** 前端 `TreeData` 接口（`src/services/api.ts`）和 `Tree` 接口（`src/types.ts`）中的 `level` 字段
+- ✅ **删除** 前端常量 `src/constants.ts` 中 TREES 数组的 `level` 字段
+- ✅ **删除** 打卡页（`src/views/CheckIn.tsx`）底部标签中的 `Lv.X` 等级展示
+- ✅ **删除** Dashboard（`src/views/Dashboard.tsx`）树木卡片中的 `X 级` 等级标签
+
+**数据库迁移**：执行 `supabase/migrations/005_remove_tree_level.sql`
+
+---
+
 ### v2.7 — 补打卡功能 & 布局偏移修复
 
 新增打卡日期选择功能，支持为过去日期补打卡；同时修复多任务场景下内容向右偏移的布局问题。

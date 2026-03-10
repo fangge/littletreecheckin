@@ -220,7 +220,7 @@ export default function CheckIn({
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="flex-1 flex flex-col items-center p-3 space-y-8 overflow-y-auto pb-32 lg:pb-8 min-w-0 w-full"
+        className="flex-1 flex flex-col items-center p-3 space-y-4 overflow-y-auto pb-32 lg:pb-8 min-w-0 w-full"
       >
         <header className="w-full bg-background-light/80 backdrop-blur-md sticky top-0 z-10 lg:max-w-xl">
           <div className="flex items-center py-4 justify-between">
@@ -316,7 +316,7 @@ export default function CheckIn({
               </div>
             )}
 
-            <div className="relative w-full max-w-sm aspect-square bg-gradient-to-b from-blue-100 to-primary/5 rounded-3xl overflow-hidden shadow-inner flex flex-col items-center justify-center border-4 border-white">
+            <div className="relative w-full max-w-sm h-52 bg-gradient-to-b from-blue-100 to-primary/5 rounded-3xl overflow-hidden shadow-inner flex flex-col items-center justify-center border-4 border-white">
               <div className="absolute top-8 left-8 text-yellow-400">
                 <span className="material-symbols-outlined text-6xl fill-icon">
                   light_mode
@@ -328,14 +328,14 @@ export default function CheckIn({
                 </span>
               </div>
 
-              <div className="relative z-0 mt-auto mb-12">
+              <div className="relative z-0 mt-auto mb-8">
                 {(() => {
-                  // 根据进度计算树的大小：0% → 96px，100% → 192px
+                  // 根据进度计算树的大小：0% → 64px，100% → 128px
                   const progress = currentTree?.progress ?? 0;
-                  const minSize = 96;
-                  const maxSize = 192;
+                  const minSize = 64;
+                  const maxSize = 128;
                   const treeSize = Math.round(minSize + (maxSize - minSize) * (progress / 100));
-                  const shadowWidth = Math.round(64 + 64 * (progress / 100));
+                  const shadowWidth = Math.round(48 + 48 * (progress / 100));
 
                   return (
                     <>
@@ -373,7 +373,7 @@ export default function CheckIn({
               <div className="absolute bottom-0 w-full h-12 bg-primary/20 flex items-center justify-center">
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary/80">
                   {currentTree
-                    ? `${currentTree.name} · Lv.${currentTree.level}`
+                    ? currentTree.name
                     : '幼苗阶段'}
                 </p>
               </div>
