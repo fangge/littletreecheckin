@@ -348,7 +348,7 @@ router.get('/:childId/fruits-history', authMiddleware, async (req: AuthRequest, 
 
   const { data: tasks, error } = await supabase
     .from('tasks')
-    .select('id, title, checkin_time, goals(icon, fruits_per_task)')
+    .select('id, title, checkin_time, bonus_fruits, goals(icon, fruits_per_task)')
     .eq('child_id', childId)
     .eq('status', 'approved')
     .order('checkin_time', { ascending: false });
@@ -362,12 +362,14 @@ router.get('/:childId/fruits-history', authMiddleware, async (req: AuthRequest, 
     id: string;
     title: string;
     checkin_time: string;
+    bonus_fruits: number;
     goals: { icon?: string; fruits_per_task?: number } | null;
   }) => ({
     id: task.id,
     title: task.title,
     checkin_time: task.checkin_time,
     fruits_earned: task.goals?.fruits_per_task ?? 10,
+    bonus_fruits: task.bonus_fruits ?? 0,
     goal_icon: task.goals?.icon ?? null,
   }));
 

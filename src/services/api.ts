@@ -100,6 +100,8 @@ export interface TaskData {
   progress: number;
   reject_reason?: string;
   goals?: { title: string; icon?: string; fruits_per_task?: number };
+  fruits_earned?: number;
+  bonus_fruits?: number;
   trees?: { name: string; image?: string };
 }
 
@@ -169,6 +171,7 @@ export interface FruitsHistoryItem {
   title: string;
   checkin_time: string;
   fruits_earned: number;
+  bonus_fruits: number;
   goal_icon?: string | null;
 }
 
@@ -338,6 +341,11 @@ export const tasksApi = {
     request<{ data: TaskData }>(`/api/v1/tasks/${taskId}/reject`, {
       method: 'PUT',
       body: JSON.stringify({ reason }),
+    }),
+
+  revoke: (taskId: string) =>
+    request<{ data: TaskData }>(`/api/v1/tasks/${taskId}/revoke`, {
+      method: 'PUT',
     }),
 };
 

@@ -20,6 +20,7 @@ export default function ParentControl({ onBack }: ParentControlProps) {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [bonusFruits, setBonusFruits] = useState<Record<string, number>>({});
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [revokeConfirm, setRevokeConfirm] = useState<{ show: boolean; task: TaskWithChild | null }>({ show: false, task: null });
 
   const fetchTasks = useCallback(async () => {
     if (!user?.children || user.children.length === 0) return;
@@ -76,6 +77,21 @@ export default function ParentControl({ onBack }: ParentControlProps) {
 
   const handleQuickNote = (taskId: string, text: string) => {
     setNotes(prev => ({ ...prev, [taskId]: text }));
+  };
+
+  const handleRevoke = async () => {
+    if (!revokeConfirm.task) return;
+    setProcessingId(revokeConfirm.task.id);
+    try {
+      await tasksApi.revoke(revokeConfirm.task.id);
+      await fetchTasks();
+      setRevokeConfirm({ show: false, task: null });
+    } catch (err) {
+      console.error('撤销失败:', err);
+      alert(err instanceof Error ? err.message : '撤销失败，请重试');
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   const pendingCount = tasks.filter(t => t.status === 'pending').length;
@@ -243,15 +259,61 @@ export default function ParentControl({ onBack }: ParentControlProps) {
               )}
 
               {task.status === 'approved' && (
-                <div className="px-4 pb-4 flex items-center gap-2 text-primary">
-                  <span className="material-symbols-outlined fill-icon">check_circle</span>
-                  <span className="text-sm font-semibold">已批准</span>
+                <div className="px-4 pb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-primary">
+                    <span className="material-symbols-outlined fill-icon">check_circle</span>
+                    <span className="text-sm font-semibold">已批准</span>
+                  </div>
+                  <button
+                    className="py-2 px-3 flex items-center gap-1 text-xs font-semibold text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    onClick={() => setRevokeConfirm({ show: true, task })}
+                    disabled={processingId === task.id}
+                  >
+                    <span className="material-symbols-outlined text-sm">undo</span>
+                    撤销批准
+                  </button>
                 </div>
               )}
             </div>
           ))
         )}
       </main>
+
+      {revokeConfirm.show && revokeConfirm.task && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setRevokeConfirm({ show: false, task: null })} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl"
+          >
+            <h3 className="text-lg font-bold text-slate-900 mb-2">确认撤销</h3>
+            <p className="text-sm text-slate-500 mb-4">
+              确定要撤销任务 <span className="font-semibold text-slate-900">{revokeConfirm.task.title}</span> 的审核吗？
+            </p>
+            <div className="bg-red-50 rounded-xl p-3 mb-4">
+              <p className="text-xs text-red-600 font-medium">
+                ⚠️ 撤销后将扣除该孩子 {revokeConfirm.task.goals?.fruits_per_task ?? 10} + {revokeConfirm.task.bonus_fruits ?? 0} = {((revokeConfirm.task.goals?.fruits_per_task ?? 10) + (revokeConfirm.task.bonus_fruits ?? 0))} 个果实
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                className="flex-1 py-3 rounded-xl font-bold text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+                onClick={() => setRevokeConfirm({ show: false, task: null })}
+              >
+                取消
+              </button>
+              <button
+                className="flex-1 py-3 rounded-xl font-bold text-sm text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50"
+                onClick={handleRevoke}
+                disabled={processingId === revokeConfirm.task.id}
+              >
+                {processingId === revokeConfirm.task.id ? '处理中...' : '确认撤销'}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </motion.div>
   );
 }

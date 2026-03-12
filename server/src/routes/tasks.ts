@@ -196,7 +196,7 @@ router.put('/:taskId/approve', authMiddleware, async (req: AuthRequest, res: Res
   // 1. 更新任务状态
   const { data: updatedTask, error: taskError } = await supabase
     .from('tasks')
-    .update({ status: 'approved' })
+    .update({ status: 'approved', bonus_fruits: bonusFruits })
     .eq('id', taskId)
     .select('id, title, type, status, checkin_time, image_url, progress, created_at')
     .single();
@@ -308,6 +308,129 @@ router.put('/:taskId/reject', authMiddleware, async (req: AuthRequest, res: Resp
   }
 
   res.json({ data: updatedTask, message: '已拒绝' });
+});
+
+// PUT /api/v1/tasks/:taskId/revoke  (撤销已批准的任务)
+router.put('/:taskId/revoke', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { taskId } = req.params;
+
+  // 获取任务信息
+  const { data: task } = await supabase
+    .from('tasks')
+    .select('id, status, child_id, goal_id, tree_id, bonus_fruits')
+    .eq('id', taskId)
+    .single();
+
+  if (!task) {
+    res.status(404).json({ error: '任务不存在' });
+    return;
+  }
+
+  if (task.status !== 'approved') {
+    res.status(400).json({ error: '只能撤销已批准的任务' });
+    return;
+  }
+
+  // 获取孩子信息和当前果实余额
+  const { data: child } = await supabase
+    .from('children')
+    .select('id, fruits_balance')
+    .eq('id', task.child_id)
+    .single();
+
+  if (!child) {
+    res.status(403).json({ error: '孩子不存在' });
+    return;
+  }
+
+  // 获取基础果实数
+  let baseFruits = 10;
+  if (task.goal_id) {
+    const { data: goalInfo } = await supabase
+      .from('goals')
+      .select('fruits_per_task')
+      .eq('id', task.goal_id)
+      .single();
+    if (goalInfo) {
+      baseFruits = goalInfo.fruits_per_task ?? 10;
+    }
+  }
+
+  // 计算需要扣除的总果实数
+  const bonusFruits = task.bonus_fruits ?? 0;
+  const totalFruitsToDeduct = baseFruits + bonusFruits;
+
+  // 检查果实余额是否足够扣除
+  if (child.fruits_balance < totalFruitsToDeduct) {
+    res.status(400).json({
+      error: `果实余额不足，当前余额: ${child.fruits_balance}，需扣除: ${totalFruitsToDeduct}`,
+    });
+    return;
+  }
+
+  // 1. 将任务状态重置为 pending（而不是 deleted，保留打卡记录）
+  const { data: updatedTask, error: taskError } = await supabase
+    .from('tasks')
+    .update({ status: 'pending', bonus_fruits: 0 })
+    .eq('id', taskId)
+    .select('id, title, type, status, checkin_time, image_url, progress, created_at')
+    .single();
+
+  if (taskError || !updatedTask) {
+    res.status(500).json({ error: '撤销失败' });
+    return;
+  }
+
+  // 2. 扣除果实余额
+  await supabase
+    .from('children')
+    .update({ fruits_balance: child.fruits_balance - totalFruitsToDeduct })
+    .eq('id', task.child_id);
+
+  // 3. 恢复树木进度（如有）
+  if (task.tree_id) {
+    const { data: tree } = await supabase
+      .from('trees')
+      .select('id, progress, status, goal_id')
+      .eq('id', task.tree_id)
+      .single();
+
+    if (tree && tree.status === 'completed') {
+      const { data: goalInfo } = await supabase
+        .from('goals')
+        .select('duration_days, fruits_per_task')
+        .eq('id', task.goal_id)
+        .single();
+
+      const durationDays = goalInfo?.duration_days || 30;
+      const progressDecrement = Math.round(100 / durationDays);
+
+      await supabase
+        .from('trees')
+        .update({ progress: Math.max(0, tree.progress - progressDecrement), status: 'growing' })
+        .eq('id', task.tree_id);
+
+      // 恢复目标为活跃状态
+      await supabase
+        .from('goals')
+        .update({ is_active: true })
+        .eq('id', task.goal_id);
+    }
+  }
+
+  // 4. 发送系统消息通知
+  const fruitMsg = bonusFruits > 0
+    ? `扣除 ${totalFruitsToDeduct} 个果实（含额外奖励 ${bonusFruits} 个）`
+    : `扣除 ${totalFruitsToDeduct} 个果实`;
+  await supabase.from('messages').insert({
+    child_id: task.child_id,
+    sender_type: 'system',
+    text: `📝 家长撤回了任务"${updatedTask.title}"的审核，${fruitMsg}。请重新提交打卡~`,
+    type: 'text',
+    is_read: false,
+  });
+
+  res.json({ data: updatedTask, message: '撤销成功' });
 });
 
 export default router;
