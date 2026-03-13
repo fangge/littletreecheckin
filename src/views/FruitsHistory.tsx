@@ -134,7 +134,7 @@ export default function FruitsHistory({ onBack }: FruitsHistoryProps) {
                     <div className="flex items-center gap-1 shrink-0">
                       <span className="text-base font-extrabold text-orange-500">
                         +{item.fruits_earned}
-                        {item.bonus_fruits && item.bonus_fruits > 0 && (
+                        {item.bonus_fruits > 0 && (
                           <span className="text-xs text-primary">(+{item.bonus_fruits})</span>
                         )}
                       </span>
