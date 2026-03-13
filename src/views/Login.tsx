@@ -134,7 +134,7 @@ export default function Login({ onBack, onRegister, onLoginSuccess }: LoginProps
         </div>
 
         {/* Third Party Login */}
-        <div className="relative py-4">
+        {/* <div className="relative py-4">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-slate-200"></div>
           </div>
@@ -152,7 +152,7 @@ export default function Login({ onBack, onRegister, onLoginSuccess }: LoginProps
           <button className="w-12 h-12 flex items-center justify-center rounded-full bg-slate-50 text-slate-800 transition-transform active:scale-90" aria-label="手机号登录">
             <span className="material-symbols-outlined text-2xl">smartphone</span>
           </button>
-        </div>
+        </div> */}
       </div>
 
       {/* Background Decoration */}

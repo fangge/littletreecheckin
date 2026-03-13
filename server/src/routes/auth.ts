@@ -207,4 +207,61 @@ router.post('/verify-password', authMiddleware, async (req: AuthRequest, res: Re
   res.json({ success: true });
 });
 
+// POST /api/v1/auth/change-password
+router.post('/change-password', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { currentPassword, newPassword, confirmPassword } = req.body;
+  const userId = req.user!.id;
+
+  // 验证输入
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    res.status(400).json({ error: '请填写所有密码字段' });
+    return;
+  }
+
+  if (newPassword.length < 6) {
+    res.status(400).json({ error: '新密码长度不能少于6位' });
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    res.status(400).json({ error: '两次输入的新密码不一致' });
+    return;
+  }
+
+  // 获取当前用户
+  const { data: user } = await supabase
+    .from('users')
+    .select('password_hash')
+    .eq('id', userId)
+    .single();
+
+  if (!user) {
+    res.status(404).json({ error: '用户不存在' });
+    return;
+  }
+
+  // 验证当前密码
+  const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password_hash);
+  if (!isCurrentPasswordValid) {
+    res.status(401).json({ error: '当前密码错误' });
+    return;
+  }
+
+  // 加密新密码
+  const newPasswordHash = await bcrypt.hash(newPassword, 10);
+
+  // 更新密码
+  const { error: updateError } = await supabase
+    .from('users')
+    .update({ password_hash: newPasswordHash })
+    .eq('id', userId);
+
+  if (updateError) {
+    res.status(500).json({ error: '密码更新失败，请重试' });
+    return;
+  }
+
+  res.json({ success: true, message: '密码修改成功' });
+});
+
 export default router;

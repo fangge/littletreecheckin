@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
-import { childrenApi, Child } from '../services/api';
+import { childrenApi, authApi, Child } from '../services/api';
 import PasswordConfirmModal from '../components/PasswordConfirmModal';
 
 interface ProfileProps {
@@ -29,6 +29,96 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
   const [showChildModeModal, setShowChildModeModal] = useState(false);
   const [childModeLoading, setChildModeLoading] = useState(false);
   const [childModeError, setChildModeError] = useState('');
+
+  // 修改密码弹窗状态
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [passwordErrors, setPasswordErrors] = useState<{
+    currentPassword?: string;
+    newPassword?: string;
+    confirmPassword?: string;
+  }>({});
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  // 实时验证密码
+  const validatePassword = (field: 'currentPassword' | 'newPassword' | 'confirmPassword', value: string) => {
+    const errors = { ...passwordErrors };
+    
+    if (field === 'currentPassword') {
+      errors.currentPassword = value.length === 0 ? '请输入当前密码' : '';
+    } else if (field === 'newPassword') {
+      if (value.length === 0) {
+        errors.newPassword = '请输入新密码';
+      } else if (value.length < 6) {
+        errors.newPassword = '新密码至少6位';
+      } else if (value === passwordForm.currentPassword) {
+        errors.newPassword = '新密码不能与当前密码相同';
+      } else {
+        errors.newPassword = '';
+      }
+    } else if (field === 'confirmPassword') {
+      if (value.length === 0) {
+        errors.confirmPassword = '请再次输入新密码';
+      } else if (value !== passwordForm.newPassword) {
+        errors.confirmPassword = '两次输入的密码不一致';
+      } else {
+        errors.confirmPassword = '';
+      }
+    }
+    
+    setPasswordErrors(errors);
+  };
+
+  const handlePasswordChange = (field: 'currentPassword' | 'newPassword' | 'confirmPassword', value: string) => {
+    setPasswordForm(prev => ({ ...prev, [field]: value }));
+    validatePassword(field, value);
+  };
+
+  const handleSubmitPassword = async () => {
+    // 验证所有字段
+    const errors = {
+      currentPassword: passwordForm.currentPassword ? '' : '请输入当前密码',
+      newPassword: passwordForm.newPassword.length < 6 ? '新密码至少6位' : 
+                   passwordForm.newPassword === passwordForm.currentPassword ? '新密码不能与当前密码相同' : '',
+      confirmPassword: passwordForm.confirmPassword !== passwordForm.newPassword ? '两次输入的密码不一致' : '',
+    };
+    setPasswordErrors(errors);
+
+    if (errors.currentPassword || errors.newPassword || errors.confirmPassword) {
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      await authApi.changePassword(
+        passwordForm.currentPassword,
+        passwordForm.newPassword,
+        passwordForm.confirmPassword
+      );
+      setPasswordSuccess(true);
+      setTimeout(() => {
+        setShowPasswordModal(false);
+        setPasswordSuccess(false);
+        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      }, 2000);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '密码修改失败';
+      if (errorMessage.includes('当前密码错误')) {
+        setPasswordErrors({ currentPassword: '当前密码错误' });
+      } else if (errorMessage.includes('新密码')) {
+        setPasswordErrors({ newPassword: errorMessage });
+      } else {
+        setPasswordErrors({ currentPassword: errorMessage });
+      }
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
 
   const handleLogout = () => {
     setIsLoggingOut(true);
@@ -168,6 +258,14 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
               <p className="text-slate-600 text-sm">用户名</p>
               <p className="text-slate-900 text-sm font-medium">{user?.username || '--'}</p>
             </div>
+            <button
+              onClick={() => setShowPasswordModal(true)}
+              className="w-full flex items-center justify-between py-2 hover:bg-slate-50 transition-colors rounded-lg px-2"
+              aria-label="修改密码"
+            >
+              <p className="text-slate-600 text-sm">修改密码</p>
+              <span className="material-symbols-outlined text-slate-400">chevron_right</span>
+            </button>
           </div>
         </div>
 
@@ -293,6 +391,110 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
         onConfirm={handleChildModeConfirm}
         onCancel={handleChildModeCancel}
       />
+
+      {/* 修改密码弹窗 */}
+      <AnimatePresence>
+        {showPasswordModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+            onClick={() => { if (!isChangingPassword) setShowPasswordModal(false); }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              {passwordSuccess ? (
+                <div className="flex flex-col items-center text-center py-4">
+                  <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
+                    <span className="material-symbols-outlined text-green-600 text-4xl">check_circle</span>
+                  </div>
+                  <h3 className="text-xl font-extrabold text-slate-900 mb-2">密码修改成功</h3>
+                  <p className="text-slate-600 text-sm">请使用新密码重新登录</p>
+                </div>
+              ) : (
+                <>
+                  <h3 className="text-xl font-extrabold text-slate-900 mb-4 text-center">修改密码</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <input
+                        type="password"
+                        placeholder="当前密码"
+                        className={`w-full h-11 px-3 rounded-xl border text-sm bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 ${
+                          passwordErrors.currentPassword
+                            ? 'border-red-300 focus:ring-red-200'
+                            : 'border-slate-200 focus:border-primary focus:ring-primary/20'
+                        }`}
+                        value={passwordForm.currentPassword}
+                        onChange={e => handlePasswordChange('currentPassword', e.target.value)}
+                        disabled={isChangingPassword}
+                      />
+                      {passwordErrors.currentPassword && (
+                        <p className="text-red-500 text-xs mt-1">{passwordErrors.currentPassword}</p>
+                      )}
+                    </div>
+                    <div>
+                      <input
+                        type="password"
+                        placeholder="新密码（至少6位）"
+                        className={`w-full h-11 px-3 rounded-xl border text-sm bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 ${
+                          passwordErrors.newPassword
+                            ? 'border-red-300 focus:ring-red-200'
+                            : 'border-slate-200 focus:border-primary focus:ring-primary/20'
+                        }`}
+                        value={passwordForm.newPassword}
+                        onChange={e => handlePasswordChange('newPassword', e.target.value)}
+                        disabled={isChangingPassword}
+                      />
+                      {passwordErrors.newPassword && (
+                        <p className="text-red-500 text-xs mt-1">{passwordErrors.newPassword}</p>
+                      )}
+                    </div>
+                    <div>
+                      <input
+                        type="password"
+                        placeholder="确认新密码"
+                        className={`w-full h-11 px-3 rounded-xl border text-sm bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 ${
+                          passwordErrors.confirmPassword
+                            ? 'border-red-300 focus:ring-red-200'
+                            : 'border-slate-200 focus:border-primary focus:ring-primary/20'
+                        }`}
+                        value={passwordForm.confirmPassword}
+                        onChange={e => handlePasswordChange('confirmPassword', e.target.value)}
+                        disabled={isChangingPassword}
+                      />
+                      {passwordErrors.confirmPassword && (
+                        <p className="text-red-500 text-xs mt-1">{passwordErrors.confirmPassword}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-3 mt-6">
+                    <button
+                      onClick={() => { setShowPasswordModal(false); setPasswordErrors({}); setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' }); }}
+                      className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors"
+                      disabled={isChangingPassword}
+                    >
+                      取消
+                    </button>
+                    <button
+                      onClick={handleSubmitPassword}
+                      className="flex-1 py-3 bg-primary text-slate-900 font-bold rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50"
+                      disabled={isChangingPassword}
+                    >
+                      {isChangingPassword ? '修改中...' : '确认修改'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
