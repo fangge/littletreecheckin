@@ -64,7 +64,7 @@ export default function FruitsHistory({ onBack }: FruitsHistoryProps) {
       className="flex-1 flex flex-col bg-background-light overflow-hidden"
     >
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-background-light/80 backdrop-blur-md border-b border-primary/10 px-4 py-4">
+      <header className="sticky top-0 z-10 bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md border-b border-primary/10 dark:border-[var(--border-color)] px-4 py-4 transition-colors">
         <div className="flex items-center gap-3 max-w-md mx-auto lg:max-w-2xl">
           <button
             onClick={onBack}
@@ -117,7 +117,7 @@ export default function FruitsHistory({ onBack }: FruitsHistoryProps) {
                 {items.map((item, index) => (
                   <div
                     key={item.id}
-                    className="flex items-center gap-3 bg-white rounded-2xl px-4 py-3 shadow-sm"
+                    className="flex items-center gap-3 bg-white dark:bg-[var(--bg-surface)] rounded-2xl px-4 py-3 shadow-sm transition-colors"
                   >
                     {/* 目标图标 */}
                     <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${getIconColor(index)}`}>

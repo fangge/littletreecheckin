@@ -188,12 +188,12 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
       <div className="flex items-center p-6 pb-2 justify-between lg:max-w-xl lg:mx-auto lg:w-full">
         <button
           onClick={onBack}
-          className="text-slate-900 flex size-10 shrink-0 items-center justify-center rounded-full bg-white shadow-sm"
+          className="text-slate-900 dark:text-[var(--text-primary)] flex size-10 shrink-0 items-center justify-center rounded-full bg-white dark:bg-[var(--bg-card)] shadow-sm"
           aria-label="返回"
         >
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
-        <h2 className="text-slate-900 text-lg font-extrabold leading-tight tracking-tight flex-1 text-center">
+        <h2 className="text-slate-900 dark:text-[var(--text-primary)] text-lg font-extrabold leading-tight tracking-tight flex-1 text-center">
           {isEditMode ? '修改目标' : '设置新目标'}
         </h2>
         {/* 编辑模式下显示删除按钮 */}
@@ -228,7 +228,7 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
 
       <div className="flex-1 px-6 pb-32 overflow-y-auto pt-4 lg:pb-8">
         <div className="lg:max-w-xl lg:mx-auto">
-        <h3 className="text-slate-900 tracking-tight text-3xl font-extrabold leading-tight text-center pb-6">
+        <h3 className="text-slate-900 dark:text-[var(--text-primary)] tracking-tight text-3xl font-extrabold leading-tight text-center pb-6">
           {isEditMode ? '调整你的' : '种下你的下一个'}<br />
           <span className="text-primary">{isEditMode ? '成长之树' : '成长之树？'}</span>
         </h3>
@@ -241,16 +241,16 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
             </p>
             <div className="flex gap-2 flex-wrap">
               {user.children.map(child => (
-                <button
-                  key={child.id}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${
-                    selectedChild?.id === child.id
-                      ? 'bg-primary/10 border-primary text-primary'
-                      : 'bg-white border-slate-200 text-slate-600 hover:border-primary/40'
-                  }`}
-                  onClick={() => setSelectedChild(child)}
-                  aria-label={`选择${child.name}`}
-                >
+              <button
+                key={child.id}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${
+                  selectedChild?.id === child.id
+                    ? 'bg-primary/10 border-primary text-primary'
+                    : 'bg-white dark:bg-[var(--bg-card)] border-slate-200 dark:border-[var(--border-color)] text-slate-600 dark:text-[var(--text-secondary)] hover:border-primary/40'
+                }`}
+                onClick={() => setSelectedChild(child)}
+                aria-label={`选择${child.name}`}
+              >
                   <span className="material-symbols-outlined text-base">
                     {child.gender === 'female' ? 'face_3' : 'face'}
                   </span>
@@ -298,7 +298,7 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
                 className={`flex aspect-square items-center justify-center rounded-2xl transition-all ${
                   selectedIcon === icon
                     ? 'bg-primary text-white shadow-lg shadow-primary/30'
-                    : 'bg-white border-2 border-primary/10 text-slate-400 hover:border-primary/40'
+                    : 'bg-white dark:bg-[var(--bg-card)] border-2 border-primary/10 text-slate-400 dark:text-[var(--text-secondary)] hover:border-primary/40'
                 }`}
                 onClick={() => setSelectedIcon(icon)}
                 aria-label={icon}
@@ -325,7 +325,7 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
                 className={`flex-1 py-2 rounded-xl text-sm font-bold border-2 transition-all ${
                   durationValue === String(days) && durationUnit === 'days'
                     ? 'bg-primary/20 border-primary text-primary'
-                    : 'bg-white border-slate-200 text-slate-500 hover:border-primary/40'
+                    : 'bg-white dark:bg-[var(--bg-card)] border-slate-200 dark:border-[var(--border-color)] text-slate-500 dark:text-[var(--text-secondary)] hover:border-primary/40'
                 }`}
                 onClick={() => handleDurationQuickSelect(days)}
                 aria-label={`${days}天`}
@@ -338,7 +338,7 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
           <div className="flex gap-2 items-center">
             <div className="flex-1 relative">
               <input
-                className="form-input w-full rounded-xl border-2 border-primary/20 bg-white text-slate-900 h-12 placeholder:text-slate-400 px-4 text-lg font-bold focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
+                className="form-input w-full rounded-xl border-2 border-primary/20 bg-white dark:bg-[var(--bg-card)] text-slate-900 dark:text-[var(--text-primary)] h-12 placeholder:text-slate-400 px-4 text-lg font-bold focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
                 type="number"
                 min="1"
                 placeholder="自定义"
@@ -347,7 +347,7 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
                 aria-label="目标时长数值"
               />
             </div>
-            <div className="flex bg-white border-2 border-primary/20 rounded-xl overflow-hidden h-12">
+            <div className="flex bg-white dark:bg-[var(--bg-card)] border-2 border-primary/20 dark:border-[var(--border-color)] rounded-xl overflow-hidden h-12">
               {(['days', 'hours', 'minutes'] as DurationUnit[]).map(unit => (
                 <button
                   key={unit}
@@ -394,7 +394,7 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
                 </button>
               )}
             </div>
-            <div className="flex bg-white border-2 border-primary/20 rounded-xl overflow-hidden h-12">
+            <div className="flex bg-white dark:bg-[var(--bg-card)] border-2 border-primary/20 dark:border-[var(--border-color)] rounded-xl overflow-hidden h-12">
               {(['hours', 'minutes'] as DailyUnit[]).map(unit => (
                 <button
                   key={unit}

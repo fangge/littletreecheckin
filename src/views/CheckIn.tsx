@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import {
   tasksApi,
   treesApi,
@@ -20,6 +21,7 @@ export default function CheckIn({
   onViewProfile
 }: CheckInProps) {
   const { user, currentChild, setCurrentChild } = useAuth();
+  const { isDark } = useTheme();
   const [growingTrees, setGrowingTrees] = useState<TreeData[]>([]);
   const [selectedTree, setSelectedTree] = useState<TreeData | null>(null);
   const [goals, setGoals] = useState<GoalData[]>([]);
@@ -222,18 +224,18 @@ export default function CheckIn({
         animate={{ opacity: 1, scale: 1 }}
         className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden pb-32 lg:pb-8 w-full"
       >
-        <header className="w-full bg-background-light/80 backdrop-blur-md sticky top-0 z-10 px-3 lg:max-w-xl lg:mx-auto">
+        <header className="w-full bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md sticky top-0 z-10 px-3 lg:max-w-xl lg:mx-auto transition-colors">
           <div className="flex items-center py-4 justify-between">
             <button
               onClick={onViewProfile}
-              className="text-slate-900 flex size-12 shrink-0 items-center justify-start hover:text-primary transition-colors"
+              className="text-slate-900 dark:text-[var(--text-primary)] flex size-12 shrink-0 items-center justify-start hover:text-primary transition-colors"
               aria-label="设置"
             >
               <span className="material-symbols-outlined text-2xl">
                 settings
               </span>
             </button>
-            <h2 className="text-slate-900 text-lg font-bold leading-tight tracking-tight flex-1 text-center font-display">
+            <h2 className="text-slate-900 dark:text-[var(--text-primary)] text-lg font-bold leading-tight tracking-tight flex-1 text-center font-display">
               {currentChild ? `${currentChild.name}的打卡` : '每日打卡'}
             </h2>
             <div className="flex w-12 items-center justify-end">
@@ -257,7 +259,7 @@ export default function CheckIn({
                   className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
                     currentChild?.id === child.id
                       ? 'bg-primary text-white shadow-sm'
-                      : 'bg-white border border-slate-200 text-slate-600 hover:border-primary/40'
+                      : 'bg-white dark:bg-[var(--bg-card)] border border-slate-200 dark:border-[var(--border-color)] text-slate-600 dark:text-[var(--text-secondary)] hover:border-primary/40'
                   }`}
                   onClick={() => setCurrentChild(child)}
                   aria-label={`切换到${child.name}`}
@@ -279,7 +281,7 @@ export default function CheckIn({
             </span>
           </div>
         ) : growingTrees.length === 0 ? (
-          <div className="text-center py-12 px-3 text-slate-400 space-y-4">
+          <div className="text-center py-12 px-3 text-slate-400 dark:text-[var(--text-muted)] space-y-4">
             <span className="material-symbols-outlined text-6xl block">
               park
             </span>
@@ -299,7 +301,7 @@ export default function CheckIn({
                       className={`shrink-0 px-4 py-2 rounded-full text-sm font-bold transition-all flex items-center gap-1.5 ${
                         selectedTree?.id === tree.id
                           ? 'bg-primary text-white'
-                          : 'bg-primary/10 text-slate-700'
+                          : 'bg-primary/10 text-slate-700 dark:text-[var(--text-secondary)]'
                       }`}
                       onClick={() => setSelectedTree(tree)}
                     >
@@ -316,7 +318,7 @@ export default function CheckIn({
               </div>
             )}
 
-            <div className="relative w-full max-w-sm mx-auto h-52 bg-gradient-to-b from-blue-100 to-primary/5 rounded-3xl overflow-hidden shadow-inner flex flex-col items-center justify-center border-4 border-white">
+            <div className="relative w-full max-w-sm mx-auto h-52 bg-gradient-to-b from-blue-100 dark:from-[#1a3d3a] to-primary/5 dark:to-[var(--bg-surface)] rounded-3xl overflow-hidden shadow-inner flex flex-col items-center justify-center border-4 border-white dark:border-[var(--bg-card)] transition-colors">
               <div className="absolute top-8 left-8 text-yellow-400">
                 <span className="material-symbols-outlined text-6xl fill-icon">
                   light_mode
@@ -409,14 +411,14 @@ export default function CheckIn({
                 </div>
               )}
 
-              <div className="flex flex-col gap-3 p-4 bg-white rounded-2xl shadow-sm border border-slate-100">
+              <div className="flex flex-col gap-3 p-4 bg-white dark:bg-[var(--bg-surface)] rounded-2xl shadow-sm border border-slate-100 dark:border-[var(--border-color)] transition-colors">
                 <div className="flex gap-6 justify-between items-center">
-                  <p className="text-slate-900 text-base font-bold">成长进度</p>
+                  <p className="text-slate-900 dark:text-[var(--text-primary)] text-base font-bold">成长进度</p>
                   <span className="px-2 py-1 bg-primary/20 text-primary text-xs font-bold rounded-full">
                     {currentTree?.progress ?? 0}%
                   </span>
                 </div>
-                <div className="h-4 w-full rounded-full bg-slate-100 overflow-hidden">
+                <div className="h-4 w-full rounded-full bg-slate-100 dark:bg-[var(--bg-card)] overflow-hidden">
                   <div
                     className="h-full rounded-full bg-primary shadow-[0_0_10px_rgba(13,242,13,0.5)] transition-all"
                     style={{ width: `${currentTree?.progress ?? 0}%` }}
@@ -432,15 +434,15 @@ export default function CheckIn({
                 </p>
                 {/* 目标详情：时长 / 每日时长 / 每日次数 */}
                 {currentGoal && (
-                  <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-100">
-                    <span className="flex items-center gap-1 text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded-full">
+                  <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-100 dark:border-[var(--border-color)]">
+                    <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-[var(--text-muted)] bg-slate-50 dark:bg-[var(--bg-card)] px-2 py-1 rounded-full">
                       <span className="material-symbols-outlined text-sm">
                         calendar_month
                       </span>
                       目标 {currentGoal.duration_days} 天
                     </span>
                     {currentGoal.duration_minutes > 0 && (
-                      <span className="flex items-center gap-1 text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded-full">
+                      <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-[var(--text-muted)] bg-slate-50 dark:bg-[var(--bg-card)] px-2 py-1 rounded-full">
                         <span className="material-symbols-outlined text-sm">
                           schedule
                         </span>
@@ -450,7 +452,7 @@ export default function CheckIn({
                       </span>
                     )}
                     {currentGoal.daily_count && currentGoal.daily_count > 0 && (
-                      <span className="flex items-center gap-1 text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded-full">
+                      <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-[var(--text-muted)] bg-slate-50 dark:bg-[var(--bg-card)] px-2 py-1 rounded-full">
                         <span className="material-symbols-outlined text-sm">
                           repeat
                         </span>
@@ -462,7 +464,7 @@ export default function CheckIn({
               </div>
 
               <div className="text-center py-4">
-                <h1 className="text-slate-900 tracking-tight text-3xl font-extrabold leading-tight">
+                <h1 className="text-slate-900 dark:text-[var(--text-primary)] tracking-tight text-3xl font-extrabold leading-tight">
                   {!hasCheckedInToday
                     ? (isBackfillDate ? '补打卡' : '浇水时间到！')
                     : taskStatus === 'approved'
@@ -471,7 +473,7 @@ export default function CheckIn({
                         ? '需要重新打卡'
                         : `${isBackfillDate ? formatDateDisplay(selectedDate) : '今日'}已打卡！`}
                 </h1>
-                <p className="text-slate-500 mt-2">
+                <p className="text-slate-500 dark:text-[var(--text-secondary)] mt-2">
                   {!hasCheckedInToday
                     ? (isBackfillDate
                         ? `为 ${formatDateDisplay(selectedDate)} 补打卡，记录你的坚持！`
@@ -487,17 +489,17 @@ export default function CheckIn({
 
               {/* 打卡日期选择器 */}
               <div className="flex items-center justify-center">
-                <label className="relative flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-full shadow-sm cursor-pointer hover:border-primary/40 transition-colors">
+                <label className="relative flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-[var(--bg-card)] border border-slate-200 dark:border-[var(--border-color)] rounded-full shadow-sm cursor-pointer hover:border-primary/40 transition-colors">
                   <span className="material-symbols-outlined text-primary text-xl">
                     calendar_month
                   </span>
-                  <span className="text-slate-600 text-sm font-medium">
+                  <span className="text-slate-600 dark:text-[var(--text-secondary)] text-sm font-medium">
                     打卡日期：
                   </span>
                   <span className="text-primary font-bold text-sm">
                     {formatDateDisplay(selectedDate)}
                   </span>
-                  <span className="material-symbols-outlined text-slate-400 text-base">
+                  <span className="material-symbols-outlined text-slate-400 dark:text-[var(--text-muted)] text-base">
                     expand_more
                   </span>
                   <input

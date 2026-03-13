@@ -73,8 +73,8 @@ export default function Messages({ onBack }: MessagesProps) {
       animate={{ opacity: 1, x: 0 }}
       className="flex-1 flex flex-col h-full bg-background-light overflow-hidden"
     >
-      <header className="flex items-center bg-background-light/80 backdrop-blur-md p-4 sticky top-0 z-10 justify-between border-b border-primary/10">
-        <div className="text-slate-900 flex size-12 shrink-0 items-center justify-start">
+      <header className="flex items-center bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md p-4 sticky top-0 z-10 justify-between border-b border-primary/10 dark:border-[var(--border-color)] transition-colors">
+        <div className="text-slate-900 dark:text-[var(--text-primary)] flex size-12 shrink-0 items-center justify-start">
           <span
             onClick={onBack}
             className="material-symbols-outlined cursor-pointer"
@@ -86,10 +86,10 @@ export default function Messages({ onBack }: MessagesProps) {
             arrow_back_ios
           </span>
         </div>
-        <h2 className="text-slate-900 text-lg font-bold leading-tight flex-1 text-center">消息中心</h2>
+        <h2 className="text-slate-900 dark:text-[var(--text-primary)] text-lg font-bold leading-tight flex-1 text-center">消息中心</h2>
         <div className="flex w-12 items-center justify-end">
           <button
-            className="flex items-center justify-center rounded-full h-10 w-10 bg-primary/20 text-slate-900"
+            className="flex items-center justify-center rounded-full h-10 w-10 bg-primary/20 dark:bg-[var(--bg-card)] text-slate-900 dark:text-[var(--text-primary)]"
             aria-label="设置"
           >
             <span className="material-symbols-outlined">settings</span>
@@ -114,8 +114,8 @@ export default function Messages({ onBack }: MessagesProps) {
               </div>
               <div className="absolute bottom-1 right-1 bg-green-500 size-5 rounded-full border-4 border-background-light" />
             </div>
-            <h3 className="mt-4 text-2xl font-extrabold text-slate-900">{user?.username || '家长'}</h3>
-            <p className="text-slate-500 font-medium">{currentChild?.name ? `与${currentChild.name}的对话` : '消息'}</p>
+            <h3 className="mt-4 text-2xl font-extrabold text-slate-900 dark:text-[var(--text-primary)]">{user?.username || '家长'}</h3>
+            <p className="text-slate-500 dark:text-[var(--text-muted)] font-medium">{currentChild?.name ? `与${currentChild.name}的对话` : '消息'}</p>
           </div>
 
           {isLoading ? (
@@ -123,7 +123,7 @@ export default function Messages({ onBack }: MessagesProps) {
               <span className="material-symbols-outlined text-primary text-4xl animate-pulse">mail</span>
             </div>
           ) : messages.length === 0 ? (
-            <div className="text-center py-8 text-slate-400">
+            <div className="text-center py-8 text-slate-400 dark:text-[var(--text-muted)]">
               <span className="material-symbols-outlined text-5xl mb-3 block">chat_bubble_outline</span>
               <p>还没有消息，发送第一条鼓励吧！</p>
             </div>
@@ -132,10 +132,10 @@ export default function Messages({ onBack }: MessagesProps) {
               {messages.map((msg) => (
                 <div key={msg.id} className="flex flex-col items-start gap-2">
                   {msg.type === 'text' && msg.text && (
-                    <div className={`shadow-sm rounded-2xl rounded-tl-none px-5 py-4 max-w-[85%] border border-slate-100 ${
+                    <div className={`shadow-sm rounded-2xl rounded-tl-none px-5 py-4 max-w-[85%] border border-slate-100 dark:border-[var(--border-color)] ${
                       msg.sender_type === 'system'
                         ? 'bg-primary/10 text-primary border-primary/20 text-sm'
-                        : 'bg-white text-slate-800'
+                        : 'bg-white dark:bg-[var(--bg-surface)] text-slate-800 dark:text-[var(--text-primary)]'
                     }`}>
                       <p className="text-lg leading-relaxed">{msg.text}</p>
                     </div>
@@ -145,7 +145,7 @@ export default function Messages({ onBack }: MessagesProps) {
                       <img alt="奖励贴纸" className="w-full h-auto" src={msg.content} />
                     </div>
                   )}
-                  <span className="text-xs text-slate-400 font-medium ml-2">{formatTime(msg.created_at)}</span>
+                  <span className="text-xs text-slate-400 dark:text-[var(--text-muted)] font-medium ml-2">{formatTime(msg.created_at)}</span>
                 </div>
               ))}
               <div ref={messagesEndRef} />
@@ -154,16 +154,16 @@ export default function Messages({ onBack }: MessagesProps) {
         </div>
       </div>
 
-      <div className="p-4 bg-white border-t border-slate-100 flex items-center gap-3 sticky bottom-24 z-10">
+      <div className="p-4 bg-white dark:bg-[var(--bg-surface)] border-t border-slate-100 dark:border-[var(--border-color)] flex items-center gap-3 sticky bottom-24 z-10 transition-colors">
         <button
           className="text-primary hover:text-primary/80 transition-colors"
           aria-label="添加附件"
         >
           <span className="material-symbols-outlined text-3xl">add_circle</span>
         </button>
-        <div className="flex-1 bg-slate-100 rounded-full px-4 py-2 flex items-center">
+        <div className="flex-1 bg-slate-100 dark:bg-[var(--bg-card)] rounded-full px-4 py-2 flex items-center">
           <input
-            className="bg-transparent border-none focus:ring-0 w-full text-slate-700"
+            className="bg-transparent border-none focus:ring-0 w-full text-slate-700 dark:text-[var(--text-primary)]"
             placeholder="输入鼓励的话..."
             type="text"
             value={inputText}
@@ -171,7 +171,7 @@ export default function Messages({ onBack }: MessagesProps) {
             onKeyDown={handleKeyDown}
             aria-label="消息输入框"
           />
-          <span className="material-symbols-outlined text-slate-400">mood</span>
+          <span className="material-symbols-outlined text-slate-400 dark:text-[var(--text-muted)]">mood</span>
         </div>
         <button
           className="bg-primary text-slate-900 size-10 rounded-full flex items-center justify-center shadow-md disabled:opacity-50"

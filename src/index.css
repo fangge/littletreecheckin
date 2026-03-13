@@ -1,17 +1,68 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-display: "Inter", "Noto Sans SC", sans-serif;
-  --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", Helvetica, Tahoma, Arial, "Hiragino Sans GB", "Microsoft YaHei", 微软雅黑, SimSun, 宋体, Heiti, 黑体, sans-serif;
-  
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "PingFang SC", Helvetica, Tahoma, Arial, "Hiragino Sans GB", "Microsoft YaHei",
+    微软雅黑, SimSun, 宋体, Heiti, 黑体, sans-serif;
+
   --color-primary: #139a31;
-  --color-background-light: #f6f8f6;
-  --color-background-dark: #102214;
+  --color-background-light: var(--bg-primary);
+  --color-surface-light: var(--bg-surface);
 }
 
 @layer base {
+  :root {
+    --bg-primary: #f6f8f6;
+    --bg-surface: #ffffff;
+    --bg-card: #ffffff;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --border-color: rgba(19, 154, 49, 0.1);
+    --color-slate-900: oklch(20.8% 0.042 265.755);
+    --color-slate-800: oklch(27.9% 0.041 260.031);
+    --color-primary: #139a31;
+    --color-white: #fff;
+    --color-slate-200: oklch(92.9% 0.013 255.508);
+    --color-slate-50: oklch(98.4% 0.003 247.858);
+    --color-slate-100: oklch(96.8% 0.007 247.896);
+    --color-slate-700: oklch(37.2% 0.044 257.287);
+    --color-slate-900: oklch(0.97 0.01 0);
+    --color-slate-600: oklch(44.6% 0.043 257.281);
+    --color-slate-900: oklch(0.24 0.04 262.6);
+  }
+
+  .dark {
+    --bg-primary: #0f172a;
+    --bg-surface: #1e293b;
+    --bg-card: #334155;
+    --text-primary: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+    --border-color: rgba(148, 163, 184, 0.2);
+    --color-slate-900: oklch(0.97 0.01 0);
+    --color-slate-800: oklch(0.86 0.02 250.49);
+    --color-primary: #0fe640;
+    --color-white: #0f122a;
+    --color-slate-200: #324053;
+    --color-slate-50: oklch(0.24 0.04 262.6);
+    --color-slate-100: #313e52;
+    --color-slate-700: oklch(0.87 0.02 252.99);
+    --color-slate-900: oklch(0.24 0.04 262.6);
+    --color-slate-600: oklch(0.87 0.02 252.99);
+    --color-slate-900: #fff
+  }
+
   body {
-    @apply bg-background-light text-slate-900 antialiased font-sans;
+    @apply antialiased font-sans;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease;
   }
 }
 
@@ -24,9 +75,13 @@
 }
 
 .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
 }
 
 .fill-icon {
-  font-variation-settings: 'FILL' 1;
+  font-variation-settings: "FILL" 1;
 }

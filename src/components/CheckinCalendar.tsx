@@ -62,26 +62,26 @@ export default function CheckinCalendar({
   };
 
   return (
-    <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+    <div className="bg-white dark:bg-[var(--bg-surface)] rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-[var(--border-color)] transition-colors">
       {/* 标题行 */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-slate-900 font-extrabold text-base">我的成长足迹</h3>
         <div className="flex items-center gap-1">
           <button
             onClick={handlePrevMonth}
-            className="flex size-7 items-center justify-center rounded-full hover:bg-slate-100 transition-colors text-slate-500"
+            className="flex size-7 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-[var(--bg-card)] transition-colors text-slate-500 dark:text-[var(--text-secondary)]"
             aria-label="上一月"
             tabIndex={0}
             onKeyDown={e => e.key === 'Enter' && handlePrevMonth()}
           >
             <span className="material-symbols-outlined text-base">chevron_left</span>
           </button>
-          <span className="text-slate-500 text-xs font-medium min-w-[72px] text-center">
+          <span className="text-slate-500 dark:text-[var(--text-secondary)] text-xs font-medium min-w-[72px] text-center">
             {year}年{month}月
           </span>
           <button
             onClick={handleNextMonth}
-            className="flex size-7 items-center justify-center rounded-full hover:bg-slate-100 transition-colors text-slate-500"
+            className="flex size-7 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-[var(--bg-card)] transition-colors text-slate-500 dark:text-[var(--text-secondary)]"
             aria-label="下一月"
             tabIndex={0}
             onKeyDown={e => e.key === 'Enter' && handleNextMonth()}
@@ -94,7 +94,7 @@ export default function CheckinCalendar({
       {/* 星期行 */}
       <div className="grid grid-cols-7 mb-1">
         {WEEK_DAYS.map(day => (
-          <div key={day} className="text-center text-[11px] text-slate-400 font-medium py-1">
+          <div key={day} className="text-center text-[11px] text-slate-400 dark:text-[var(--text-muted)] font-medium py-1">
             {day}
           </div>
         ))}
@@ -127,8 +127,8 @@ export default function CheckinCalendar({
                   isToday
                     ? 'bg-primary text-white'
                     : isCheckin
-                    ? 'text-slate-800'
-                    : 'text-slate-400'
+                    ? 'text-slate-800 dark:text-[var(--text-primary)]'
+                    : 'text-slate-400 dark:text-[var(--text-muted)]'
                 }`}
               >
                 {cell.day}

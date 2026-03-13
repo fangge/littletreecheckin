@@ -79,7 +79,7 @@ export default function Store({ onBack, onViewFruitsHistory }: StoreProps) {
       animate={{ opacity: 1, y: 0 }}
       className="flex-1 overflow-y-auto pb-32 lg:pb-8"
     >
-      <div className="sticky top-0 z-10 bg-background-light/80 backdrop-blur-md">
+      <div className="sticky top-0 z-10 bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md transition-colors">
         <div className="flex items-center px-6 pb-2 pt-6 lg:max-w-2xl lg:mx-auto">
           <button
             onClick={onBack}
@@ -165,7 +165,7 @@ export default function Store({ onBack, onViewFruitsHistory }: StoreProps) {
         ) : (
           <div className="mt-6 grid grid-cols-2 gap-4">
             {rewards.map((reward) => (
-              <div key={reward.id} className="group flex flex-col rounded-xl bg-white p-3 shadow-sm transition-all hover:shadow-md">
+              <div key={reward.id} className="group flex flex-col rounded-xl bg-white dark:bg-[var(--bg-surface)] p-3 shadow-sm transition-all hover:shadow-md">
                 <div className="aspect-square w-full overflow-hidden rounded-lg bg-slate-100">
                   {reward.image ? (
                     <img alt={reward.name} className="h-full w-full object-cover" src={reward.image} />

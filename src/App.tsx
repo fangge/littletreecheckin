@@ -69,10 +69,10 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen w-full items-center justify-center bg-background-light">
+      <div className="flex min-h-screen w-full items-center justify-center bg-background-light dark:bg-[var(--bg-primary)] transition-colors">
         <div className="flex flex-col items-center gap-4">
           <span className="material-symbols-outlined text-primary text-5xl animate-pulse">forest</span>
-          <p className="text-slate-500 text-sm">加载中...</p>
+          <p className="text-slate-500 dark:text-[var(--text-muted)] text-sm">加载中...</p>
         </div>
       </div>
     );
@@ -164,7 +164,7 @@ export default function App() {
   const showNav = !['add-goal', 'register', 'login'].includes(currentView) && isAuthenticated;
 
   return (
-    <div className="relative flex min-h-screen w-full overflow-x-hidden bg-background-light lg:flex-row">
+    <div className="relative flex min-h-screen w-full overflow-x-hidden bg-background-light dark:bg-[var(--bg-primary)] lg:flex-row transition-colors">
       {showNav && (
         <Navigation currentView={currentView} onViewChange={handleViewChange} />
       )}

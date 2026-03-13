@@ -43,11 +43,11 @@ export default function Login({ onBack, onRegister, onLoginSuccess }: LoginProps
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex-1 flex flex-col bg-white overflow-y-auto pb-10 min-h-screen lg:justify-center"
+      className="flex-1 flex flex-col bg-white dark:bg-[var(--bg-primary)] overflow-y-auto pb-10 min-h-screen lg:justify-center transition-colors"
     >
-      <div className="lg:max-w-md lg:mx-auto lg:w-full lg:bg-white lg:rounded-2xl lg:shadow-xl lg:border lg:border-primary/10 lg:my-12">
+      <div className="lg:max-w-md lg:mx-auto lg:w-full lg:bg-white lg:dark:bg-[var(--bg-surface)] lg:rounded-2xl lg:shadow-xl lg:border lg:border-primary/10 lg:dark:border-[var(--border-color)] lg:my-12 transition-colors">
       {/* Top Navigation */}
-      <div className="flex items-center px-4 pt-6 pb-2 justify-between sticky top-0 bg-white/80 backdrop-blur-md z-10 lg:rounded-t-2xl">
+      <div className="flex items-center px-4 pt-6 pb-2 justify-between sticky top-0 bg-white/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md z-10 lg:rounded-t-2xl transition-colors">
         <button
           onClick={onBack}
           className="text-slate-900 flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
@@ -80,7 +80,7 @@ export default function Login({ onBack, onRegister, onLoginSuccess }: LoginProps
           <p className="text-slate-800 text-sm font-semibold pb-2 px-1">用户名/手机号</p>
           <div className="relative">
             <input
-              className="form-input flex w-full rounded-xl border-slate-200 bg-white text-slate-900 h-14 placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary transition-all px-4"
+              className="form-input flex w-full rounded-xl border border-slate-200 bg-white text-slate-900 h-14 placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary transition-all px-4"
               placeholder="请输入您的用户名或手机号"
               type="text"
               value={username}

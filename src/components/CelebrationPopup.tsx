@@ -73,10 +73,10 @@ export default function CelebrationPopup({
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="flex flex-col items-stretch bg-white rounded-t-[40px] shadow-2xl overflow-hidden max-w-md mx-auto w-full"
+            className="flex flex-col items-stretch bg-white dark:bg-[var(--bg-surface)] rounded-t-[40px] shadow-2xl overflow-hidden max-w-md mx-auto w-full transition-colors"
           >
             <div className="flex h-6 w-full items-center justify-center pt-3">
-              <div className="h-1.5 w-12 rounded-full bg-slate-200" />
+              <div className="h-1.5 w-12 rounded-full bg-slate-200 dark:bg-[var(--bg-card)]" />
             </div>
 
             <div className="px-6 pb-12 pt-4 text-center">
@@ -136,16 +136,16 @@ export default function CelebrationPopup({
 
               {/* 文案 */}
               <div className="mt-2">
-                <h1 className="text-slate-900 tracking-tighter text-5xl font-[900] leading-tight drop-shadow-sm">
+                <h1 className="text-slate-900 dark:text-[var(--text-primary)] tracking-tighter text-5xl font-[900] leading-tight drop-shadow-sm">
                   {content.title}
                 </h1>
-                <p className="text-slate-500 text-lg font-bold mt-1">
+                <p className="text-slate-500 dark:text-[var(--text-secondary)] text-lg font-bold mt-1">
                   {content.subtitle}
                 </p>
               </div>
 
 
-              <p className="mt-8 text-slate-500 text-base font-medium">
+              <p className="mt-8 text-slate-500 dark:text-[var(--text-secondary)] text-base font-medium">
                 {content.footer}
               </p>
 

@@ -88,10 +88,10 @@ export default function Register({ onBack, onLogin, onRegisterSuccess }: Registe
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex-1 flex flex-col bg-white overflow-y-auto pb-10"
+      className="flex-1 flex flex-col bg-white dark:bg-[var(--bg-primary)] overflow-y-auto pb-10 transition-colors"
     >
       {/* Top Navigation */}
-      <div className="flex items-center px-4 pt-6 pb-2 justify-between sticky top-0 bg-white/80 backdrop-blur-md z-10">
+      <div className="flex items-center px-4 pt-6 pb-2 justify-between sticky top-0 bg-white/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md z-10 transition-colors">
         <button
           onClick={onBack}
           className="text-slate-900 flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
@@ -176,7 +176,7 @@ export default function Register({ onBack, onLogin, onRegisterSuccess }: Registe
             </div>
             <div className="space-y-4">
               <input
-                className="form-input w-full rounded-xl border-slate-200 bg-white text-slate-900 h-12 text-sm placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary"
+                className="form-input w-full rounded-xl border-slate-200 bg-white text-slate-900 h-12 text-sm placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary pl-2"
                 placeholder="姓名"
                 type="text"
                 value={child.name}
@@ -185,7 +185,7 @@ export default function Register({ onBack, onLogin, onRegisterSuccess }: Registe
               />
               <div className="grid grid-cols-2 gap-3">
                 <input
-                  className="form-input w-full rounded-xl border-slate-200 bg-white text-slate-900 h-12 text-sm placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary"
+                  className="form-input w-full rounded-xl border-slate-200 bg-white text-slate-900 h-12 text-sm placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary  pl-2"
                   placeholder="年龄"
                   type="number"
                   min="1"

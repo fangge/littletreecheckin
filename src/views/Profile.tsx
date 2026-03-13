@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { childrenApi, authApi, Child } from '../services/api';
 import PasswordConfirmModal from '../components/PasswordConfirmModal';
 
@@ -19,6 +20,7 @@ interface AddChildForm {
 
 export default function Profile({ onBack, onLogout, onViewParentControl, onViewRewardsManagement }: ProfileProps) {
   const { user, currentChild, setCurrentChild, logout, isChildMode, enableChildMode, disableChildMode } = useAuth();
+  const { theme, setTheme, isDark } = useTheme();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState<AddChildForm>({ name: '', age: '', gender: 'male' });
@@ -195,11 +197,11 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
       animate={{ opacity: 1, x: 0 }}
       className="flex-1 flex flex-col bg-background-light min-h-screen overflow-x-hidden pb-32 lg:pb-8"
     >
-      <div className="flex items-center bg-white p-4 pb-2 justify-between sticky top-0 z-10 border-b border-primary/10 lg:max-w-2xl lg:mx-auto lg:w-full">
-        <button onClick={onBack} className="text-slate-900 flex size-12 shrink-0 items-center justify-center cursor-pointer" aria-label="返回">
+      <div className="flex items-center bg-white dark:bg-[var(--bg-surface)] p-4 pb-2 justify-between sticky top-0 z-10 border-b border-primary/10 dark:border-[var(--border-color)] lg:max-w-2xl lg:mx-auto lg:w-full transition-colors">
+        <button onClick={onBack} className="text-slate-900 dark:text-[var(--text-primary)] flex size-12 shrink-0 items-center justify-center cursor-pointer" aria-label="返回">
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
-        <h2 className="text-slate-900 text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center pr-12">个人管理中心</h2>
+        <h2 className="text-slate-900 dark:text-[var(--text-primary)] text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center pr-12">个人管理中心</h2>
       </div>
 
       {/* 用户信息头部 */}
@@ -210,9 +212,9 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
               <span className="material-symbols-outlined text-primary text-4xl">person</span>
             </div>
             <div className="flex flex-col justify-center">
-              <p className="text-slate-900 text-[20px] font-bold leading-tight">{user?.username || '家长'}</p>
+              <p className="text-slate-900 dark:text-[var(--text-primary)] text-[20px] font-bold leading-tight">{user?.username || '家长'}</p>
               <p className="text-primary font-medium text-sm">管理您的家庭与账户信息</p>
-              {user?.phone && <p className="text-slate-400 text-xs mt-0.5">{user.phone}</p>}
+              {user?.phone && <p className="text-slate-400 dark:text-[var(--text-muted)] text-xs mt-0.5">{user.phone}</p>}
             </div>
           </div>
         </div>
@@ -221,13 +223,13 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
       <div className="px-4 space-y-4 flex-grow lg:max-w-2xl lg:mx-auto lg:w-full">
         {/* 家长审核入口（儿童模式下隐藏） */}
         {!isChildMode && (
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-primary/5">
-            <h3 className="text-slate-900 text-base font-bold leading-tight mb-4 flex items-center gap-2">
+          <div className="bg-white dark:bg-[var(--bg-surface)] rounded-xl p-4 shadow-sm border border-primary/5 dark:border-[var(--border-color)] transition-colors">
+            <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-base font-bold leading-tight mb-4 flex items-center gap-2">
               <span className="material-symbols-outlined text-primary text-sm">shield_person</span>
               家长审核
             </h3>
-            <button onClick={onViewParentControl} className="w-full flex items-center justify-between py-2 hover:bg-slate-50 transition-colors rounded-lg px-2" aria-label="进入待审核任务">
-              <p className="text-slate-600 text-sm">进入待审核任务</p>
+            <button onClick={onViewParentControl} className="w-full flex items-center justify-between py-2 hover:bg-slate-50 dark:hover:bg-[var(--bg-card)] transition-colors rounded-lg px-2" aria-label="进入待审核任务">
+              <p className="text-slate-600 dark:text-[var(--text-secondary)] text-sm">进入待审核任务</p>
               <span className="material-symbols-outlined text-slate-400">chevron_right</span>
             </button>
           </div>
@@ -235,52 +237,89 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
 
         {/* 奖品与兑换管理入口（儿童模式下隐藏） */}
         {!isChildMode && (
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-primary/5">
-            <h3 className="text-slate-900 text-base font-bold leading-tight mb-4 flex items-center gap-2">
+          <div className="bg-white dark:bg-[var(--bg-surface)] rounded-xl p-4 shadow-sm border border-primary/5 dark:border-[var(--border-color)] transition-colors">
+            <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-base font-bold leading-tight mb-4 flex items-center gap-2">
               <span className="material-symbols-outlined text-primary text-sm">redeem</span>
               奖品与兑换
             </h3>
-            <button onClick={onViewRewardsManagement} className="w-full flex items-center justify-between py-2 hover:bg-slate-50 transition-colors rounded-lg px-2" aria-label="管理奖品和兑换记录">
-              <p className="text-slate-600 text-sm">管理奖品 · 查看兑换记录</p>
+            <button onClick={onViewRewardsManagement} className="w-full flex items-center justify-between py-2 hover:bg-slate-50 dark:hover:bg-[var(--bg-card)] transition-colors rounded-lg px-2" aria-label="管理奖品和兑换记录">
+              <p className="text-slate-600 dark:text-[var(--text-secondary)] text-sm">管理奖品 · 查看兑换记录</p>
               <span className="material-symbols-outlined text-slate-400">chevron_right</span>
             </button>
           </div>
         )}
 
         {/* 账户设置 */}
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-primary/5">
-          <h3 className="text-slate-900 text-base font-bold leading-tight mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-[var(--bg-surface)] rounded-xl p-4 shadow-sm border border-primary/5 dark:border-[var(--border-color)] transition-colors">
+          <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-base font-bold leading-tight mb-4 flex items-center gap-2">
             <span className="material-symbols-outlined text-primary text-sm">settings</span>
             账户设置
           </h3>
           <div className="space-y-4">
-            <div className="flex items-center justify-between py-2 border-b border-background-light">
-              <p className="text-slate-600 text-sm">用户名</p>
-              <p className="text-slate-900 text-sm font-medium">{user?.username || '--'}</p>
+            <div className="flex items-center justify-between py-2 border-b border-background-light dark:border-[var(--border-color)]">
+              <p className="text-slate-600 dark:text-[var(--text-secondary)] text-sm">用户名</p>
+              <p className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-medium">{user?.username || '--'}</p>
             </div>
             <button
               onClick={() => setShowPasswordModal(true)}
-              className="w-full flex items-center justify-between py-2 hover:bg-slate-50 transition-colors rounded-lg px-2"
+              className="w-full flex items-center justify-between py-2 hover:bg-slate-50 dark:hover:bg-[var(--bg-card)] transition-colors rounded-lg px-2"
               aria-label="修改密码"
             >
-              <p className="text-slate-600 text-sm">修改密码</p>
+              <p className="text-slate-600 dark:text-[var(--text-secondary)] text-sm">修改密码</p>
               <span className="material-symbols-outlined text-slate-400">chevron_right</span>
             </button>
           </div>
         </div>
 
+        {/* 外观设置 */}
+        <div className="bg-white dark:bg-[var(--bg-surface)] rounded-xl p-4 shadow-sm border border-primary/5 dark:border-[var(--border-color)] transition-colors">
+          <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-base font-bold leading-tight mb-4 flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary text-sm">palette</span>
+            外观设置
+          </h3>
+          <div className="space-y-3">
+            <p className="text-slate-600 dark:text-[var(--text-secondary)] text-sm">主题模式</p>
+            <div className="flex gap-2 bg-slate-100 dark:bg-[var(--bg-card)] p-1 rounded-xl">
+              {(['light', 'dark', 'system'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setTheme(mode)}
+                  className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+                    theme === mode
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'text-slate-600 dark:text-[var(--text-secondary)] hover:bg-white dark:hover:bg-[var(--bg-surface)]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-sm">
+                    {mode === 'light' ? 'light_mode' : mode === 'dark' ? 'dark_mode' : 'computer'}
+                  </span>
+                  {mode === 'light' ? '浅色' : mode === 'dark' ? '深色' : '跟随系统'}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 py-2">
+              <span className="material-symbols-outlined text-sm text-slate-400">
+                {isDark ? 'dark_mode' : 'light_mode'}
+              </span>
+              <p className="text-xs text-slate-500 dark:text-[var(--text-muted)]">
+                当前：{isDark ? '深色模式' : '浅色模式'}
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* 儿童模式切换 */}
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-primary/5">
-          <h3 className="text-slate-900 text-base font-bold leading-tight mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-[var(--bg-surface)] rounded-xl p-4 shadow-sm border border-primary/5 dark:border-[var(--border-color)] transition-colors">
+          <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-base font-bold leading-tight mb-4 flex items-center gap-2">
             <span className="material-symbols-outlined text-amber-500 text-sm">child_care</span>
             儿童模式
           </h3>
           <div className="flex items-center justify-between py-2">
             <div className="flex-1 min-w-0 mr-4">
-              <p className="text-slate-600 text-sm">
+              <p className="text-slate-600 dark:text-[var(--text-secondary)] text-sm">
                 {isChildMode ? '儿童模式已开启' : '儿童模式已关闭'}
               </p>
-              <p className="text-slate-400 text-xs mt-0.5">
+              <p className="text-slate-400 dark:text-[var(--text-muted)] text-xs mt-0.5">
                 {isChildMode
                   ? '已隐藏任务编辑、目标添加和家长中心功能'
                   : '开启后将隐藏编辑和家长管理功能，需密码验证'}
@@ -306,9 +345,9 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
         </div>
 
         {/* 孩子信息 */}
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-primary/5">
+        <div className="bg-white dark:bg-[var(--bg-surface)] rounded-xl p-4 shadow-sm border border-primary/5 dark:border-[var(--border-color)] transition-colors">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-slate-900 text-base font-bold leading-tight flex items-center gap-2">
+            <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-base font-bold leading-tight flex items-center gap-2">
               <span className="material-symbols-outlined text-primary text-sm">child_care</span>
               孩子信息
             </h3>
@@ -324,17 +363,17 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
                 <div className="bg-primary/5 rounded-xl p-4 mb-4 space-y-3 border border-primary/10">
                   <p className="text-xs font-bold text-primary uppercase tracking-wider">新增孩子</p>
                   {addError && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{addError}</p>}
-                  <input className="form-input w-full rounded-xl border-slate-200 bg-white text-slate-900 h-11 text-sm placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary px-3" placeholder="孩子姓名 *" type="text" value={addForm.name} onChange={e => setAddForm(prev => ({ ...prev, name: e.target.value }))} aria-label="孩子姓名" />
+                  <input className="form-input w-full rounded-xl border-slate-200 dark:border-[var(--border-color)] bg-white dark:bg-[var(--bg-card)] text-slate-900 dark:text-[var(--text-primary)] h-11 text-sm placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary px-3 transition-colors" placeholder="孩子姓名 *" type="text" value={addForm.name} onChange={e => setAddForm(prev => ({ ...prev, name: e.target.value }))} aria-label="孩子姓名" />
                   <div className="grid grid-cols-2 gap-3">
-                    <input className="form-input w-full rounded-xl border-slate-200 bg-white text-slate-900 h-11 text-sm placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary px-3" placeholder="年龄（可选）" type="number" min="1" max="18" value={addForm.age} onChange={e => setAddForm(prev => ({ ...prev, age: e.target.value }))} aria-label="孩子年龄" />
-                    <div className="flex gap-1 bg-white rounded-xl border border-slate-200 p-1">
-                      <button className={`flex-1 rounded-lg text-xs font-medium py-2 transition-all ${addForm.gender === 'male' ? 'bg-primary text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`} onClick={() => setAddForm(prev => ({ ...prev, gender: 'male' }))}>男孩</button>
-                      <button className={`flex-1 rounded-lg text-xs font-medium py-2 transition-all ${addForm.gender === 'female' ? 'bg-primary text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`} onClick={() => setAddForm(prev => ({ ...prev, gender: 'female' }))}>女孩</button>
+                    <input className="form-input w-full rounded-xl border-slate-200 dark:border-[var(--border-color)] bg-white dark:bg-[var(--bg-card)] text-slate-900 dark:text-[var(--text-primary)] h-11 text-sm placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary px-3 transition-colors" placeholder="年龄（可选）" type="number" min="1" max="18" value={addForm.age} onChange={e => setAddForm(prev => ({ ...prev, age: e.target.value }))} aria-label="孩子年龄" />
+                    <div className="flex gap-1 bg-white dark:bg-[var(--bg-card)] rounded-xl border border-slate-200 dark:border-[var(--border-color)] p-1">
+                      <button className={`flex-1 rounded-lg text-xs font-medium py-2 transition-all ${addForm.gender === 'male' ? 'bg-primary text-white shadow-sm' : 'text-slate-500 dark:text-[var(--text-secondary)] hover:bg-slate-100 dark:hover:bg-[var(--bg-surface)]'}`} onClick={() => setAddForm(prev => ({ ...prev, gender: 'male' }))}>男孩</button>
+                      <button className={`flex-1 rounded-lg text-xs font-medium py-2 transition-all ${addForm.gender === 'female' ? 'bg-primary text-white shadow-sm' : 'text-slate-500 dark:text-[var(--text-secondary)] hover:bg-slate-100 dark:hover:bg-[var(--bg-surface)]'}`} onClick={() => setAddForm(prev => ({ ...prev, gender: 'female' }))}>女孩</button>
                     </div>
                   </div>
                   <div className="flex gap-2">
                     <button className="flex-1 py-2.5 bg-primary text-white text-sm font-bold rounded-xl disabled:opacity-60 transition-all active:scale-[0.98]" onClick={handleAddChild} disabled={isAdding} aria-label="确认添加">{isAdding ? '添加中...' : '确认添加'}</button>
-                    <button className="px-4 py-2.5 bg-slate-100 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-200 transition-all" onClick={() => { setShowAddForm(false); setAddForm({ name: '', age: '', gender: 'male' }); setAddError(''); }} aria-label="取消">取消</button>
+                    <button className="px-4 py-2.5 bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-sm font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-[var(--bg-surface)] transition-all" onClick={() => { setShowAddForm(false); setAddForm({ name: '', age: '', gender: 'male' }); setAddError(''); }} aria-label="取消">取消</button>
                   </div>
                 </div>
               </motion.div>
@@ -342,20 +381,20 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
           </AnimatePresence>
 
           {!user?.children || user.children.length === 0 ? (
-            <p className="text-slate-400 text-sm text-center py-4">暂无孩子信息，点击上方"添加"按钮添加</p>
+            <p className="text-slate-400 dark:text-[var(--text-muted)] text-sm text-center py-4">暂无孩子信息，点击上方"添加"按钮添加</p>
           ) : (
             <div className="space-y-3">
               {user.children.map(child => (
-                <div key={child.id} className={`flex items-center gap-3 p-3 rounded-lg transition-all cursor-pointer ${currentChild?.id === child.id ? 'bg-primary/10 border border-primary/30' : 'bg-background-light hover:bg-primary/5'}`} onClick={() => handleSwitchChild(child)} role="button" tabIndex={0} onKeyDown={e => e.key === 'Enter' && handleSwitchChild(child)} aria-label={`切换到${child.name}`}>
+                <div key={child.id} className={`flex items-center gap-3 p-3 rounded-lg transition-all cursor-pointer ${currentChild?.id === child.id ? 'bg-primary/10 border border-primary/30' : 'bg-background-light dark:bg-[var(--bg-card)] hover:bg-primary/5 dark:hover:bg-[var(--bg-surface)]'}`} onClick={() => handleSwitchChild(child)} role="button" tabIndex={0} onKeyDown={e => e.key === 'Enter' && handleSwitchChild(child)} aria-label={`切换到${child.name}`}>
                   <div className={`size-10 rounded-full flex items-center justify-center ${currentChild?.id === child.id ? 'bg-primary/30' : 'bg-primary/20'}`}>
                     <span className="material-symbols-outlined text-primary">{genderIcon(child.gender)}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-slate-900 text-sm font-bold">{child.name}</p>
+                      <p className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">{child.name}</p>
                       {currentChild?.id === child.id && <span className="text-[10px] bg-primary text-white px-1.5 py-0.5 rounded-full font-bold">当前</span>}
                     </div>
-                    <p className="text-slate-500 text-xs">
+                    <p className="text-slate-500 dark:text-[var(--text-secondary)] text-xs">
                       {child.age ? `${child.age}岁` : ''}{child.age && child.gender ? ' • ' : ''}{genderLabel(child.gender)}{(child.age || child.gender) ? ' • ' : ''}🍎 {child.fruits_balance} 果实
                     </p>
                   </div>

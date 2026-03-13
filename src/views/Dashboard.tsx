@@ -118,7 +118,7 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
       animate={{ opacity: 1, y: 0 }}
       className="flex-1 overflow-y-auto pb-32 lg:pb-8"
     >
-      <header className="sticky top-0 z-10 bg-background-light/80 backdrop-blur-md border-b border-primary/10 lg:max-w-4xl lg:mx-auto lg:border-x lg:border-primary/10">
+      <header className="sticky top-0 z-10 bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md border-b border-primary/10 dark:border-[var(--border-color)] lg:max-w-4xl lg:mx-auto lg:border-x lg:border-primary/10 dark:lg:border-[var(--border-color)] transition-colors">
         <div className="flex items-center p-4 pb-2 justify-between">
           <button
             onClick={onViewProfile}
@@ -127,13 +127,13 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
           >
             <span className="material-symbols-outlined text-2xl">settings</span>
           </button>
-          <h1 className="text-slate-900 text-xl font-bold leading-tight tracking-tight flex-1 text-center">
+          <h1 className="text-slate-900 dark:text-[var(--text-primary)] text-xl font-bold leading-tight tracking-tight flex-1 text-center">
             {currentChild ? `${currentChild.name}的森林` : '我的森林'}
           </h1>
           <div className="flex size-12 items-center justify-end">
             <button
               onClick={onViewStore}
-              className="flex size-10 cursor-pointer items-center justify-center rounded-full bg-primary/20 text-slate-900"
+              className="flex size-10 cursor-pointer items-center justify-center rounded-full bg-primary/20 dark:bg-[var(--bg-card)] text-slate-900 dark:text-[var(--text-primary)]"
               aria-label="商店"
             >
               <span className="material-symbols-outlined text-2xl">storefront</span>
@@ -149,7 +149,7 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
                 className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
                   currentChild?.id === child.id
                     ? 'bg-primary text-white shadow-sm'
-                    : 'bg-white border border-slate-200 text-slate-600 hover:border-primary/40'
+                    : 'bg-white dark:bg-[var(--bg-surface)] border border-slate-200 dark:border-[var(--border-color)] text-slate-600 dark:text-[var(--text-secondary)] hover:border-primary/40'
                 }`}
                 onClick={() => setCurrentChild(child)}
                 aria-label={`切换到${child.name}`}
@@ -181,7 +181,7 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
             className={`flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-full px-6 transition-all ${
               timeFilter === filter
                 ? 'bg-primary text-white font-bold'
-                : 'bg-primary/10 text-slate-700 font-medium hover:bg-primary/20'
+                : 'bg-primary/10 dark:bg-[var(--bg-card)] text-slate-700 dark:text-[var(--text-primary)] font-medium hover:bg-primary/20'
             }`}
             onClick={() => handleTimeFilterChange(filter)}
             aria-label={`筛选${TIME_FILTER_LABELS[filter]}数据`}
@@ -193,25 +193,25 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
       </div>
 
       <div className="px-4 py-2 lg:max-w-4xl lg:mx-auto">
-        <div className="bg-primary/5 rounded-xl p-5 border border-primary/20">
+        <div className="bg-primary/5 dark:bg-[var(--bg-card)] rounded-xl p-5 border border-primary/20 dark:border-[var(--border-color)]">
           <div className="flex justify-between items-center mb-4">
-            <p className="text-slate-600 font-bold uppercase text-xs tracking-widest">森林健康度</p>
+            <p className="text-slate-600 dark:text-[var(--text-secondary)] font-bold uppercase text-xs tracking-widest">森林健康度</p>
             <span className="text-primary font-bold text-sm">
               {stats ? `${stats.forestHealth}% 生长中` : '加载中...'}
             </span>
           </div>
           <div className="flex gap-4">
             <div className="flex-1">
-              <p className="text-2xl font-extrabold">{stats?.completedTrees ?? '--'}</p>
-              <p className="text-slate-500 text-[10px] sm:text-xs">已长成树木</p>
+              <p className="text-2xl font-extrabold dark:text-[var(--text-primary)]">{stats?.completedTrees ?? '--'}</p>
+              <p className="text-slate-500 dark:text-[var(--text-muted)] text-[10px] sm:text-xs">已长成树木</p>
             </div>
-            <div className="flex-1 border-x border-primary/20 px-4">
+            <div className="flex-1 border-x border-primary/20 dark:border-[var(--border-color)] px-4">
               <p className="text-2xl font-extrabold text-primary">{stats?.totalApprovedTasks ?? '--'}</p>
-              <p className="text-slate-500 text-[10px] sm:text-xs">累计任务</p>
+              <p className="text-slate-500 dark:text-[var(--text-muted)] text-[10px] sm:text-xs">累计任务</p>
             </div>
             <div className="flex-1 text-right">
-              <p className="text-2xl font-extrabold">{stats?.activeGoals ?? '--'}</p>
-              <p className="text-slate-500 text-[10px] sm:text-xs">新种子</p>
+              <p className="text-2xl font-extrabold dark:text-[var(--text-primary)]">{stats?.activeGoals ?? '--'}</p>
+              <p className="text-slate-500 dark:text-[var(--text-muted)] text-[10px] sm:text-xs">新种子</p>
             </div>
           </div>
         </div>
@@ -239,7 +239,7 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
         </div>
       )}
 
-      <h3 className="text-slate-900 tracking-tight text-2xl font-extrabold px-4 pb-4 pt-6 lg:max-w-4xl lg:mx-auto">果园花园</h3>
+      <h3 className="text-slate-900 dark:text-[var(--text-primary)] tracking-tight text-2xl font-extrabold px-4 pb-4 pt-6 lg:max-w-4xl lg:mx-auto">果园花园</h3>
 
       {isLoading ? (
         <div className="flex justify-center py-12">
@@ -274,11 +274,11 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
                 {/* 编辑按钮：儿童模式下隐藏 */}
                 {goal && !isChildMode && (
                   <button
-                    className="absolute top-2 right-2 z-10 bg-white/90 backdrop-blur-sm rounded-lg p-1.5 shadow-sm hover:bg-white active:scale-90 transition-all w-8 h-8 flex items-center justify-center"
+                    className="absolute top-2 right-2 z-10 bg-white/90 dark:bg-[var(--bg-surface)]/90 backdrop-blur-sm rounded-lg p-1.5 shadow-sm hover:bg-white dark:hover:bg-[var(--bg-surface)] active:scale-90 transition-all w-8 h-8 flex items-center justify-center"
                     onClick={e => { e.stopPropagation(); handleEditTree(tree); }}
                     aria-label={`编辑${tree.name}目标`}
                   >
-                    <span className="material-symbols-outlined text-slate-700 text-base leading-none">edit</span>
+                    <span className="material-symbols-outlined text-slate-700 dark:text-[var(--text-primary)] text-base leading-none">edit</span>
                   </button>
                 )}
                 <div className="absolute top-2 left-2 flex items-center gap-1.5">
@@ -332,7 +332,7 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
           {!isChildMode && (
             <button
               onClick={onAddGoal}
-              className="relative flex flex-col items-center justify-center gap-3 rounded-xl aspect-square border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors group"
+              className="relative flex flex-col items-center justify-center gap-3 rounded-xl aspect-square border-2 border-dashed border-primary/30 dark:border-[var(--border-color)] bg-primary/5 dark:bg-[var(--bg-card)] hover:bg-primary/10 transition-colors group"
               aria-label="添加新目标"
             >
               <div className="size-12 rounded-full bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
@@ -345,7 +345,7 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
       )}
 
       <div className="px-4 pb-8 text-center lg:max-w-4xl lg:mx-auto">
-        <p className="text-slate-500 text-sm">继续完成任务，解锁更多珍稀树木！</p>
+        <p className="text-slate-500 dark:text-[var(--text-muted)] text-sm">继续完成任务，解锁更多珍稀树木！</p>
       </div>
 
       {/* 打卡详情浮层 */}

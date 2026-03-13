@@ -102,7 +102,7 @@ export default function ParentControl({ onBack }: ParentControlProps) {
       animate={{ opacity: 1 }}
       className="flex-1 flex flex-col bg-background-light overflow-hidden"
     >
-      <header className="sticky top-0 z-10 bg-background-light/80 backdrop-blur-md border-b border-primary/10 px-4 py-4">
+      <header className="sticky top-0 z-10 bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md border-b border-primary/10 dark:border-[var(--border-color)] px-4 py-4 transition-colors">
         <div className="flex items-center justify-between max-w-md mx-auto lg:max-w-2xl">
           <div className="flex items-center gap-3">
             <button onClick={onBack} className="p-2 hover:bg-primary/10 rounded-full transition-colors" aria-label="返回">
@@ -114,7 +114,7 @@ export default function ParentControl({ onBack }: ParentControlProps) {
             <h1 className="text-xl font-bold tracking-tight">家长控制</h1>
           </div>
           {user?.children && user.children.length > 1 && (
-            <span className="text-xs text-slate-400 bg-white px-2 py-1 rounded-full border border-slate-200">
+            <span className="text-xs text-slate-400 dark:text-[var(--text-muted)] bg-white dark:bg-[var(--bg-card)] px-2 py-1 rounded-full border border-slate-200 dark:border-[var(--border-color)]">
               {user.children.length} 个孩子
             </span>
           )}
@@ -122,15 +122,15 @@ export default function ParentControl({ onBack }: ParentControlProps) {
       </header>
 
       <div className="px-4 py-4 max-w-md mx-auto w-full lg:max-w-2xl">
-        <div className="flex p-1 bg-primary/10 rounded-xl">
+        <div className="flex p-1 bg-primary/10 dark:bg-[var(--bg-card)] rounded-xl">
           <button
-            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${activeTab === 'pending' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-primary'}`}
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${activeTab === 'pending' ? 'bg-white dark:bg-[var(--bg-surface)] shadow-sm text-slate-900 dark:text-[var(--text-primary)]' : 'text-slate-500 dark:text-[var(--text-secondary)] hover:text-primary'}`}
             onClick={() => setActiveTab('pending')}
           >
             待审核 {pendingCount > 0 && `(${pendingCount})`}
           </button>
           <button
-            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${activeTab === 'approved' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-primary'}`}
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${activeTab === 'approved' ? 'bg-white dark:bg-[var(--bg-surface)] shadow-sm text-slate-900 dark:text-[var(--text-primary)]' : 'text-slate-500 dark:text-[var(--text-secondary)] hover:text-primary'}`}
             onClick={() => setActiveTab('approved')}
           >
             已批准
@@ -144,13 +144,13 @@ export default function ParentControl({ onBack }: ParentControlProps) {
             <span className="material-symbols-outlined text-primary text-4xl animate-pulse">hourglass_empty</span>
           </div>
         ) : tasks.length === 0 ? (
-          <div className="text-center py-12 text-slate-400">
+          <div className="text-center py-12 text-slate-400 dark:text-[var(--text-muted)]">
             <span className="material-symbols-outlined text-5xl mb-3 block">task_alt</span>
             <p>{activeTab === 'pending' ? '暂无待审核任务' : '暂无已批准任务'}</p>
           </div>
         ) : (
           tasks.map((task) => (
-            <div key={task.id} className="bg-white rounded-2xl shadow-sm border border-primary/5 overflow-hidden">
+            <div key={task.id} className="bg-white dark:bg-[var(--bg-surface)] rounded-2xl shadow-sm border border-primary/5 dark:border-[var(--border-color)] overflow-hidden transition-colors">
               <div className="p-4 flex gap-4">
                 <div className="w-20 h-20 rounded-xl bg-primary/5 flex items-center justify-center relative overflow-hidden shrink-0 border border-primary/10">
                   {task.image_url ? (
@@ -158,7 +158,7 @@ export default function ParentControl({ onBack }: ParentControlProps) {
                   ) : (
                     <span className="material-symbols-outlined text-primary text-3xl">task_alt</span>
                   )}
-                  <div className="absolute bottom-1 right-1 bg-white/90 px-1 rounded text-[10px] font-bold text-primary">{task.progress}%</div>
+                  <div className="absolute bottom-1 right-1 bg-white/90 dark:bg-[var(--bg-surface)]/90 px-1 rounded text-[10px] font-bold text-primary">{task.progress}%</div>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start">
@@ -166,14 +166,14 @@ export default function ParentControl({ onBack }: ParentControlProps) {
                       {task.childName && (
                         <span className="text-[10px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{task.childName}</span>
                       )}
-                      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{task.type}</p>
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-[var(--text-muted)]">{task.type}</p>
                     </div>
-                    <span className="text-[10px] text-slate-400 shrink-0 ml-1">
+                    <span className="text-[10px] text-slate-400 dark:text-[var(--text-muted)] shrink-0 ml-1">
                       {new Date(task.checkin_time).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
-                  <h3 className="text-lg font-bold text-slate-900 truncate">{task.title}</h3>
-                  {task.trees && <p className="text-sm text-slate-500 mt-1">虚拟树：{task.trees.name}</p>}
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-[var(--text-primary)] truncate">{task.title}</h3>
+                  {task.trees && <p className="text-sm text-slate-500 dark:text-[var(--text-muted)] mt-1">虚拟树：{task.trees.name}</p>}
                 </div>
               </div>
 
@@ -182,16 +182,16 @@ export default function ParentControl({ onBack }: ParentControlProps) {
                   <div className="px-4 pb-4 space-y-3">
                     {/* 基础果实数展示 */}
                     {task.goals?.fruits_per_task != null && task.goals.fruits_per_task > 0 && (
-                      <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                      <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-[var(--text-muted)]">
                         <span>基础奖励：</span>
                         <span className="font-bold text-primary">{task.goals.fruits_per_task} 🍎</span>
                       </div>
                     )}
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">给 {task.childName || '孩子'} 留言</label>
+                      <label className="text-[10px] font-bold text-slate-400 dark:text-[var(--text-muted)] uppercase tracking-wide">给 {task.childName || '孩子'} 留言</label>
                       <div className="relative">
                         <input
-                          className="w-full bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 placeholder:text-slate-400 pr-24"
+                          className="w-full bg-slate-50 dark:bg-[var(--bg-card)] border-none rounded-xl text-sm dark:text-[var(--text-primary)] focus:ring-2 focus:ring-primary/20 placeholder:text-slate-400 pr-24"
                           placeholder="留个便条..."
                           type="text"
                           value={notes[task.id] || ''}
@@ -285,20 +285,20 @@ export default function ParentControl({ onBack }: ParentControlProps) {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="relative bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl"
+            className="relative bg-white dark:bg-[var(--bg-surface)] rounded-2xl p-6 w-full max-w-sm shadow-xl transition-colors"
           >
-            <h3 className="text-lg font-bold text-slate-900 mb-2">确认撤销</h3>
-            <p className="text-sm text-slate-500 mb-4">
-              确定要撤销任务 <span className="font-semibold text-slate-900">{revokeConfirm.task.title}</span> 的审核吗？
+            <h3 className="text-lg font-bold text-slate-900 dark:text-[var(--text-primary)] mb-2">确认撤销</h3>
+            <p className="text-sm text-slate-500 dark:text-[var(--text-muted)] mb-4">
+              确定要撤销任务 <span className="font-semibold text-slate-900 dark:text-[var(--text-primary)]">{revokeConfirm.task.title}</span> 的审核吗？
             </p>
-            <div className="bg-red-50 rounded-xl p-3 mb-4">
-              <p className="text-xs text-red-600 font-medium">
+            <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-3 mb-4">
+              <p className="text-xs text-red-600 dark:text-red-400 font-medium">
                 ⚠️ 撤销后将扣除该孩子 {revokeConfirm.task.goals?.fruits_per_task ?? 10} + {revokeConfirm.task.bonus_fruits ?? 0} = {((revokeConfirm.task.goals?.fruits_per_task ?? 10) + (revokeConfirm.task.bonus_fruits ?? 0))} 个果实
               </p>
             </div>
             <div className="flex gap-3">
               <button
-                className="flex-1 py-3 rounded-xl font-bold text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+                className="flex-1 py-3 rounded-xl font-bold text-sm text-slate-600 dark:text-[var(--text-secondary)] bg-slate-100 dark:bg-[var(--bg-card)] hover:bg-slate-200 dark:hover:bg-[var(--bg-surface)] transition-colors"
                 onClick={() => setRevokeConfirm({ show: false, task: null })}
               >
                 取消
