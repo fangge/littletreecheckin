@@ -111,6 +111,10 @@ export interface MedalData {
   icon: string;
   color: string;
   description?: string;
+  unlock_condition?: {
+    type: string;
+    threshold: number;
+  };
   unlocked: boolean;
   unlocked_at?: string;
 }

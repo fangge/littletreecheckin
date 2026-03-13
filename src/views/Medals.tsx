@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { medalsApi, MedalData } from '../services/api';
 
@@ -12,6 +12,7 @@ export default function Medals({ onBack }: MedalsProps) {
   const [medals, setMedals] = useState<MedalData[]>([]);
   const [filter, setFilter] = useState<'all' | 'unlocked' | 'locked'>('all');
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedMedal, setSelectedMedal] = useState<MedalData | null>(null);
 
   useEffect(() => {
     if (!currentChild) return;
@@ -122,7 +123,11 @@ export default function Medals({ onBack }: MedalsProps) {
       ) : (
         <section className="px-6 grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-y-8 gap-x-4 py-4">
           {filteredMedals.map((medal) => (
-            <div key={medal.id} className={`flex flex-col items-center gap-2 ${!medal.unlocked ? 'opacity-50 grayscale' : ''}`}>
+            <button
+              key={medal.id}
+              onClick={() => setSelectedMedal(medal)}
+              className={`flex flex-col items-center gap-2 ${!medal.unlocked ? 'opacity-50 grayscale' : ''} cursor-pointer`}
+            >
               <div className={`w-20 h-20 rounded-full bg-gradient-to-br ${medal.color} flex items-center justify-center shadow-lg border-4 border-white relative`}>
                 <span className="material-symbols-outlined text-4xl text-white drop-shadow-md fill-icon">
                   {medal.icon}
@@ -139,7 +144,7 @@ export default function Medals({ onBack }: MedalsProps) {
                   {new Date(medal.unlocked_at).toLocaleDateString('zh-CN')}
                 </p>
               )}
-            </div>
+            </button>
           ))}
         </section>
       )}
@@ -158,6 +163,55 @@ export default function Medals({ onBack }: MedalsProps) {
         </div>
       )}
       </div>
+
+      {/* 勋章详情弹窗 */}
+      <AnimatePresence>
+        {selectedMedal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+            onClick={() => setSelectedMedal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex flex-col items-center text-center">
+                <div className={`w-24 h-24 rounded-full bg-gradient-to-br ${selectedMedal.color} flex items-center justify-center shadow-lg border-4 border-white mb-4`}>
+                  <span className="material-symbols-outlined text-5xl text-white drop-shadow-md fill-icon">
+                    {selectedMedal.icon}
+                  </span>
+                </div>
+                <h3 className="text-xl font-extrabold text-slate-900 mb-2">{selectedMedal.name}</h3>
+                <p className="text-slate-600 mb-4">{selectedMedal.description}</p>
+                
+                <div className={`w-full p-3 rounded-xl mb-4 ${selectedMedal.unlocked ? 'bg-green-50' : 'bg-slate-50'}`}>
+                  <p className={`text-sm font-semibold ${selectedMedal.unlocked ? 'text-green-600' : 'text-slate-600'}`}>
+                    {selectedMedal.unlocked ? '已解锁' : '未解锁'}
+                  </p>
+                  {selectedMedal.unlocked && selectedMedal.unlocked_at && (
+                    <p className="text-xs text-slate-500 mt-1">
+                      解锁时间：{new Date(selectedMedal.unlocked_at).toLocaleDateString('zh-CN')}
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => setSelectedMedal(null)}
+                  className="w-full py-3 bg-primary text-slate-900 font-bold rounded-xl"
+                >
+                  知道了
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
