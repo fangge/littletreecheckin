@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "pnpm build",
+  "buildCommand": "pnpm build && pnpm docs:build",
   "outputDirectory": "dist",
   "installCommand": "pnpm install && pnpm --prefix server install",
   "functions": {
@@ -12,6 +12,17 @@
     {
       "src": "/api/(.*)",
       "dest": "/api/[...path]"
+    },
+    {
+      "src": "/doc",
+      "status": 302,
+      "headers": {
+        "Location": "/doc/"
+      }
+    },
+    {
+      "src": "/doc/(.*)",
+      "dest": "/doc/$1"
     },
     {
       "src": "/sw\\.js",

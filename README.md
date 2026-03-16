@@ -35,6 +35,7 @@
 | [核心业务逻辑](docs/business-logic.md) | 树木成长、审核触发链、勋章系统、时间筛选统计 |
 | [API 参考](docs/api-reference.md) | 完整 API 端点列表（含请求/响应示例） |
 | [部署指南](docs/deployment.md) | Vercel + Supabase 一体化部署步骤 |
+| [在线用户手册](/doc/) | 部署后可访问 /doc 查看功能介绍和使用指南 |
 
 ---
 
