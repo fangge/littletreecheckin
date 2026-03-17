@@ -30,15 +30,23 @@ const request = async <T>(
     headers,
   });
 
-  if (response.status === 401) {
-    // Token 过期，清除本地存储并跳转登录
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_user');
-    window.dispatchEvent(new CustomEvent('auth:logout'));
-    throw new Error('认证已过期，请重新登录');
-  }
-
   const data = await response.json();
+
+  if (response.status === 401) {
+    // 区分登录接口和其他接口的401错误
+    const isLoginEndpoint = endpoint === '/api/v1/auth/login' || endpoint === '/api/v1/auth/register';
+    
+    if (!isLoginEndpoint) {
+      // 非登录接口的401：Token 过期，清除本地存储并跳转登录
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
+      window.dispatchEvent(new CustomEvent('auth:logout'));
+      throw new Error('认证已过期，请重新登录');
+    }
+    
+    // 登录接口的401：密码错误或用户不存在，使用后端返回的具体错误信息
+    throw new Error(data.error || '用户名或密码错误，请重新输入');
+  }
 
   if (!response.ok) {
     throw new Error(data.error || `请求失败: ${response.status}`);
