@@ -1,33 +1,61 @@
-import { Request, Response, Router } from 'express';
+import { Request, Response, Router, IRouter } from 'express';
 import { supabase } from '../config/supabase.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { AuthRequest } from '../types.js';
 import webPush from 'web-push';
 
-const router = Router();
+const router: IRouter = Router();
 
 // ============================================================
 // VAPID 配置（环境变量中获取）
 // ============================================================
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
-const VAPID_EMAIL = process.env.VAPID_EMAIL || '';
+const VAPID_EMAIL = process.env.VAPID_EMAIL || 'noreply@example.com';
 
-// 配置 web-push
-webPush.setVapidDetails(
-  `mailto:${VAPID_EMAIL}`,
-  VAPID_PUBLIC_KEY,
-  VAPID_PRIVATE_KEY
-);
+// 检查 VAPID 密钥是否配置
+const isPushEnabled = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
+
+if (isPushEnabled) {
+  // 配置 web-push
+  try {
+    webPush.setVapidDetails(
+      `mailto:${VAPID_EMAIL}`,
+      VAPID_PUBLIC_KEY,
+      VAPID_PRIVATE_KEY
+    );
+    console.log('[Push] VAPID 配置成功，推送功能已启用');
+  } catch (error) {
+    console.error('[Push] VAPID 配置失败:', error);
+    console.warn('[Push] 推送功能将不可用');
+  }
+} else {
+  console.warn('[Push] 未配置 VAPID 密钥，推送功能已禁用');
+  console.warn('[Push] 请设置 VAPID_PUBLIC_KEY 和 VAPID_PRIVATE_KEY 环境变量');
+}
 
 /**
  * 获取 VAPID 公钥（无需认证）
  */
-router.get('/vapid-key', async (_req: Request, res: Response) => {
+router.get('/vapid-key', async (_req: Request, res: Response): Promise<void> => {
   try {
+    if (!isPushEnabled) {
+      res.json({
+        success: false,
+        error: '推送功能未启用',
+        data: {
+          vapidPublicKey: '',
+          pushEnabled: false,
+        },
+      });
+      return;
+    }
+
     res.json({
       success: true,
       data: {
         vapidPublicKey: VAPID_PUBLIC_KEY,
+        pushEnabled: true,
       },
     });
   } catch (error) {
@@ -39,18 +67,28 @@ router.get('/vapid-key', async (_req: Request, res: Response) => {
 /**
  * 订阅推送（需要认证）
  */
-router.post('/subscribe', authMiddleware, async (req: Request, res: Response) => {
+router.post('/subscribe', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    if (!isPushEnabled) {
+      res.status(503).json({
+        success: false,
+        error: '推送功能未启用，请联系管理员配置 VAPID 密钥'
+      });
+      return;
+    }
+
     const userId = req.user?.id;
     if (!userId) {
-      return res.status(401).json({ success: false, error: '未授权' });
+      res.status(401).json({ success: false, error: '未授权' });
+      return;
     }
 
     const subscription = req.body;
 
     // 验证订阅信息格式
     if (!subscription.endpoint || !subscription.keys) {
-      return res.status(400).json({ success: false, error: '订阅信息格式错误' });
+      res.status(400).json({ success: false, error: '订阅信息格式错误' });
+      return;
     }
 
     // 保存订阅信息到数据库
@@ -71,7 +109,8 @@ router.post('/subscribe', authMiddleware, async (req: Request, res: Response) =>
 
     if (error) {
       console.error('[Push] 保存订阅失败:', error);
-      return res.status(500).json({ success: false, error: '保存订阅失败' });
+      res.status(500).json({ success: false, error: '保存订阅失败' });
+      return;
     }
 
     console.log('[Push] 用户订阅成功:', userId);
@@ -85,11 +124,12 @@ router.post('/subscribe', authMiddleware, async (req: Request, res: Response) =>
 /**
  * 取消订阅（需要认证）
  */
-router.delete('/unsubscribe', authMiddleware, async (req: Request, res: Response) => {
+router.delete('/unsubscribe', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     if (!userId) {
-      return res.status(401).json({ success: false, error: '未授权' });
+      res.status(401).json({ success: false, error: '未授权' });
+      return;
     }
 
     const { error } = await supabase
@@ -99,7 +139,8 @@ router.delete('/unsubscribe', authMiddleware, async (req: Request, res: Response
 
     if (error) {
       console.error('[Push] 取消订阅失败:', error);
-      return res.status(500).json({ success: false, error: '取消订阅失败' });
+      res.status(500).json({ success: false, error: '取消订阅失败' });
+      return;
     }
 
     console.log('[Push] 用户取消订阅:', userId);
@@ -113,11 +154,12 @@ router.delete('/unsubscribe', authMiddleware, async (req: Request, res: Response
 /**
  * 检查订阅状态（需要认证）
  */
-router.get('/status', authMiddleware, async (req: Request, res: Response) => {
+router.get('/status', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     if (!userId) {
-      return res.status(401).json({ success: false, error: '未授权' });
+      res.status(401).json({ success: false, error: '未授权' });
+      return;
     }
 
     const { data, error } = await supabase
@@ -128,7 +170,8 @@ router.get('/status', authMiddleware, async (req: Request, res: Response) => {
 
     if (error) {
       console.error('[Push] 检查订阅状态失败:', error);
-      return res.status(500).json({ success: false, error: '服务器错误' });
+      res.status(500).json({ success: false, error: '服务器错误' });
+      return;
     }
 
     res.json({

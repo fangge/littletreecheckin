@@ -6,8 +6,14 @@ import { sendDailyCheckinSummary } from '../services/pushService.js';
  */
 export class PushScheduler {
   private static instance: PushScheduler;
+  private isPushEnabled: boolean;
 
-  private constructor() {}
+  private constructor() {
+    // 检查 VAPID 密钥是否配置
+    const vapidPublicKey = process.env.VAPID_PUBLIC_KEY || '';
+    const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || '';
+    this.isPushEnabled = !!(vapidPublicKey && vapidPrivateKey);
+  }
 
   static getInstance(): PushScheduler {
     if (!PushScheduler.instance) {
@@ -20,6 +26,11 @@ export class PushScheduler {
    * 启动定时任务
    */
   start(): void {
+    if (!this.isPushEnabled) {
+      console.log('[PushScheduler] 推送功能未启用，跳过定时任务启动');
+      return;
+    }
+
     console.log('[PushScheduler] 启动定时任务...');
 
     // 每天晚上 9:30 发送打卡汇总
