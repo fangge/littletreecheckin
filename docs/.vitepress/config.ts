@@ -16,6 +16,7 @@ export default defineConfig({
       {text: '首页', link: '/'},
       {text: '功能介绍', link: '/features'},
       {text: '使用指南', link: '/guide'},
+      {text: '推送通知', link: '/push-notifications'},
     ],
     sidebar: [
       {
@@ -23,6 +24,12 @@ export default defineConfig({
         items: [
           {text: '首页', link: '/'},
           {text: '功能介绍', link: '/features'},
+        ]
+      },
+      {
+        text: '开发者文档',
+        items: [
+          {text: '推送通知', link: '/push-notifications'},
         ]
       },
       {

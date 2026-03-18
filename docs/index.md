@@ -32,5 +32,8 @@ features:
   - title: 消息中心
     details: 家长与孩子互动，系统自动发送审核通知
     icon: 💬
+  - title: 推送通知
+    details: 每天晚上 9:30 自动推送孩子打卡情况汇总，让家长及时了解成长进度
+    icon: 🔔
 
 ---

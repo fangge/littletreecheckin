@@ -5,6 +5,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { childrenApi, authApi, Child } from '../services/api';
 import { PushSettings } from '../components/PushSettings';
 import PasswordConfirmModal from '../components/PasswordConfirmModal';
+import ChangelogModal from '../components/ChangelogModal';
 
 interface ProfileProps {
   onBack: () => void;
@@ -47,6 +48,9 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
   }>({});
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  // 更新日志弹窗状态
+  const [showChangelogModal, setShowChangelogModal] = useState(false);
 
   // 实时验证密码
   const validatePassword = (field: 'currentPassword' | 'newPassword' | 'confirmPassword', value: string) => {
@@ -272,6 +276,33 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
           </div>
         </div>
 
+        {/* 版本信息 */}
+        <div className="bg-white dark:bg-[var(--bg-surface)] rounded-xl p-4 shadow-sm border border-primary/5 dark:border-[var(--border-color)] transition-colors">
+          <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-base font-bold leading-tight mb-4 flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary text-sm">info</span>
+            版本信息
+          </h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-slate-600 dark:text-[var(--text-secondary)] text-sm">当前版本</p>
+                <p className="text-slate-400 dark:text-[var(--text-muted)] text-xs mt-0.5">成就丛林 HappyGrow</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="bg-primary/10 text-primary text-sm font-bold px-3 py-1 rounded-full">v2.12</span>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowChangelogModal(true)}
+              className="w-full flex items-center justify-between py-2 hover:bg-slate-50 dark:hover:bg-[var(--bg-card)] transition-colors rounded-lg px-2"
+              aria-label="查看更新日志"
+            >
+              <p className="text-slate-600 dark:text-[var(--text-secondary)] text-sm">更新日志</p>
+              <span className="material-symbols-outlined text-slate-400">chevron_right</span>
+            </button>
+          </div>
+        </div>
+
         {/* 外观设置 */}
         <div className="bg-white dark:bg-[var(--bg-surface)] rounded-xl p-4 shadow-sm border border-primary/5 dark:border-[var(--border-color)] transition-colors">
           <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-base font-bold leading-tight mb-4 flex items-center gap-2">
@@ -438,6 +469,8 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
         onConfirm={handleChildModeConfirm}
         onCancel={handleChildModeCancel}
       />
+
+      <ChangelogModal isOpen={showChangelogModal} onClose={() => setShowChangelogModal(false)} />
 
       {/* 修改密码弹窗 */}
       <AnimatePresence>
