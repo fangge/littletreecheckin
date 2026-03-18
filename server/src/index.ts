@@ -11,12 +11,17 @@ dotenv.config({ path: resolve(rootDir, '.env.local') });
 dotenv.config({ path: resolve(rootDir, '.env') });
 
 import app from './app.js';
+import { pushScheduler } from './cron/pushScheduler.js';
 
 const PORT = process.env.PORT || 3001;
 
 app.listen(PORT, () => {
   console.log(`🌳 成就丛林后端服务已启动: http://localhost:${PORT}`);
   console.log(`📋 健康检查: http://localhost:${PORT}/health`);
+  console.log(`🔔 推送通知服务已启用`);
 });
+
+// 启动定时任务
+pushScheduler.start();
 
 export default app;

@@ -444,3 +444,29 @@ export const messagesApi = {
   markAllRead: (childId: string) =>
     request<{ message: string }>(`/api/v1/children/${childId}/messages/read-all`, { method: 'PUT' }),
 };
+
+// ============================================================
+// 推送通知 API
+// ============================================================
+export const pushApi = {
+  // 获取 VAPID 公钥
+  getVapidKey: () => request<{ data: { vapidPublicKey: string } }>('/api/v1/push/vapid-key'),
+
+  // 订阅推送
+  subscribe: (subscription: PushSubscription) =>
+    request<{ message: string }>('/api/v1/push/subscribe', {
+      method: 'POST',
+      body: JSON.stringify(subscription),
+    }),
+
+  // 取消订阅
+  unsubscribe: (subscription: PushSubscription) =>
+    request<{ message: string }>('/api/v1/push/unsubscribe', {
+      method: 'DELETE',
+      body: JSON.stringify(subscription),
+    }),
+
+  // 检查订阅状态
+  status: () =>
+    request<{ data: { subscribed: boolean } }>('/api/v1/push/status'),
+};

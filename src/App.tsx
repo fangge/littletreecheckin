@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { ViewType } from './types';
 import Navigation from './components/Navigation';
 import ChildModeBanner from './components/ChildModeBanner';
