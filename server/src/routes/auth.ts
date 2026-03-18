@@ -94,55 +94,102 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
 
 // POST /api/v1/auth/login
 router.post('/login', async (req: Request, res: Response): Promise<void> => {
-  const { username, password } = req.body;
+  try {
+    const { username, password } = req.body;
 
-  if (!username || !password) {
-    res.status(400).json({ error: '用户名和密码不能为空' });
-    return;
+    console.log('[Login] 尝试登录:', { username, timestamp: new Date().toISOString() });
+
+    if (!username || !password) {
+      console.log('[Login] 验证失败: 用户名或密码为空');
+      res.status(400).json({ error: '用户名和密码不能为空' });
+      return;
+    }
+
+    // 查询用户（支持用户名或手机号登录）
+    console.log('[Login] 查询用户:', username);
+    
+    // 先尝试用户名查询
+    let { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id, username, phone, password_hash, created_at')
+      .eq('username', username)
+      .maybeSingle();
+    
+    // 如果用户名未找到，尝试手机号查询
+    if (!user && !userError) {
+      const phoneResult = await supabase
+        .from('users')
+        .select('id, username, phone, password_hash, created_at')
+        .eq('phone', username)
+        .maybeSingle();
+      
+      user = phoneResult.data;
+      userError = phoneResult.error;
+    }
+
+    if (userError) {
+      console.error('[Login] 数据库查询错误:', userError);
+      res.status(500).json({ error: '登录失败，请稍后重试' });
+      return;
+    }
+
+    if (!user) {
+      console.log('[Login] 用户不存在:', username);
+      res.status(401).json({ error: '用户名或密码错误' });
+      return;
+    }
+
+    console.log('[Login] 找到用户:', { id: user.id, username: user.username });
+
+    // 验证密码
+    console.log('[Login] 验证密码...');
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+    if (!isPasswordValid) {
+      console.log('[Login] 密码验证失败');
+      res.status(401).json({ error: '用户名或密码错误' });
+      return;
+    }
+
+    console.log('[Login] 密码验证成功');
+
+    // 获取孩子列表
+    console.log('[Login] 获取孩子列表...');
+    const { data: children, error: childrenError } = await supabase
+      .from('children')
+      .select('id, name, age, gender, avatar, fruits_balance')
+      .eq('parent_id', user.id)
+      .eq('is_deleted', false);
+
+    if (childrenError) {
+      console.error('[Login] 获取孩子列表错误:', childrenError);
+      // 不阻止登录，继续执行
+    }
+
+    console.log('[Login] 找到孩子数量:', children?.length || 0);
+
+    // 生成 JWT
+    console.log('[Login] 生成JWT token...');
+    const token = jwt.sign(
+      { id: user.id, username: user.username },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
+    );
+
+    const { password_hash: _, ...userWithoutPassword } = user;
+
+    console.log('[Login] 登录成功:', { userId: user.id, username: user.username });
+
+    res.json({
+      data: {
+        token,
+        user: { ...userWithoutPassword, children: children || [] },
+      },
+      message: '登录成功',
+    });
+  } catch (error) {
+    console.error('[Login] 未捕获的错误:', error);
+    res.status(500).json({ error: '服务器内部错误，请稍后重试' });
   }
-
-  // 查询用户（支持用户名或手机号登录）
-  const { data: user } = await supabase
-    .from('users')
-    .select('id, username, phone, password_hash, created_at')
-    .or(`username.eq.${username},phone.eq.${username}`)
-    .single();
-
-  if (!user) {
-    res.status(401).json({ error: '用户名或密码错误' });
-    return;
-  }
-
-  // 验证密码
-  const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-  if (!isPasswordValid) {
-    res.status(401).json({ error: '用户名或密码错误' });
-    return;
-  }
-
-  // 获取孩子列表
-  const { data: children } = await supabase
-    .from('children')
-    .select('id, name, age, gender, avatar, fruits_balance')
-    .eq('parent_id', user.id)
-    .eq('is_deleted', false);
-
-  // 生成 JWT
-  const token = jwt.sign(
-    { id: user.id, username: user.username },
-    JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
-  );
-
-  const { password_hash: _, ...userWithoutPassword } = user;
-
-  res.json({
-    data: {
-      token,
-      user: { ...userWithoutPassword, children: children || [] },
-    },
-    message: '登录成功',
-  });
 });
 
 // GET /api/v1/auth/me
