@@ -77,15 +77,23 @@ export class PushNotificationService {
       }
 
       // 获取 VAPID 公钥
-      const { data } = await pushApi.getVapidKey();
-      const vapidKey = data.vapidPublicKey;
+      console.log('[Push] 正在获取 VAPID 公钥...');
+      const response = await pushApi.getVapidKey();
+      console.log('[Push] API 完整响应:', JSON.stringify(response, null, 2));
+      
+      const vapidKey = response.data?.vapidPublicKey;
       
       console.log('[Push] VAPID 公钥:', vapidKey);
+      console.log('[Push] VAPID 公钥类型:', typeof vapidKey);
       console.log('[Push] VAPID 公钥长度:', vapidKey?.length);
 
       if (!vapidKey || vapidKey.length === 0) {
-        throw new Error('VAPID 公钥为空');
+        console.error('[Push] ❌ VAPID 公钥为空');
+        console.error('[Push] 完整响应数据:', JSON.stringify(response));
+        throw new Error('VAPID 公钥为空，请检查服务器环境变量配置');
       }
+      
+      console.log('[Push] ✅ VAPID 公钥获取成功');
 
       // 订阅推送
       const subscription = await this.registration.pushManager.subscribe({
