@@ -299,29 +299,48 @@ export default function CheckIn({
           <div className="w-full space-y-4 pb-4 px-3">
             {/* 树木选择 */}
             {growingTrees.length > 1 && (
-              <div className="w-0 min-w-full flex gap-2 overflow-x-auto no-scrollbar lg:overflow-visible lg:flex-wrap">
-                {growingTrees.map((tree) => {
-                  const treeTask = getTaskForTreeOnDate(tree, selectedDate);
-                  return (
-                    <button
-                      key={tree.id}
-                      className={`shrink-0 px-4 py-2 rounded-full text-sm font-bold transition-all flex items-center gap-1.5 ${
-                        selectedTree?.id === tree.id
-                          ? 'bg-primary text-white'
-                          : 'bg-primary/10 text-slate-700 dark:text-[var(--text-secondary)]'
-                      }`}
-                      onClick={() => setSelectedTree(tree)}
-                    >
-                      {tree.name}
-                      {treeTask?.status === 'approved' && (
-                        <span className="text-xs">✓</span>
-                      )}
-                      {treeTask?.status === 'pending' && (
-                        <span className="text-xs">⏳</span>
-                      )}
-                    </button>
-                  );
-                })}
+              <div className="w-full max-w-sm mx-auto">
+                <label className="relative flex items-center gap-2 px-4 py-3 bg-white dark:bg-[var(--bg-card)] border border-slate-200 dark:border-[var(--border-color)] rounded-2xl shadow-sm cursor-pointer hover:border-primary/40 transition-colors">
+                  <span className="material-symbols-outlined text-primary text-xl">
+                    park
+                  </span>
+                  <span className="text-slate-600 dark:text-[var(--text-secondary)] text-sm font-medium">
+                    当前目标：
+                  </span>
+                  <span className="text-primary font-bold text-sm flex-1">
+                    {selectedTree?.name || '选择目标'}
+                  </span>
+                  {(() => {
+                    const treeTask = getTaskForTreeOnDate(selectedTree, selectedDate);
+                    return treeTask?.status === 'approved' ? (
+                      <span className="text-green-600 text-xs">✓</span>
+                    ) : treeTask?.status === 'pending' ? (
+                      <span className="text-amber-500 text-xs">⏳</span>
+                    ) : null;
+                  })()}
+                  <span className="material-symbols-outlined text-slate-400 dark:text-[var(--text-muted)] text-base">
+                    expand_more
+                  </span>
+                  <select
+                    value={selectedTree?.id || ''}
+                    onChange={(e) => {
+                      const tree = growingTrees.find(t => t.id === e.target.value);
+                      if (tree) setSelectedTree(tree);
+                    }}
+                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                    aria-label="选择目标"
+                  >
+                    {growingTrees.map((tree) => {
+                      const treeTask = getTaskForTreeOnDate(tree, selectedDate);
+                      const statusIcon = treeTask?.status === 'approved' ? ' ✓' : treeTask?.status === 'pending' ? ' ⏳' : '';
+                      return (
+                        <option key={tree.id} value={tree.id}>
+                          {tree.name}{statusIcon}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </label>
               </div>
             )}
 
