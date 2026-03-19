@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { motion, useMotionValue, useTransform, PanInfo } from 'motion/react';
+import { motion, useMotionValue, useTransform } from 'motion/react';
 
 interface PullToRefreshProps {
   onRefresh: () => Promise<void>;
@@ -17,51 +17,69 @@ const PullToRefresh = ({
   disabled = false
 }: PullToRefreshProps) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isPulling, setIsPulling] = useState(false);
   const [canRefresh, setCanRefresh] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const startY = useRef(0);
   const y = useMotionValue(0);
   
   // 将下拉距离转换为指示器的透明度和旋转角度
   const opacity = useTransform(y, [0, pullDownThreshold], [0, 1]);
   const rotate = useTransform(y, [0, pullDownThreshold], [0, 180]);
+  const indicatorY = useTransform(y, (val) => val - 60);
+  const textOpacity = useTransform(y, [0, pullDownThreshold * 0.5, pullDownThreshold], [0, 0.5, 1]);
   
   // 检查是否在页面顶部
   const isAtTop = useCallback(() => {
     if (!containerRef.current) return false;
-    const scrollTop = containerRef.current.scrollTop || window.scrollY || document.documentElement.scrollTop;
-    return scrollTop === 0;
+    return containerRef.current.scrollTop === 0;
   }, []);
 
-  // 处理拖拽开始
-  const handleDragStart = useCallback(() => {
+  // 处理触摸开始
+  const handleTouchStart = useCallback((e: TouchEvent) => {
     if (disabled || isRefreshing || !isAtTop()) {
-      return false;
+      return;
     }
+    startY.current = e.touches[0].clientY;
+    setIsPulling(true);
   }, [disabled, isRefreshing, isAtTop]);
 
-  // 处理拖拽中
-  const handleDrag = useCallback((_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    const dragY = info.offset.y;
+  // 处理触摸移动
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    if (!isPulling || disabled || isRefreshing) {
+      return;
+    }
+
+    const currentY = e.touches[0].clientY;
+    const deltaY = currentY - startY.current;
     
     // 只允许向下拖拽，且在页面顶部
-    if (dragY > 0 && isAtTop()) {
+    if (deltaY > 0 && isAtTop()) {
+      // 只在真正需要时才阻止默认行为
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+      
       // 添加阻尼效果
-      const dampedY = Math.min(dragY * 0.5, pullDownThreshold * 1.5);
+      const dampedY = Math.min(deltaY * 0.5, pullDownThreshold * 1.5);
       y.set(dampedY);
       
-      // 判断是否达到刷新阈值
+      // 更新是否可以刷新的状态
       setCanRefresh(dampedY >= pullDownThreshold);
     } else {
       y.set(0);
       setCanRefresh(false);
     }
-  }, [y, pullDownThreshold, isAtTop]);
+  }, [isPulling, disabled, isRefreshing, isAtTop, y, pullDownThreshold]);
 
-  // 处理拖拽结束
-  const handleDragEnd = useCallback(async () => {
-    const currentY = y.get();
+  // 处理触摸结束
+  const handleTouchEnd = useCallback(async () => {
+    if (!isPulling) return;
     
-    if (currentY >= pullDownThreshold && !isRefreshing) {
+    setIsPulling(false);
+    const pullDistance = y.get();
+    
+    if (pullDistance >= pullDownThreshold && !isRefreshing) {
       // 触发刷新
       setIsRefreshing(true);
       setCanRefresh(false);
@@ -79,12 +97,29 @@ const PullToRefresh = ({
       y.set(0);
       setCanRefresh(false);
     }
-  }, [y, pullDownThreshold, isRefreshing, onRefresh]);
+  }, [isPulling, y, pullDownThreshold, isRefreshing, onRefresh]);
+
+  // 添加触摸事件监听
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    container.addEventListener('touchstart', handleTouchStart, { passive: true });
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+    return () => {
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchmove', handleTouchMove);
+      container.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [handleTouchStart, handleTouchMove, handleTouchEnd]);
 
   // 刷新完成后的动画
   useEffect(() => {
     if (!isRefreshing) {
       y.set(0);
+      setCanRefresh(false);
     }
   }, [isRefreshing, y]);
 
@@ -96,7 +131,7 @@ const PullToRefresh = ({
         className="fixed top-0 left-0 right-0 flex items-center justify-center pointer-events-none z-50"
       >
         <motion.div
-          style={{ y: useTransform(y, (val) => val - 60) }}
+          style={{ y: indicatorY }}
           className="flex flex-col items-center gap-2 py-3 px-6 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50"
         >
           {isRefreshing ? (
@@ -115,8 +150,8 @@ const PullToRefresh = ({
                 {loadingText}
               </span>
             </>
-          ) : canRefresh ? (
-            // 可释放状态
+          ) : (
+            // 下拉状态
             <>
               <motion.div
                 style={{ rotate }}
@@ -126,40 +161,19 @@ const PullToRefresh = ({
                   arrow_downward
                 </span>
               </motion.div>
-              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                释放刷新
-              </span>
-            </>
-          ) : (
-            // 下拉中状态
-            <>
-              <motion.div
-                style={{ rotate }}
-                className="text-2xl"
+              <motion.span 
+                className="text-sm font-semibold text-gray-700 dark:text-gray-300"
+                style={{ opacity: textOpacity }}
               >
-                <span className="material-symbols-outlined text-gray-500 dark:text-gray-400">
-                  arrow_downward
-                </span>
-              </motion.div>
-              <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
-                下拉刷新
-              </span>
+                {canRefresh ? '释放刷新' : '下拉刷新'}
+              </motion.span>
             </>
           )}
         </motion.div>
       </motion.div>
 
-      {/* 可拖拽的内容区域 */}
-      <motion.div
-        drag="y"
-        dragConstraints={{ top: 0, bottom: 0 }}
-        dragElastic={0}
-        onDragStart={handleDragStart}
-        onDrag={handleDrag}
-        onDragEnd={handleDragEnd}
-        style={{ y }}
-        className="touch-pan-y"
-      >
+      {/* 内容区域 */}
+      <motion.div style={{ y }} className="min-h-full">
         {children}
       </motion.div>
     </div>
