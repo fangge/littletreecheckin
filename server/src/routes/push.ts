@@ -269,7 +269,7 @@ router.post('/welcome', authMiddleware, async (req: AuthRequest, res: Response):
     const { data: children } = await supabase
       .from('children')
       .select('id, name')
-      .eq('user_id', userId);
+      .eq('parent_id', userId);
 
     // 获取今天的打卡情况
     const today = new Date().toISOString().split('T')[0];

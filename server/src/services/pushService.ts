@@ -170,9 +170,14 @@ export async function sendDailyCheckinSummary(): Promise<void> {
       const { data: children, error: childrenError } = await supabase
         .from('children')
         .select('id, name, avatar')
-        .eq('user_id', user.id);
+        .eq('parent_id', user.id);
 
-      if (childrenError || !children || children.length === 0) {
+      if (childrenError) {
+        console.error(`[Push]   ❌ 获取孩子列表失败:`, childrenError);
+        continue;
+      }
+
+      if (!children || children.length === 0) {
         console.log(`[Push]   ⚠️  用户 ${user.username} 没有孩子，跳过`);
         continue;
       }
