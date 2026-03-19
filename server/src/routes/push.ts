@@ -8,31 +8,48 @@ import { pushScheduler } from '../cron/pushScheduler.js';
 const router: IRouter = Router();
 
 // ============================================================
-// VAPID 配置（环境变量中获取）
+// VAPID 配置（动态获取环境变量）
 // ============================================================
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
-const VAPID_EMAIL = process.env.VAPID_EMAIL || 'noreply@example.com';
+console.log('[Push] 模块加载时环境变量检查:');
+console.log('  VAPID_PUBLIC_KEY:', process.env.VAPID_PUBLIC_KEY ? `已设置 (${process.env.VAPID_PUBLIC_KEY.length} 字符)` : '❌ 未设置');
+console.log('  VAPID_PRIVATE_KEY:', process.env.VAPID_PRIVATE_KEY ? `已设置 (${process.env.VAPID_PRIVATE_KEY.length} 字符)` : '❌ 未设置');
+console.log('  VAPID_EMAIL:', process.env.VAPID_EMAIL || '❌ 未设置');
 
-// 检查 VAPID 密钥是否配置
-const isPushEnabled = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
+// 动态获取 VAPID 配置的辅助函数
+function getVapidConfig() {
+  return {
+    publicKey: process.env.VAPID_PUBLIC_KEY || '',
+    privateKey: process.env.VAPID_PRIVATE_KEY || '',
+    email: process.env.VAPID_EMAIL || 'noreply@example.com',
+  };
+}
 
-if (isPushEnabled) {
-  // 配置 web-push
+// 检查推送是否启用
+function isPushEnabled(): boolean {
+  const config = getVapidConfig();
+  return !!(config.publicKey && config.privateKey);
+}
+
+// 初始化 web-push（如果配置可用）
+function initWebPush(): boolean {
+  const config = getVapidConfig();
+  if (!config.publicKey || !config.privateKey) {
+    console.warn('[Push] 未配置 VAPID 密钥，推送功能已禁用');
+    return false;
+  }
+
   try {
     webPush.setVapidDetails(
-      `mailto:${VAPID_EMAIL}`,
-      VAPID_PUBLIC_KEY,
-      VAPID_PRIVATE_KEY
+      `mailto:${config.email}`,
+      config.publicKey,
+      config.privateKey
     );
-    console.log('[Push] VAPID 配置成功，推送功能已启用');
+    console.log('[Push] ✅ VAPID 配置成功，推送功能已启用');
+    return true;
   } catch (error) {
-    console.error('[Push] VAPID 配置失败:', error);
-    console.warn('[Push] 推送功能将不可用');
+    console.error('[Push] ❌ VAPID 配置失败:', error);
+    return false;
   }
-} else {
-  console.warn('[Push] 未配置 VAPID 密钥，推送功能已禁用');
-  console.warn('[Push] 请设置 VAPID_PUBLIC_KEY 和 VAPID_PRIVATE_KEY 环境变量');
 }
 
 /**
@@ -40,27 +57,36 @@ if (isPushEnabled) {
  */
 router.get('/vapid-key', async (_req: Request, res: Response): Promise<void> => {
   try {
-    if (!isPushEnabled) {
+    console.log('[Push] 收到 VAPID 公钥请求');
+    const config = getVapidConfig();
+    console.log('[Push] VAPID_PUBLIC_KEY 长度:', config.publicKey?.length || 0);
+    console.log('[Push] VAPID_PUBLIC_KEY 前20字符:', config.publicKey?.substring(0, 20) || '(空)');
+    console.log('[Push] isPushEnabled:', isPushEnabled());
+    
+    if (!isPushEnabled()) {
+      console.warn('[Push] ⚠️ 推送功能未启用，返回空公钥');
       res.json({
         success: false,
         error: '推送功能未启用',
         data: {
           vapidPublicKey: '',
-          pushEnabled: false,
         },
       });
       return;
     }
 
+    // 初始化 web-push
+    initWebPush();
+
+    console.log('[Push] ✅ 返回 VAPID 公钥');
     res.json({
       success: true,
       data: {
-        vapidPublicKey: VAPID_PUBLIC_KEY,
-        pushEnabled: true,
+        vapidPublicKey: config.publicKey,
       },
     });
   } catch (error) {
-    console.error('[Push] 获取 VAPID 公钥失败:', error);
+    console.error('[Push] ❌ 获取 VAPID 公钥失败:', error);
     res.status(500).json({ success: false, error: '服务器错误' });
   }
 });
@@ -70,13 +96,16 @@ router.get('/vapid-key', async (_req: Request, res: Response): Promise<void> => 
  */
 router.post('/subscribe', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    if (!isPushEnabled) {
+    if (!isPushEnabled()) {
       res.status(503).json({
         success: false,
         error: '推送功能未启用，请联系管理员配置 VAPID 密钥'
       });
       return;
     }
+
+    // 确保 web-push 已初始化
+    initWebPush();
 
     const userId = req.user?.id;
     if (!userId) {
@@ -194,13 +223,16 @@ router.get('/status', authMiddleware, async (req: AuthRequest, res: Response): P
  */
 router.post('/test', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    if (!isPushEnabled) {
+    if (!isPushEnabled()) {
       res.status(503).json({
         success: false,
         error: '推送功能未启用'
       });
       return;
     }
+
+    // 确保 web-push 已初始化
+    initWebPush();
 
     const userId = req.user?.id;
     if (!userId) {
