@@ -265,10 +265,50 @@ router.post('/welcome', authMiddleware, async (req: AuthRequest, res: Response):
 
     const username = userData?.username || '家长';
 
+    // 获取用户的所有孩子
+    const { data: children } = await supabase
+      .from('children')
+      .select('id, name')
+      .eq('user_id', userId);
+
+    // 获取今天的打卡情况
+    const today = new Date().toISOString().split('T')[0];
+    let bodyText = `${username}，欢迎回来！`;
+
+    if (children && children.length > 0) {
+      const checkinSummary = [];
+      
+      for (const child of children) {
+        // 获取孩子的任务总数
+        const { data: tasks } = await supabase
+          .from('tasks')
+          .select('id')
+          .eq('child_id', child.id);
+
+        // 获取今天已完成的任务数
+        const { data: completions } = await supabase
+          .from('task_completions')
+          .select('task_id')
+          .eq('child_id', child.id)
+          .eq('date', today);
+
+        const totalTasks = tasks?.length || 0;
+        const completedTasks = completions?.length || 0;
+
+        if (totalTasks > 0) {
+          checkinSummary.push(`${child.name}: ${completedTasks}/${totalTasks}`);
+        }
+      }
+
+      if (checkinSummary.length > 0) {
+        bodyText += '\n\n📊 今日打卡情况：\n' + checkinSummary.join('\n');
+      }
+    }
+
     // 发送推送
     const payload = {
-      title: '🌿 欢迎回来！',
-      body: `${username}，继续陪伴孩子成长吧！`,
+      title: '🌿 成就丛林',
+      body: bodyText,
       icon: '/logo2.png',
       badge: '/logo2.png',
       url: '/',
