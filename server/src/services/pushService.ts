@@ -139,7 +139,10 @@ export async function sendPushToUser(
  */
 export async function sendDailyCheckinSummary(): Promise<void> {
   try {
-    console.log('[Push] 开始发送每日打卡汇总...');
+    const startTime = new Date().toISOString();
+    console.log('='.repeat(60));
+    console.log(`[Push] 📢 开始发送每日打卡汇总 - ${startTime}`);
+    console.log('='.repeat(60));
 
     // 获取所有家长用户
     const { data: users, error: usersError } = await supabase
@@ -147,15 +150,22 @@ export async function sendDailyCheckinSummary(): Promise<void> {
       .select('id, username');
 
     if (usersError || !users) {
-      console.error('[Push] 获取用户列表失败:', usersError);
+      console.error('[Push] ❌ 获取用户列表失败:', usersError);
       return;
     }
 
+    console.log(`[Push] 📋 找到 ${users.length} 个用户`);
+
     const now = new Date();
     const today = now.toISOString().split('T')[0];
+    console.log(`[Push] 📅 今日日期: ${today}`);
+
+    let totalPushSent = 0;
+    let totalPushFailed = 0;
 
     // 为每个用户构建个性化推送
     for (const user of users) {
+      console.log(`[Push] 👤 处理用户: ${user.username} (${user.id})`);
       // 获取用户的所有孩子
       const { data: children, error: childrenError } = await supabase
         .from('children')
@@ -163,8 +173,11 @@ export async function sendDailyCheckinSummary(): Promise<void> {
         .eq('user_id', user.id);
 
       if (childrenError || !children || children.length === 0) {
+        console.log(`[Push]   ⚠️  用户 ${user.username} 没有孩子，跳过`);
         continue;
       }
+
+      console.log(`[Push]   👶 找到 ${children.length} 个孩子`);
 
       // 获取每个孩子今天的打卡情况
       const checkinSummary: { name: string; completed: number; total: number }[] = [];
@@ -214,16 +227,32 @@ export async function sendDailyCheckinSummary(): Promise<void> {
       body += `\n\n${details}`;
 
       // 发送推送
-      await sendPushToUser(user.id, {
+      console.log(`[Push]   📤 发送推送给用户 ${user.username}`);
+      console.log(`[Push]      标题: ${title}`);
+      console.log(`[Push]      内容: ${body.substring(0, 50)}...`);
+      
+      const success = await sendPushToUser(user.id, {
         title,
         body,
         icon: '/logo2.png',
         badge: '/logo2.png',
         url: '/',
       });
+
+      if (success) {
+        totalPushSent++;
+        console.log(`[Push]   ✅ 推送成功`);
+      } else {
+        totalPushFailed++;
+        console.log(`[Push]   ❌ 推送失败（用户可能未订阅）`);
+      }
     }
 
-    console.log('[Push] 每日打卡汇总推送完成');
+    const endTime = new Date().toISOString();
+    console.log('='.repeat(60));
+    console.log(`[Push] 📊 每日打卡汇总推送完成 - ${endTime}`);
+    console.log(`[Push] 📈 统计: 成功 ${totalPushSent} / 失败 ${totalPushFailed} / 总计 ${users.length}`);
+    console.log('='.repeat(60));
   } catch (error) {
     console.error('[Push] 每日打卡汇总失败:', error);
   }

@@ -2,41 +2,59 @@
 
 ## 功能概述
 
-为成就丛林项目添加 PWA 推送通知功能，每天晚上 9:30 自动推送所有孩子的打卡情况汇总。
+为成就丛林项目添加 PWA 推送通知功能，支持每天多个时间点自动推送孩子的打卡情况汇总。
+
+**推送时间**：
+- 早晨 08:00 - 提醒开始新的一天
+- 中午 12:00 - 中午打卡提醒
+- 晚上 21:30 - 每日打卡汇总
 
 ## 技术架构
 
 ### 前端部分
 
-1. **推送服务** (`src/services/push.ts`)
+1. **推送服务** ([`src/services/push.ts`](../src/services/push.ts))
    - 封装了 PWA 推送订阅/取消订阅逻辑
    - 处理 VAPID 公钥转换
    - 提供权限检查和状态管理
+   - 支持后台推送（页面关闭时也能接收）
 
-2. **API 接口** (`src/services/api.ts`)
+2. **API 接口** ([`src/services/api.ts`](../src/services/api.ts))
    - 添加了 `pushApi` 接口
    - 与后端推送服务通信
 
-3. **设置组件** (`src/components/PushSettings.tsx`)
+3. **设置组件** ([`src/components/PushSettings.tsx`](../src/components/PushSettings.tsx))
    - 用户界面组件
    - 允许用户开启/关闭推送
+   - 显示订阅状态
+
+4. **Service Worker** ([`public/sw.js`](../public/sw.js))
+   - 监听 `push` 事件
+   - 显示系统通知
+   - 处理通知点击事件
 
 ### 后端部分
 
-1. **推送路由** (`server/src/routes/push.ts`)
+1. **推送路由** ([`server/src/routes/push.ts`](../server/src/routes/push.ts))
    - `/api/v1/push/vapid-key` - 获取 VAPID 公钥
    - `/api/v1/push/subscribe` - 订阅推送
    - `/api/v1/push/unsubscribe` - 取消订阅
    - `/api/v1/push/status` - 检查订阅状态
+   - `/api/v1/push/cron/morning` - 早晨推送端点（GitHub Actions 调用）
+   - `/api/v1/push/cron/noon` - 中午推送端点（GitHub Actions 调用）
+   - `/api/v1/push/cron/evening` - 晚上推送端点（GitHub Actions 调用）
 
-2. **推送服务** (`server/src/services/pushService.ts`)
+2. **推送服务** ([`server/src/services/pushService.ts`](../server/src/services/pushService.ts))
    - 封装推送消息发送逻辑
    - 批量推送和单用户推送
    - 每日打卡汇总消息构建
+   - 自动清理失效订阅
 
-3. **定时任务** (`server/src/cron/pushScheduler.ts`)
-   - 每天 21:30 自动触发推送
-   - 支持手动触发（测试用）
+3. **定时任务** - 使用 GitHub Actions
+   - 配置文件：[`.github/workflows/push-notifications.yml`](../.github/workflows/push-notifications.yml)
+   - 每天自动触发 3 次推送
+   - 支持手动触发测试
+   - 详细文档：[GitHub Actions 推送通知配置指南](./github-actions-push-notifications.md)
 
 ## 实施步骤
 
@@ -45,8 +63,7 @@
 ```bash
 # 后端依赖
 cd server
-pnpm add node-cron web-push
-pnpm add -D @types/node-cron
+pnpm add web-push
 ```
 
 ### 2. 生成 VAPID 密钥
@@ -114,10 +131,25 @@ function App() {
 }
 ```
 
-### 5. 启动服务
+### 5. 配置 GitHub Actions 定时任务
+
+详细配置步骤请参考：[GitHub Actions 推送通知配置指南](./github-actions-push-notifications.md)
+
+**快速配置**：
+
+1. 在 GitHub 仓库设置中添加 Secrets：
+   - `API_URL`: Vercel 部署的 API 地址
+   - `CRON_SECRET`: Cron 请求验证密钥
+
+2. 在 Vercel 项目设置中添加环境变量：
+   - `CRON_SECRET`: 与 GitHub Secret 相同的值
+
+3. 提交代码并推送到 GitHub
+
+### 6. 启动服务
 
 ```bash
-# 启动后端（包含定时任务）
+# 启动后端
 pnpm server:start
 
 # 启动前端
@@ -145,30 +177,33 @@ pnpm dev
 1. 访问设置页面
 2. 点击"开启推送"按钮
 3. 允许浏览器通知权限
-4. 等待每天 21:30 自动推送
+4. 等待定时推送（8:00、12:00、21:30）
 
-### 方法 2：手动触发（开发环境）
+### 方法 2：手动触发 GitHub Actions
 
-在 `server/src/cron/pushScheduler.ts` 中取消注释测试代码：
+1. 进入 GitHub 仓库 → Actions
+2. 选择 "Push Notifications Scheduler" 工作流
+3. 点击 "Run workflow"
+4. 选择推送类型（morning/noon/evening）
+5. 点击 "Run workflow" 按钮
+6. 查看执行日志
 
-```typescript
-// 取消注释以下代码以进行测试
-cron.schedule('* * * * *', async () => {
-  console.log('[PushScheduler] 测试推送');
-  await sendDailyCheckinSummary();
-});
-```
-
-### 方法 3：API 测试
+### 方法 3：直接调用 API 端点
 
 ```bash
-# 测试订阅
-curl -X POST http://localhost:3001/api/v1/push/subscribe \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -d '{"endpoint":"...","keys":{"p256dh":"...","auth":"..."}}'
+# 测试早晨推送
+curl -X GET "https://your-app.vercel.app/api/v1/push/cron/morning" \
+  -H "Authorization: Bearer YOUR_CRON_SECRET"
 
-# 测试状态查询
+# 测试中午推送
+curl -X GET "https://your-app.vercel.app/api/v1/push/cron/noon" \
+  -H "Authorization: Bearer YOUR_CRON_SECRET"
+
+# 测试晚上推送
+curl -X GET "https://your-app.vercel.app/api/v1/push/cron/evening" \
+  -H "Authorization: Bearer YOUR_CRON_SECRET"
+
+# 测试订阅状态
 curl http://localhost:3001/api/v1/push/status \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
@@ -204,19 +239,23 @@ curl http://localhost:3001/api/v1/push/status \
 
 ### 自定义推送时间
 
-修改 `server/src/cron/pushScheduler.ts` 中的 cron 表达式：
+修改 [`.github/workflows/push-notifications.yml`](../.github/workflows/push-notifications.yml) 中的 cron 表达式：
 
-```typescript
-// 每天 20:00 推送
-cron.schedule('0 20 * * *', async () => { ... });
-
-// 每周一 9:00 推送
-cron.schedule('0 9 * * 1', async () => { ... });
-
-// 每天推送两次（9:00 和 21:30）
-cron.schedule('0 9 * * *', async () => { ... });
-cron.schedule('30 21 * * *', async () => { ... });
+```yaml
+on:
+  schedule:
+    # 每天 20:00 中国时间 (12:00 UTC)
+    - cron: '0 12 * * *'
+    
+    # 每周一 9:00 中国时间 (1:00 UTC 周一)
+    - cron: '0 1 * * 1'
+    
+    # 每天推送两次（9:00 和 21:30）
+    - cron: '0 1 * * *'   # 9:00 中国时间
+    - cron: '30 13 * * *' # 21:30 中国时间
 ```
+
+**注意**：GitHub Actions 使用 UTC 时间，需要转换为中国时间（UTC+8）
 
 ### 添加更多推送场景
 

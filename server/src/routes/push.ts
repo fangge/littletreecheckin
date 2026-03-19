@@ -1,11 +1,12 @@
-import { Request, Response, Router, IRouter } from 'express';
+import { Request, Response, Router, type Express } from 'express';
 import { supabase } from '../config/supabase.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { AuthRequest } from '../types.js';
 import webPush from 'web-push';
 import { pushScheduler } from '../cron/pushScheduler.js';
+import { sendDailyCheckinSummary } from '../services/pushService.js';
 
-const router: IRouter = Router();
+const router: ReturnType<typeof Router> = Router();
 
 // ============================================================
 // VAPID 配置（动态获取环境变量）
@@ -253,6 +254,95 @@ router.post('/test', authMiddleware, async (req: AuthRequest, res: Response): Pr
   } catch (error) {
     console.error('[Push] 测试推送失败:', error);
     res.status(500).json({ success: false, error: '服务器错误' });
+  }
+});
+
+// ============================================================
+// Vercel Cron Jobs 端点
+// ============================================================
+
+/**
+ * Vercel Cron Job - 早晨推送 (8:00 中国时间 = 0:00 UTC)
+ */
+router.get('/cron/morning', async (req: Request, res: Response): Promise<void> => {
+  try {
+    // 验证请求来自 Vercel Cron（可选，增加安全性）
+    const authHeader = req.headers.authorization;
+    const cronSecret = process.env.CRON_SECRET;
+    
+    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+      console.warn('[Cron] 未授权的 Cron 请求');
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    console.log('[Cron] ☀️ 触发早晨推送 (8:00 中国时间)');
+    await sendDailyCheckinSummary();
+    
+    res.json({
+      success: true,
+      message: '早晨推送已触发',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('[Cron] 早晨推送失败:', error);
+    res.status(500).json({ success: false, error: String(error) });
+  }
+});
+
+/**
+ * Vercel Cron Job - 午间推送 (12:00 中国时间 = 4:00 UTC)
+ */
+router.get('/cron/noon', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+    const cronSecret = process.env.CRON_SECRET;
+    
+    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+      console.warn('[Cron] 未授权的 Cron 请求');
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    console.log('[Cron] 🌤️ 触发午间推送 (12:00 中国时间)');
+    await sendDailyCheckinSummary();
+    
+    res.json({
+      success: true,
+      message: '午间推送已触发',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('[Cron] 午间推送失败:', error);
+    res.status(500).json({ success: false, error: String(error) });
+  }
+});
+
+/**
+ * Vercel Cron Job - 晚间推送 (21:30 中国时间 = 13:30 UTC)
+ */
+router.get('/cron/evening', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+    const cronSecret = process.env.CRON_SECRET;
+    
+    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+      console.warn('[Cron] 未授权的 Cron 请求');
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    console.log('[Cron] 🌙 触发晚间推送 (21:30 中国时间)');
+    await sendDailyCheckinSummary();
+    
+    res.json({
+      success: true,
+      message: '晚间推送已触发',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('[Cron] 晚间推送失败:', error);
+    res.status(500).json({ success: false, error: String(error) });
   }
 });
 
