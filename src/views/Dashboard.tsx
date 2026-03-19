@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { treesApi, childrenApi, TreeData, StatsData, GoalData, CalendarData, CalendarTask } from '../services/api';
 import CheckinCalendar from '../components/CheckinCalendar';
 import CheckinDetailPopup from '../components/CheckinDetailPopup';
+import PullToRefresh from '../components/PullToRefresh';
 
 interface DashboardProps {
   onAddGoal: () => void;
@@ -112,12 +113,39 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
     onEditGoal({ ...goal, childId: currentChild?.id });
   };
 
+  // 下拉刷新处理函数
+  const handleRefresh = useCallback(async () => {
+    if (!currentChild) return;
+    
+    try {
+      // 并行刷新所有数据
+      const [treesRes, statsRes, goalsRes, calendarRes] = await Promise.all([
+        treesApi.list(currentChild.id),
+        childrenApi.stats(currentChild.id, timeFilter),
+        treesApi.listGoals(currentChild.id),
+        childrenApi.getCheckinCalendar(
+          currentChild.id,
+          selectedMonth.getFullYear(),
+          selectedMonth.getMonth() + 1
+        ),
+      ]);
+      
+      setTrees(treesRes.data);
+      setStats(statsRes.data);
+      setGoals(goalsRes.data);
+      setCalendarData(calendarRes.data);
+    } catch (err) {
+      console.error('刷新数据失败:', err);
+    }
+  }, [currentChild, timeFilter, selectedMonth]);
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="flex-1 overflow-y-auto pb-32 lg:pb-8"
-    >
+    <PullToRefresh onRefresh={handleRefresh}>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex-1 pb-32 lg:pb-8"
+      >
       <header className="sticky top-0 z-10 bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md border-b border-primary/10 dark:border-[var(--border-color)] lg:max-w-4xl lg:mx-auto lg:border-x lg:border-primary/10 dark:lg:border-[var(--border-color)] transition-colors">
         <div className="flex items-center p-4 pb-2 justify-between">
           <button
@@ -367,6 +395,7 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
           </button>
         </div>
       )}
-    </motion.div>
+      </motion.div>
+    </PullToRefresh>
   );
 }

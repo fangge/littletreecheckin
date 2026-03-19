@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { medalsApi, MedalData } from '../services/api';
+import PullToRefresh from '../components/PullToRefresh';
 
 interface MedalsProps {
   onBack: () => void;
@@ -14,23 +15,28 @@ export default function Medals({ onBack }: MedalsProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMedal, setSelectedMedal] = useState<MedalData | null>(null);
 
-  useEffect(() => {
+  const fetchMedals = useCallback(async () => {
     if (!currentChild) return;
-
-    const fetchMedals = async () => {
-      setIsLoading(true);
-      try {
-        const res = await medalsApi.list(currentChild.id);
-        setMedals(res.data);
-      } catch (err) {
-        console.error('获取勋章失败:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchMedals();
+    
+    setIsLoading(true);
+    try {
+      const res = await medalsApi.list(currentChild.id);
+      setMedals(res.data);
+    } catch (err) {
+      console.error('获取勋章失败:', err);
+    } finally {
+      setIsLoading(false);
+    }
   }, [currentChild]);
+
+  useEffect(() => {
+    fetchMedals();
+  }, [fetchMedals]);
+
+  // 下拉刷新处理函数
+  const handleRefresh = useCallback(async () => {
+    await fetchMedals();
+  }, [fetchMedals]);
 
   const filteredMedals = medals.filter(m => {
     if (filter === 'unlocked') return m.unlocked;
@@ -43,11 +49,12 @@ export default function Medals({ onBack }: MedalsProps) {
     .sort((a, b) => new Date(b.unlocked_at!).getTime() - new Date(a.unlocked_at!).getTime())[0];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className="flex-1 overflow-y-auto pb-32 lg:pb-8"
-    >
+    <PullToRefresh onRefresh={handleRefresh}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="min-h-full pb-48 lg:pb-24"
+      >
       <header className="sticky top-0 z-10 bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md border-b border-primary/10 dark:border-[var(--border-color)] transition-colors">
         <div className="px-4 py-4 flex items-center justify-between lg:max-w-2xl lg:mx-auto">
           <button
@@ -212,6 +219,7 @@ export default function Medals({ onBack }: MedalsProps) {
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+      </motion.div>
+    </PullToRefresh>
   );
 }

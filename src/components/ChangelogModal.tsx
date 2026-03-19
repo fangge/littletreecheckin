@@ -34,12 +34,27 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
               </button>
             </div>
             <div className="overflow-y-auto max-h-[60vh] px-6 py-4 space-y-4">
-              {/* v2.12 */}
+              {/* v2.13 */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v2.12</span>
+                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v2.13</span>
                   <span className="text-sm text-slate-500 dark:text-[var(--text-muted)]">最新</span>
                 </div>
+                <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">下拉刷新功能</h4>
+                <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
+                  为所有数据展示页面统一添加下拉刷新交互，提升用户体验，让数据更新更直观便捷。
+                </p>
+                <ul className="text-xs text-slate-500 dark:text-[var(--text-muted)] space-y-1 ml-2">
+                  <li>• 新增通用下拉刷新组件</li>
+                  <li>• 流畅动画效果（60fps）</li>
+                  <li>• 集成 8 个数据展示页面</li>
+                  <li>• 完整支持亮色/暗色模式</li>
+                </ul>
+              </div>
+
+              {/* v2.12 */}
+              <div className="space-y-2 pt-4 border-t border-primary/5 dark:border-[var(--border-color)]">
+                <span className="bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-xs font-bold px-2 py-0.5 rounded">v2.12</span>
                 <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">PWA 推送通知</h4>
                 <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
                   每天晚上 9:30 自动推送所有孩子的打卡情况汇总，支持用户自主开启/关闭推送，VAPID 认证确保推送安全性。

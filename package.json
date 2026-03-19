@@ -12,6 +12,7 @@
     "docs:preview": "vitepress preview docs",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
+    "cert": "node scripts/generate-cert.js",
     "server:dev": "cd server && pnpm dev",
     "server:start": "cd server && pnpm start",
     "dev:all": "concurrently \"pnpm dev\" \"pnpm server:dev\""

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { rewardsApi, RewardData, RedemptionData } from '../services/api';
+import PullToRefresh from '../components/PullToRefresh';
 
 interface RewardsManagementProps {
   onBack: () => void;
@@ -142,14 +143,20 @@ export default function RewardsManagement({ onBack }: RewardsManagementProps) {
     }
   };
 
+  // 下拉刷新处理函数
+  const handleRefresh = useCallback(async () => {
+    await Promise.all([fetchRewards(), fetchRedemptions()]);
+  }, [fetchRewards, fetchRedemptions]);
+
   const pendingCount = redemptions.filter(r => r.status === 'pending').length;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      className="flex-1 flex flex-col bg-background-light min-h-screen overflow-hidden"
-    >
+    <PullToRefresh onRefresh={handleRefresh}>
+      <motion.div
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="flex-1 flex flex-col bg-background-light min-h-screen"
+      >
       <header className="sticky top-0 z-10 bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md border-b border-primary/10 dark:border-[var(--border-color)] transition-colors">
         <div className="flex items-center px-4 py-4 justify-between lg:max-w-2xl lg:mx-auto">
           <button onClick={onBack} className="p-2 hover:bg-primary/10 rounded-full transition-colors" aria-label="返回">
@@ -181,7 +188,7 @@ export default function RewardsManagement({ onBack }: RewardsManagementProps) {
         </div>
       </header>
 
-      <main className="flex-1 px-4 pb-32 overflow-y-auto space-y-4 pt-4 lg:max-w-2xl lg:mx-auto lg:w-full lg:pb-8">
+      <main className="flex-1 px-4 pb-32 space-y-4 pt-4 lg:max-w-2xl lg:mx-auto lg:w-full lg:pb-8">
         {/* 奖品管理 */}
         {activeTab === 'rewards' && (
           <>
@@ -312,6 +319,7 @@ export default function RewardsManagement({ onBack }: RewardsManagementProps) {
           </>
         )}
       </main>
-    </motion.div>
+      </motion.div>
+    </PullToRefresh>
   );
 }

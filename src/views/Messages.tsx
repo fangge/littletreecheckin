@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { messagesApi, MessageData } from '../services/api';
+import PullToRefresh from '../components/PullToRefresh';
 
 interface MessagesProps {
   onBack: () => void;
@@ -67,12 +68,18 @@ export default function Messages({ onBack }: MessagesProps) {
     return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
   };
 
+  // 下拉刷新处理函数
+  const handleRefresh = useCallback(async () => {
+    await fetchMessages();
+  }, [currentChild]);
+
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      className="flex-1 flex flex-col h-full bg-background-light overflow-hidden"
-    >
+    <PullToRefresh onRefresh={handleRefresh}>
+      <motion.div
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="flex-1 flex flex-col h-full bg-background-light"
+      >
       <header className="flex items-center bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md p-4 sticky top-0 z-10 justify-between border-b border-primary/10 dark:border-[var(--border-color)] transition-colors">
         <div className="text-slate-900 dark:text-[var(--text-primary)] flex size-12 shrink-0 items-center justify-start">
           <span
@@ -182,6 +189,7 @@ export default function Messages({ onBack }: MessagesProps) {
           <span className="material-symbols-outlined">send</span>
         </button>
       </div>
-    </motion.div>
+      </motion.div>
+    </PullToRefresh>
   );
 }

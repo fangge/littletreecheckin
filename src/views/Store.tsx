@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { rewardsApi, RewardData, Child } from '../services/api';
+import PullToRefresh from '../components/PullToRefresh';
 
 interface StoreProps {
   onBack: () => void;
@@ -29,26 +30,31 @@ export default function Store({ onBack, onViewFruitsHistory }: StoreProps) {
     setCurrentChild(child);
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        const rewardsRes = await rewardsApi.list(activeCategory || undefined);
-        setRewards(rewardsRes.data);
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const rewardsRes = await rewardsApi.list(activeCategory || undefined);
+      setRewards(rewardsRes.data);
 
-        if (selectedChild) {
-          const fruitsRes = await rewardsApi.getFruits(selectedChild.id);
-          setFruitsBalance(fruitsRes.data.fruits_balance);
-        }
-      } catch (err) {
-        console.error('获取数据失败:', err);
-      } finally {
-        setIsLoading(false);
+      if (selectedChild) {
+        const fruitsRes = await rewardsApi.getFruits(selectedChild.id);
+        setFruitsBalance(fruitsRes.data.fruits_balance);
       }
-    };
-
-    fetchData();
+    } catch (err) {
+      console.error('获取数据失败:', err);
+    } finally {
+      setIsLoading(false);
+    }
   }, [selectedChild, activeCategory]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // 下拉刷新处理函数
+  const handleRefresh = useCallback(async () => {
+    await fetchData();
+  }, [fetchData]);
 
   const handleRedeem = async (reward: RewardData) => {
     if (!selectedChild) {
@@ -74,11 +80,12 @@ export default function Store({ onBack, onViewFruitsHistory }: StoreProps) {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="flex-1 overflow-y-auto pb-32 lg:pb-8"
-    >
+    <PullToRefresh onRefresh={handleRefresh}>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex-1 pb-32 lg:pb-8"
+      >
       <div className="sticky top-0 z-10 bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md transition-colors">
         <div className="flex items-center px-6 pb-2 pt-6 lg:max-w-2xl lg:mx-auto">
           <button
@@ -197,6 +204,7 @@ export default function Store({ onBack, onViewFruitsHistory }: StoreProps) {
           </div>
         )}
       </div>
-    </motion.div>
+      </motion.div>
+    </PullToRefresh>
   );
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { pushService } from '../services/push';
+import { pushApi } from '../services/api';
 
 interface PushSettingsProps {
   onSubscriptionChange?: (subscribed: boolean) => void;
@@ -9,6 +10,7 @@ export function PushSettings({ onSubscriptionChange }: PushSettingsProps) {
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
 
   useEffect(() => {
     checkStatus();
@@ -60,6 +62,19 @@ export function PushSettings({ onSubscriptionChange }: PushSettingsProps) {
     }
   };
 
+  const handleTestPush = async () => {
+    setIsTesting(true);
+    try {
+      await pushApi.test();
+      alert('✅ 测试推送已发送！请检查是否收到通知。');
+    } catch (error) {
+      console.error('测试推送失败:', error);
+      alert('❌ 测试推送失败，请稍后重试');
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
   return (
     <div className="bg-white dark:bg-[var(--bg-surface)] rounded-xl p-4 shadow-sm border border-primary/5 dark:border-[var(--border-color)] transition-colors">
       <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-base font-bold leading-tight mb-4 flex items-center gap-2">
@@ -73,10 +88,10 @@ export function PushSettings({ onSubscriptionChange }: PushSettingsProps) {
         <div className="flex items-center justify-between py-2">
           <div className="flex-1 min-w-0 mr-4">
             <p className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-medium">
-              每日打卡汇总通知
+              每日打卡提醒通知
             </p>
             <p className="text-xs text-slate-500 dark:text-[var(--text-muted)] mt-1">
-              每天 21:30 推送今日打卡情况
+              每天 8:00、12:00、21:30 推送打卡情况
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -115,6 +130,22 @@ export function PushSettings({ onSubscriptionChange }: PushSettingsProps) {
             </button>
           )}
         </div>
+
+        {isSubscribed && (
+          <div className="pt-2">
+            <button
+              onClick={handleTestPush}
+              disabled={isTesting}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm font-medium w-full justify-center"
+            >
+              <span className="material-symbols-outlined text-base">send</span>
+              {isTesting ? '发送中...' : '测试推送'}
+            </button>
+            <p className="text-xs text-slate-500 dark:text-[var(--text-muted)] mt-2 text-center">
+              点击测试按钮，立即发送一条测试通知
+            </p>
+          </div>
+        )}
 
         {permission === 'denied' && (
           <p className="text-xs text-red-500 dark:text-red-400 mt-2 flex items-start gap-1">

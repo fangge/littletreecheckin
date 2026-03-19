@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { tasksApi, messagesApi, TaskData } from '../services/api';
+import PullToRefresh from '../components/PullToRefresh';
 
 interface ParentControlProps {
   onBack: () => void;
@@ -96,12 +97,18 @@ export default function ParentControl({ onBack }: ParentControlProps) {
 
   const pendingCount = tasks.filter(t => t.status === 'pending').length;
 
+  // 下拉刷新处理函数
+  const handleRefresh = useCallback(async () => {
+    await fetchTasks();
+  }, [fetchTasks]);
+
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="flex-1 flex flex-col bg-background-light overflow-hidden"
-    >
+    <PullToRefresh onRefresh={handleRefresh}>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex-1 flex flex-col bg-background-light"
+      >
       <header className="sticky top-0 z-10 bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md border-b border-primary/10 dark:border-[var(--border-color)] px-4 py-4 transition-colors">
         <div className="flex items-center justify-between max-w-md mx-auto lg:max-w-2xl">
           <div className="flex items-center gap-3">
@@ -314,6 +321,7 @@ export default function ParentControl({ onBack }: ParentControlProps) {
           </motion.div>
         </div>
       )}
-    </motion.div>
+      </motion.div>
+    </PullToRefresh>
   );
 }

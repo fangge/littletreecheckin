@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { childrenApi, rewardsApi, FruitsHistoryItem } from '../services/api';
+import PullToRefresh from '../components/PullToRefresh';
 
 interface FruitsHistoryProps {
   onBack: () => void;
@@ -35,34 +36,40 @@ export default function FruitsHistory({ onBack }: FruitsHistoryProps) {
   const [fruitsBalance, setFruitsBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchData = useCallback(async () => {
     if (!currentChild) return;
 
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        const [historyRes, fruitsRes] = await Promise.all([
-          childrenApi.getFruitsHistory(currentChild.id),
-          rewardsApi.getFruits(currentChild.id),
-        ]);
-        setItems(historyRes.data);
-        setFruitsBalance(fruitsRes.data.fruits_balance);
-      } catch (err) {
-        console.error('获取果实记录失败:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
+    setIsLoading(true);
+    try {
+      const [historyRes, fruitsRes] = await Promise.all([
+        childrenApi.getFruitsHistory(currentChild.id),
+        rewardsApi.getFruits(currentChild.id),
+      ]);
+      setItems(historyRes.data);
+      setFruitsBalance(fruitsRes.data.fruits_balance);
+    } catch (err) {
+      console.error('获取果实记录失败:', err);
+    } finally {
+      setIsLoading(false);
+    }
   }, [currentChild]);
 
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // 下拉刷新处理函数
+  const handleRefresh = useCallback(async () => {
+    await fetchData();
+  }, [fetchData]);
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="flex-1 flex flex-col bg-background-light overflow-hidden"
-    >
+    <PullToRefresh onRefresh={handleRefresh}>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex-1 flex flex-col bg-background-light"
+      >
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md border-b border-primary/10 dark:border-[var(--border-color)] px-4 py-4 transition-colors">
         <div className="flex items-center gap-3 max-w-md mx-auto lg:max-w-2xl">
@@ -77,7 +84,7 @@ export default function FruitsHistory({ onBack }: FruitsHistoryProps) {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto pb-32 lg:pb-8">
+      <main className="flex-1 pb-32 lg:pb-8">
         <div className="px-4 pt-4 max-w-md mx-auto lg:max-w-2xl space-y-4">
           {/* 余额摘要卡片 */}
           <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-400 to-orange-500 p-6 text-white shadow-lg shadow-orange-300/30">
@@ -148,6 +155,7 @@ export default function FruitsHistory({ onBack }: FruitsHistoryProps) {
           </div>
         </div>
       </main>
-    </motion.div>
+      </motion.div>
+    </PullToRefresh>
   );
 }

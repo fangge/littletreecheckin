@@ -32,22 +32,36 @@ export class PushScheduler {
     }
 
     console.log('[PushScheduler] 启动定时任务...');
+    console.log('[PushScheduler] 时区设置: Asia/Shanghai (UTC+8)');
 
-    // 每天晚上 9:30 发送打卡汇总
-    // Cron 表达式: 分 时 日 月 星期
-    // 30 21 * * * = 每天 21:30
-    cron.schedule('30 21 * * *', async () => {
-      console.log('[PushScheduler] 触发每日打卡汇总推送');
+    // 早上 8:00 推送 - 提醒开始新的一天
+    cron.schedule('0 8 * * *', async () => {
+      console.log('[PushScheduler] 触发早晨打卡提醒推送 (8:00)');
       await sendDailyCheckinSummary();
+    }, {
+      timezone: 'Asia/Shanghai'
     });
 
-    // 可选：测试用 - 每分钟执行一次（调试时使用，生产环境请注释掉）
-    // cron.schedule('* * * * *', async () => {
-    //   console.log('[PushScheduler] 测试推送');
-    //   await sendDailyCheckinSummary();
-    // });
+    // 中午 12:00 推送 - 午间打卡提醒
+    cron.schedule('0 12 * * *', async () => {
+      console.log('[PushScheduler] 触发午间打卡提醒推送 (12:00)');
+      await sendDailyCheckinSummary();
+    }, {
+      timezone: 'Asia/Shanghai'
+    });
 
-    console.log('[PushScheduler] 定时任务已启动 - 每天 21:30 发送打卡汇总');
+    // 晚上 21:30 推送 - 每日打卡汇总
+    cron.schedule('30 21 * * *', async () => {
+      console.log('[PushScheduler] 触发每日打卡汇总推送 (21:30)');
+      await sendDailyCheckinSummary();
+    }, {
+      timezone: 'Asia/Shanghai'
+    });
+
+    console.log('[PushScheduler] 定时任务已启动:');
+    console.log('  - 早上 08:00 (中国时间)');
+    console.log('  - 中午 12:00 (中国时间)');
+    console.log('  - 晚上 21:30 (中国时间)');
   }
 
   /**

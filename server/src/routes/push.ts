@@ -3,6 +3,7 @@ import { supabase } from '../config/supabase.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { AuthRequest } from '../types.js';
 import webPush from 'web-push';
+import { pushScheduler } from '../cron/pushScheduler.js';
 
 const router: IRouter = Router();
 
@@ -183,6 +184,42 @@ router.get('/status', authMiddleware, async (req: AuthRequest, res: Response): P
     });
   } catch (error) {
     console.error('[Push] 检查订阅状态失败:', error);
+    res.status(500).json({ success: false, error: '服务器错误' });
+  }
+});
+
+/**
+ * 测试推送（需要认证，仅管理员）
+ * 手动触发一次推送，用于测试推送功能是否正常
+ */
+router.post('/test', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!isPushEnabled) {
+      res.status(503).json({
+        success: false,
+        error: '推送功能未启用'
+      });
+      return;
+    }
+
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ success: false, error: '未授权' });
+      return;
+    }
+
+    console.log('[Push] 手动触发测试推送，用户:', userId);
+    
+    // 触发推送调度器的手动推送
+    await pushScheduler.triggerDailySummary();
+
+    res.json({
+      success: true,
+      message: '测试推送已触发，请检查是否收到通知',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('[Push] 测试推送失败:', error);
     res.status(500).json({ success: false, error: '服务器错误' });
   }
 });

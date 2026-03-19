@@ -469,4 +469,10 @@ export const pushApi = {
   // 检查订阅状态
   status: () =>
     request<{ data: { subscribed: boolean } }>('/api/v1/push/status'),
+
+  // 测试推送
+  test: () =>
+    request<{ message: string; timestamp: string }>('/api/v1/push/test', {
+      method: 'POST',
+    }),
 };

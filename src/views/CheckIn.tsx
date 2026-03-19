@@ -10,6 +10,7 @@ import {
   GoalData
 } from '../services/api';
 import CelebrationPopup from '../components/CelebrationPopup';
+import PullToRefresh from '../components/PullToRefresh';
 
 interface CheckInProps {
   onViewMessages: () => void;
@@ -210,6 +211,11 @@ export default function CheckIn({
   const statusInfo = getStatusText();
   const canCheckin = !hasCheckedInToday || taskStatus === 'rejected';
 
+  // 下拉刷新处理函数
+  const handleRefresh = useCallback(async () => {
+    await fetchData();
+  }, [fetchData]);
+
   return (
     <>
       <CelebrationPopup
@@ -219,11 +225,12 @@ export default function CheckIn({
         treeName={celebrationData.treeName}
         isTreeCompleted={celebrationData.isTreeCompleted}
       />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden pb-32 lg:pb-8 w-full"
-      >
+      <PullToRefresh onRefresh={handleRefresh}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex-1 flex flex-col overflow-x-hidden pb-32 lg:pb-8 w-full"
+        >
         <header className="w-full bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md sticky top-0 z-10 px-3 lg:max-w-xl lg:mx-auto transition-colors">
           <div className="flex items-center py-4 justify-between">
             <button
@@ -539,7 +546,8 @@ export default function CheckIn({
             </div>
           </div>
         )}
-      </motion.div>
+        </motion.div>
+      </PullToRefresh>
     </>
   );
 }
