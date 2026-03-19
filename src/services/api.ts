@@ -475,4 +475,10 @@ export const pushApi = {
     request<{ message: string; timestamp: string }>('/api/v1/push/test', {
       method: 'POST',
     }),
+
+  // 欢迎推送（打开页面时）
+  welcome: () =>
+    request<{ message: string; timestamp: string }>('/api/v1/push/welcome', {
+      method: 'POST',
+    }),
 };

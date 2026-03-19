@@ -219,6 +219,99 @@ router.get('/status', authMiddleware, async (req: AuthRequest, res: Response): P
 });
 
 /**
+ * 欢迎推送（需要认证）
+ * 用户打开页面时发送一次欢迎提醒
+ */
+router.post('/welcome', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!isPushEnabled()) {
+      res.status(503).json({
+        success: false,
+        error: '推送功能未启用'
+      });
+      return;
+    }
+
+    // 确保 web-push 已初始化
+    initWebPush();
+
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ success: false, error: '未授权' });
+      return;
+    }
+
+    console.log('[Push] 发送欢迎推送，用户:', userId);
+
+    // 获取用户订阅信息
+    const { data: subscriptionData, error: subError } = await supabase
+      .from('push_subscriptions')
+      .select('subscription')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (subError || !subscriptionData) {
+      console.log('[Push] 用户未订阅推送:', userId);
+      res.status(404).json({ success: false, error: '未找到订阅信息' });
+      return;
+    }
+
+    // 获取用户信息
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('username')
+      .eq('id', userId)
+      .single();
+
+    const username = userData?.username || '家长';
+
+    // 发送推送
+    const payload = {
+      title: '🌿 欢迎回来！',
+      body: `${username}，继续陪伴孩子成长吧！`,
+      icon: '/logo2.png',
+      badge: '/logo2.png',
+      url: '/',
+    };
+
+    try {
+      await webPush.sendNotification(
+        subscriptionData.subscription as any,
+        JSON.stringify(payload)
+      );
+      console.log('[Push] ✅ 欢迎推送发送成功');
+      res.json({
+        success: true,
+        message: '欢迎推送已发送',
+        timestamp: new Date().toISOString()
+      });
+    } catch (pushError: any) {
+      // 处理推送失败（如订阅已过期）
+      console.error('[Push] 推送发送失败 - 详细错误:', {
+        message: pushError.message,
+        statusCode: pushError.statusCode,
+        body: pushError.body,
+        stack: pushError.stack
+      });
+      
+      if (pushError.statusCode === 404 || pushError.statusCode === 410) {
+        console.log('[Push] 订阅已失效，删除订阅记录');
+        await supabase
+          .from('push_subscriptions')
+          .delete()
+          .eq('user_id', userId);
+        res.status(410).json({ success: false, error: '订阅已失效' });
+      } else {
+        res.status(500).json({ success: false, error: '推送发送失败' });
+      }
+    }
+  } catch (error) {
+    console.error('[Push] 欢迎推送失败:', error);
+    res.status(500).json({ success: false, error: '服务器错误' });
+  }
+});
+
+/**
  * 测试推送（需要认证，仅管理员）
  * 手动触发一次推送，用于测试推送功能是否正常
  */

@@ -11,9 +11,13 @@ export function PushSettings({ onSubscriptionChange }: PushSettingsProps) {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+  const [notifyOnOpen, setNotifyOnOpen] = useState(false);
 
   useEffect(() => {
     checkStatus();
+    // 从 localStorage 读取"打开页面时推送"设置
+    const savedNotifyOnOpen = localStorage.getItem('notifyOnOpen') === 'true';
+    setNotifyOnOpen(savedNotifyOnOpen);
   }, []);
 
   const checkStatus = async () => {
@@ -75,6 +79,13 @@ export function PushSettings({ onSubscriptionChange }: PushSettingsProps) {
     }
   };
 
+  const handleToggleNotifyOnOpen = () => {
+    const newValue = !notifyOnOpen;
+    setNotifyOnOpen(newValue);
+    localStorage.setItem('notifyOnOpen', String(newValue));
+    console.log('[PushSettings] 打开页面时推送:', newValue ? '已启用' : '已禁用');
+  };
+
   return (
     <div className="bg-white dark:bg-[var(--bg-surface)] rounded-xl p-4 shadow-sm border border-primary/5 dark:border-[var(--border-color)] transition-colors">
       <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-base font-bold leading-tight mb-4 flex items-center gap-2">
@@ -132,19 +143,49 @@ export function PushSettings({ onSubscriptionChange }: PushSettingsProps) {
         </div>
 
         {isSubscribed && (
-          <div className="pt-2">
-            <button
-              onClick={handleTestPush}
-              disabled={isTesting}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm font-medium w-full justify-center"
-            >
-              <span className="material-symbols-outlined text-base">send</span>
-              {isTesting ? '发送中...' : '测试推送'}
-            </button>
-            <p className="text-xs text-slate-500 dark:text-[var(--text-muted)] mt-2 text-center">
-              点击测试按钮，立即发送一条测试通知
-            </p>
-          </div>
+          <>
+            {/* 打开页面时推送开关 */}
+            <div className="flex items-center justify-between py-2 border-t border-slate-100 dark:border-[var(--border-color)] mt-2 pt-3">
+              <div className="flex-1 min-w-0 mr-4">
+                <p className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-medium">
+                  打开页面时推送提醒
+                </p>
+                <p className="text-xs text-slate-500 dark:text-[var(--text-muted)] mt-1">
+                  每次打开或刷新页面时发送欢迎提醒
+                </p>
+              </div>
+              <button
+                onClick={handleToggleNotifyOnOpen}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  notifyOnOpen
+                    ? 'bg-primary'
+                    : 'bg-slate-200 dark:bg-slate-700'
+                }`}
+                aria-label="切换打开页面时推送"
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    notifyOnOpen ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* 测试推送按钮 */}
+            <div className="pt-2">
+              <button
+                onClick={handleTestPush}
+                disabled={isTesting}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm font-medium w-full justify-center"
+              >
+                <span className="material-symbols-outlined text-base">send</span>
+                {isTesting ? '发送中...' : '测试推送'}
+              </button>
+              <p className="text-xs text-slate-500 dark:text-[var(--text-muted)] mt-2 text-center">
+                点击测试按钮，立即发送一条测试通知
+              </p>
+            </div>
+          </>
         )}
 
         {permission === 'denied' && (

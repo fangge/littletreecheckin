@@ -20,7 +20,7 @@ import Login from './views/Login';
 import Profile from './views/Profile';
 import RewardsManagement from './views/RewardsManagement';
 import { useAuth } from './contexts/AuthContext';
-import { GoalData } from './services/api';
+import { GoalData, pushApi } from './services/api';
 
 // 儿童模式下受限的视图列表
 const CHILD_MODE_RESTRICTED_VIEWS: ViewType[] = ['parent-control', 'add-goal', 'rewards-management'];
@@ -46,6 +46,38 @@ export default function App() {
       setCurrentView('forest');
     }
   }, [isChildMode, currentView]);
+
+  // 页面加载时推送提醒
+  useEffect(() => {
+    const sendWelcomePush = async () => {
+      // 只在用户已登录且不在儿童模式下执行
+      if (!isAuthenticated || isChildMode || isLoading) {
+        return;
+      }
+
+      // 检查是否启用了"打开页面时推送"
+      const notifyOnOpen = localStorage.getItem('notifyOnOpen') === 'true';
+      if (!notifyOnOpen) {
+        return;
+      }
+
+      try {
+        console.log('[App] 发送欢迎推送...');
+        await pushApi.welcome();
+        console.log('[App] ✅ 欢迎推送已发送');
+      } catch (error) {
+        // 静默失败，不影响用户体验
+        console.log('[App] 欢迎推送失败（可能未订阅或订阅已失效）:', error);
+      }
+    };
+
+    // 延迟执行，确保页面已完全加载
+    const timer = setTimeout(() => {
+      sendWelcomePush();
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [isAuthenticated, isChildMode, isLoading]);
 
   const handleViewChange = (view: ViewType) => {
     if (isChildMode && CHILD_MODE_RESTRICTED_VIEWS.includes(view)) {
