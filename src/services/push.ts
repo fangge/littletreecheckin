@@ -79,11 +79,18 @@ export class PushNotificationService {
       // 获取 VAPID 公钥
       const { data } = await pushApi.getVapidKey();
       const vapidKey = data.vapidPublicKey;
+      
+      console.log('[Push] VAPID 公钥:', vapidKey);
+      console.log('[Push] VAPID 公钥长度:', vapidKey?.length);
+
+      if (!vapidKey || vapidKey.length === 0) {
+        throw new Error('VAPID 公钥为空');
+      }
 
       // 订阅推送
       const subscription = await this.registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: this.urlBase64ToBufferSource(vapidKey),
+        applicationServerKey: this.urlBase64ToUint8Array(vapidKey) as BufferSource,
       });
 
       // 发送订阅信息到后端
@@ -148,22 +155,24 @@ export class PushNotificationService {
    * URL Base64 转 Uint8Array
    */
   private urlBase64ToUint8Array(base64String: string): Uint8Array {
-    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    // 移除可能的空格和换行符
+    const cleanedString = base64String.replace(/\s/g, '');
+    
+    // 添加必要的 padding
+    const padding = '='.repeat((4 - (cleanedString.length % 4)) % 4);
+    const base64 = (cleanedString + padding)
+      .replace(/-/g, '+')
+      .replace(/_/g, '/');
+    
+    // 解码 base64
     const rawData = window.atob(base64);
     const outputArray = new Uint8Array(rawData.length);
 
     for (let i = 0; i < rawData.length; ++i) {
       outputArray[i] = rawData.charCodeAt(i);
     }
+    
     return outputArray;
-  }
-
-  /**
-   * URL Base64 转 BufferSource
-   */
-  private urlBase64ToBufferSource(base64String: string): BufferSource {
-    return this.urlBase64ToUint8Array(base64String);
   }
 }
 
