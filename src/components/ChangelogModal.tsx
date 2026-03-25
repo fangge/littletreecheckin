@@ -52,20 +52,6 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
                 </ul>
               </div>
 
-              {/* v2.12 */}
-              <div className="space-y-2 pt-4 border-t border-primary/5 dark:border-[var(--border-color)]">
-                <span className="bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-xs font-bold px-2 py-0.5 rounded">v2.12</span>
-                <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">PWA 推送通知</h4>
-                <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
-                  每天晚上 9:30 自动推送所有孩子的打卡情况汇总，支持用户自主开启/关闭推送，VAPID 认证确保推送安全性。
-                </p>
-                <ul className="text-xs text-slate-500 dark:text-[var(--text-muted)] space-y-1 ml-2">
-                  <li>• 新增推送服务、设置组件和后端路由</li>
-                  <li>• 支持每日打卡汇总推送</li>
-                  <li>• 在个人中心订阅推送通知</li>
-                </ul>
-              </div>
-
               {/* v2.11 */}
               <div className="space-y-2 pt-4 border-t border-primary/5 dark:border-[var(--border-color)]">
                 <span className="bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-xs font-bold px-2 py-0.5 rounded">v2.11</span>

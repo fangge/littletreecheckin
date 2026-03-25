@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { childrenApi, authApi, Child } from '../services/api';
-import { PushSettings } from '../components/PushSettings';
 import PasswordConfirmModal from '../components/PasswordConfirmModal';
 import ChangelogModal from '../components/ChangelogModal';
 
@@ -339,13 +338,6 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
             </div>
           </div>
         </div>
-
-        {/* 消息推送设置 */}
-        {!isChildMode && (
-          <PushSettings onSubscriptionChange={(subscribed) => {
-            console.log('推送订阅状态变更:', subscribed);
-          }} />
-        )}
 
         {/* 儿童模式切换 */}
         <div className="bg-white dark:bg-[var(--bg-surface)] rounded-xl p-4 shadow-sm border border-primary/5 dark:border-[var(--border-color)] transition-colors">

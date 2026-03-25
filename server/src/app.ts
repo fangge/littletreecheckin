@@ -9,7 +9,6 @@ import medalsRouter from './routes/medals.js';
 import rewardsRouter from './routes/rewards.js';
 import messagesRouter from './routes/messages.js';
 import goalsRouter from './routes/goals.js';
-import pushRouter from './routes/push.js';
 
 const app: Express = express();
 
@@ -50,7 +49,6 @@ app.use('/api/v1/trees', treesRouter);
 app.use('/api/v1/tasks', tasksRouter);
 app.use('/api/v1/messages', messagesRouter);
 app.use('/api/v1/goals', goalsRouter);
-app.use('/api/v1/push', pushRouter);
 
 // ============================================================
 // 错误处理

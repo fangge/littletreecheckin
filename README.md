@@ -226,7 +226,6 @@ pnpm server:dev   # 后端 http://localhost:3001
   - API 请求（`/api/*`）：网络优先，离线时返回 503 JSON 错误
   - 外部字体（Google Fonts）：缓存优先，减少重复加载
   - 同域静态资源（JS/CSS/图片）：Stale-While-Revalidate，立即响应 + 后台更新
-  - 预留推送通知处理逻辑（`push` + `notificationclick` 事件）
 - ✅ **修改** `index.html`：添加 `<link rel="manifest">`、iOS/Android/Windows 全平台 PWA meta 标签、Service Worker 注册脚本（含版本更新检测）
 - ✅ **修改** `vercel.json`：将 `rewrites` 改为有序 `routes` 规则，确保 `sw.js`（附加 `Service-Worker-Allowed: /` 响应头）和 `manifest.json` 不被 SPA 通配符规则拦截
 - ✅ **新增** `public/` 目录：将 `logo.png`、`logo2.png`、`favicon.ico` 移入，确保 Vite 构建时正确复制到 `dist/` 根目录
@@ -289,40 +288,5 @@ pnpm server:dev   # 后端 http://localhost:3001
 - ✅ **修改** Profile 页面：主题模式切换按钮
 
 **无需数据库迁移**：纯前端主题适配
-
----
-
-### v2.12 — PWA 推送通知
-
-新增 PWA 推送通知功能，每天晚上 9:30 自动推送所有孩子的打卡情况汇总，让家长及时了解孩子的成长进度。
-
-- ✅ **新增** `src/services/push.ts`：前端推送服务，封装订阅/取消订阅逻辑，处理 VAPID 公钥转换
-- ✅ **新增** `src/components/PushSettings.tsx`：推送设置组件，用户可开启/关闭推送，显示订阅状态
-- ✅ **新增** `server/src/routes/push.ts`：后端推送路由，提供 VAPID 公钥获取、订阅/取消订阅、状态查询接口
-- ✅ **新增** `server/src/services/pushService.ts`：推送服务实现，使用 web-push 库发送推送，配置 VAPID 认证
-- ✅ **新增** `server/src/cron/pushScheduler.ts`：定时任务调度器，每天 21:30 自动触发每日打卡汇总推送
-- ✅ **新增** `server/scripts/generate-vapid-keys.js`：VAPID 密钥生成脚本
-- ✅ **新增** `supabase/migrations/008_add_push_subscriptions.sql`：推送订阅表结构，存储用户订阅信息
-- ✅ **修改** `src/services/api.ts`：添加 `pushApi` 接口，与后端推送服务通信
-- ✅ **修改** `src/views/Profile.tsx`：集成 PushSettings 组件，提供推送订阅设置入口
-- ✅ **修改** `server/src/app.ts`：注册推送路由
-- ✅ **修改** `server/src/index.ts`：启动推送调度器
-
-**功能特性**：
-- 每日打卡汇总推送，显示每个孩子的完成情况
-- 支持用户自主开启/关闭推送
-- VAPID 认证确保推送安全性
-- 支持 HTTPS 生产环境部署
-
-**数据库迁移**：执行 `supabase/migrations/008_add_push_subscriptions.sql`
-
-**环境变量配置**：
-```env
-VAPID_PUBLIC_KEY=your_vapid_public_key
-VAPID_PRIVATE_KEY=your_vapid_private_key
-VAPID_EMAIL=your_email@example.com
-```
-
-**使用方式**：用户在个人中心页面点击"开启推送"按钮，允许浏览器通知权限后即可订阅每日打卡汇总推送。
 
 ---
