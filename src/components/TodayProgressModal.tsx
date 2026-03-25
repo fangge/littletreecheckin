@@ -165,11 +165,6 @@ export default function TodayProgressModal() {
                   >
                     {/* 孩子信息头部 */}
                     <div className="flex items-center gap-3 mb-3">
-                      <img
-                        src={getChildAvatar(child)}
-                        alt={child.name}
-                        className="w-10 h-10 rounded-full object-cover border-2 border-primary/30"
-                      />
                       <span className="text-white font-bold flex-1">{child.name}</span>
                       <span className="text-primary text-sm font-medium">
                         {completedTasks}/{totalTasks} 任务
