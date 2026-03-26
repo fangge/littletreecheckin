@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { childrenApi, treesApi, type Child, type GoalData } from '../services/api';
 
 interface ChildProgress {
@@ -11,18 +12,10 @@ interface ChildProgress {
 
 export default function TodayProgressModal() {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const { isDark } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [progressData, setProgressData] = useState<ChildProgress[]>([]);
-  const [isLoadingData, setIsLoadingData] = useState(false);
 
-  // 检查今天是否已经显示过弹层
-  const hasShownToday = () => {
-    const lastShown = localStorage.getItem('todayProgressLastShown');
-    if (!lastShown) return false;
-    
-    const today = new Date().toDateString();
-    return lastShown === today;
-  };
 
   // 标记今天已显示
   const markShownToday = () => {
@@ -43,27 +36,13 @@ export default function TodayProgressModal() {
     }
   };
 
-  // 获取孩子头像
-  const getChildAvatar = (child: Child) => {
-    if (child.avatar) return child.avatar;
-    // 根据性别返回默认头像
-    if (child.gender === 'male') {
-      return 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&crop=face';
-    } else if (child.gender === 'female') {
-      return 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face';
-    }
-    return 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&crop=face';
-  };
 
   // 加载进度数据
   useEffect(() => {
     const loadProgressData = async () => {
       if (!isAuthenticated || isLoading || !user?.children?.length) return;
       
-      // 如果今天已经显示过，不再显示
-      if (hasShownToday()) return;
 
-      setIsLoadingData(true);
       try {
         const progressList: ChildProgress[] = [];
 
@@ -82,11 +61,21 @@ export default function TodayProgressModal() {
               if (goal.trees && goal.trees.length > 0) {
                 const tree = goal.trees[0];
                 // 使用 checked_in_today 字段判断是否今日已打卡
-                if (tree.checked_in_today) {
+                if (tree.checked_in_today === true) {
                   completedTasks++;
                 }
               }
             }
+            
+            console.log(`孩子 ${child.name} 的任务情况:`, {
+              totalGoals: goals.length,
+              completedTasks,
+              goals: goals.map(g => ({
+                title: g.title,
+                hasTree: !!g.trees?.length,
+                checkedInToday: g.trees?.[0]?.checked_in_today
+              }))
+            });
 
             progressList.push({
               child,
@@ -108,8 +97,6 @@ export default function TodayProgressModal() {
         }
       } catch (error) {
         console.error('加载今日进度失败:', error);
-      } finally {
-        setIsLoadingData(false);
       }
     };
 
@@ -142,13 +129,19 @@ export default function TodayProgressModal() {
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.9, y: 20, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="bg-[#1c1c1e] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl"
+            className={`rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl ${
+              isDark ? 'bg-[#1c1c1e]' : 'bg-white'
+            }`}
             onClick={e => e.stopPropagation()}
           >
             {/* 标题区域 */}
             <div className="px-6 pt-6 pb-4 text-center">
-              <h2 className="text-white text-xl font-bold mb-1">今日任务进度</h2>
-              <p className="text-gray-400 text-sm">加油，小宝贝们！</p>
+              <h2 className={`text-xl font-bold mb-1 ${isDark ? '' : 'text-gray-900'}`}>
+                今日任务进度
+              </h2>
+              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                加油，小宝贝们！
+              </p>
             </div>
 
             {/* 孩子进度列表 */}
@@ -161,11 +154,15 @@ export default function TodayProgressModal() {
                     key={child.id}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="bg-[#2c2c2e] rounded-2xl p-4"
+                    className={`rounded-2xl p-4 ${
+                      isDark ? 'bg-[#2c2c2e]' : 'bg-gray-50'
+                    }`}
                   >
                     {/* 孩子信息头部 */}
                     <div className="flex items-center gap-3 mb-3">
-                      <span className="text-white font-bold flex-1">{child.name}</span>
+                      <span className={`font-bold flex-1 ${isDark ? '' : 'text-gray-900'}`}>
+                        {child.name}
+                      </span>
                       <span className="text-primary text-sm font-medium">
                         {completedTasks}/{totalTasks} 任务
                       </span>
@@ -173,7 +170,9 @@ export default function TodayProgressModal() {
 
                     {/* 进度条 */}
                     <div className="mb-3">
-                      <div className="h-2.5 bg-[#3a3a3c] rounded-full overflow-hidden">
+                      <div className={`h-2.5 rounded-full overflow-hidden ${
+                        isDark ? 'bg-[#3a3a3c]' : 'bg-gray-200'
+                      }`}>
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${progress}%` }}
@@ -184,7 +183,7 @@ export default function TodayProgressModal() {
                     </div>
 
                     {/* 鼓励文字 */}
-                    <p className="text-gray-400 text-xs">
+                    <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                       {getEncouragementText(completedTasks, totalTasks)}
                     </p>
                   </motion.div>

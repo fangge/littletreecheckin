@@ -233,7 +233,7 @@ router.get('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Resp
     .from('goals')
     .select(`
       id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, fruits_per_task, created_at,
-      trees(id, name, image, status, progress)
+      trees(id, name, image, status, progress, goal_id)
     `)
     .eq('child_id', childId)
     .order('created_at', { ascending: false });
@@ -249,7 +249,42 @@ router.get('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Resp
     return;
   }
 
-  res.json({ data: data || [] });
+  const goals = data || [];
+  
+  // 收集所有 goal_id 用于批量查询今日打卡状态
+  const goalIds = goals.map(g => g.id).filter(Boolean) as string[];
+  
+  if (goalIds.length === 0) {
+    res.json({ data: goals });
+    return;
+  }
+
+  // 批量查询今日签到状态（非 rejected 的今日任务）
+  const utc8Offset = 8 * 60 * 60 * 1000;
+  const today = new Date(Date.now() + utc8Offset).toISOString().split('T')[0];
+  const { data: todayTasks } = await supabase
+    .from('tasks')
+    .select('goal_id')
+    .in('goal_id', goalIds)
+    .neq('status', 'rejected')
+    .gte('checkin_time', `${today}T00:00:00+08:00`)
+    .lte('checkin_time', `${today}T23:59:59.999+08:00`);
+
+  // 统计今日已签到的 goal
+  const checkedInTodaySet = new Set<string>(
+    (todayTasks || []).map((t: { goal_id: string }) => t.goal_id).filter(Boolean)
+  );
+
+  // 为每个 goal 的 trees 添加 checked_in_today 字段
+  const enrichedGoals = goals.map(goal => ({
+    ...goal,
+    trees: (goal.trees || []).map((tree: any) => ({
+      ...tree,
+      checked_in_today: tree.goal_id ? checkedInTodaySet.has(tree.goal_id) : false,
+    })),
+  }));
+
+  res.json({ data: enrichedGoals });
 });
 
 // PUT /api/v1/goals/:goalId  (更新目标信息)
