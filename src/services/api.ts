@@ -318,9 +318,9 @@ export const treesApi = {
 // 任务打卡 API
 // ============================================================
 export const tasksApi = {
-  list: (childId: string, status?: string) =>
+  list: (childId: string, status?: string, goalId?: string) =>
     request<{ data: TaskData[] }>(
-      `/api/v1/children/${childId}/tasks${status ? `?status=${status}` : ''}`
+      `/api/v1/children/${childId}/tasks${status ? `?status=${status}` : ''}${goalId ? `${status ? '&' : '?'}goal_id=${goalId}` : ''}`
     ),
 
   checkin: (goalId: string, childId: string, imageUrl?: string, checkinDate?: string) => {

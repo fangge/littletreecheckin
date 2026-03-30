@@ -91,11 +91,28 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
     (todayTasks || []).map((t: { goal_id: string }) => t.goal_id).filter(Boolean)
   );
 
-  const enrichedTrees = trees.map(tree => ({
-    ...tree,
-    completed_days: tree.goal_id ? (completedDaysMap.get(tree.goal_id) || 0) : 0,
-    checked_in_today: tree.goal_id ? checkedInTodaySet.has(tree.goal_id) : false,
-  }));
+  // 批量查询 goal 的 duration_days 用于准确计算 progress
+  const { data: goalsData } = await supabase
+    .from('goals')
+    .select('id, duration_days')
+    .in('id', goalIds);
+  const goalDurationMap = new Map<string, number>();
+  for (const g of goalsData || []) {
+    goalDurationMap.set(g.id, g.duration_days);
+  }
+
+  const enrichedTrees = trees.map(tree => {
+    const completedDays = tree.goal_id ? (completedDaysMap.get(tree.goal_id) || 0) : 0;
+    const durationDays = tree.goal_id ? (goalDurationMap.get(tree.goal_id) || 30) : 30;
+    // 动态计算 progress：基于实际完成天数/目标天数，向上取整
+    const calculatedProgress = Math.min(100, Math.ceil((completedDays / durationDays) * 100));
+    return {
+      ...tree,
+      progress: calculatedProgress,
+      completed_days: completedDays,
+      checked_in_today: tree.goal_id ? checkedInTodaySet.has(tree.goal_id) : false,
+    };
+  });
 
   res.json({ data: enrichedTrees });
 });
@@ -251,12 +268,27 @@ router.get('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Resp
 
   const goals = data || [];
   
-  // 收集所有 goal_id 用于批量查询今日打卡状态
+  // 收集所有 goal_id
   const goalIds = goals.map(g => g.id).filter(Boolean) as string[];
   
   if (goalIds.length === 0) {
     res.json({ data: goals });
     return;
+  }
+
+  // 批量查询已完成天数（approved 任务数）
+  const { data: approvedTasks } = await supabase
+    .from('tasks')
+    .select('goal_id')
+    .in('goal_id', goalIds)
+    .eq('status', 'approved');
+
+  // 统计每个 goal 的已完成天数
+  const completedDaysMap = new Map<string, number>();
+  for (const task of approvedTasks || []) {
+    if (task.goal_id) {
+      completedDaysMap.set(task.goal_id, (completedDaysMap.get(task.goal_id) || 0) + 1);
+    }
   }
 
   // 批量查询今日签到状态（非 rejected 的今日任务）
@@ -275,14 +307,20 @@ router.get('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Resp
     (todayTasks || []).map((t: { goal_id: string }) => t.goal_id).filter(Boolean)
   );
 
-  // 为每个 goal 的 trees 添加 checked_in_today 字段
-  const enrichedGoals = goals.map(goal => ({
-    ...goal,
-    trees: (goal.trees || []).map((tree: any) => ({
-      ...tree,
-      checked_in_today: tree.goal_id ? checkedInTodaySet.has(tree.goal_id) : false,
-    })),
-  }));
+  // 为每个 goal 的 trees 添加 checked_in_today 字段，并动态计算 progress
+  const enrichedGoals = goals.map(goal => {
+    const completedDays = completedDaysMap.get(goal.id) || 0;
+    const durationDays = goal.duration_days || 30;
+    const calculatedProgress = Math.min(100, Math.ceil((completedDays / durationDays) * 100));
+    return {
+      ...goal,
+      trees: (goal.trees || []).map((tree: any) => ({
+        ...tree,
+        progress: calculatedProgress,
+        checked_in_today: tree.goal_id ? checkedInTodaySet.has(tree.goal_id) : false,
+      })),
+    };
+  });
 
   res.json({ data: enrichedGoals });
 });

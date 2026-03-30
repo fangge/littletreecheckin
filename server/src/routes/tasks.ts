@@ -9,7 +9,7 @@ const router: Router = Router();
 // GET /api/v1/children/:childId/tasks
 router.get('/:childId/tasks', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { childId } = req.params;
-  const { status } = req.query;
+  const { status, goal_id } = req.query;
 
   const { data: child } = await supabase
     .from('children')
@@ -35,6 +35,11 @@ router.get('/:childId/tasks', authMiddleware, async (req: AuthRequest, res: Resp
 
   if (status && ['pending', 'approved', 'rejected'].includes(status as string)) {
     query = query.eq('status', status as string);
+  }
+
+  // 支持按 goal_id 过滤
+  if (goal_id && typeof goal_id === 'string') {
+    query = query.eq('goal_id', goal_id);
   }
 
   const { data, error } = await query;
