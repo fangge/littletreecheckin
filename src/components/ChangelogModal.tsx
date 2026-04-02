@@ -34,12 +34,27 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
               </button>
             </div>
             <div className="overflow-y-auto max-h-[60vh] px-6 py-4 space-y-4">
-              {/* v2.13 */}
+              {/* v2.15 */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v2.13</span>
+                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v2.15</span>
                   <span className="text-sm text-slate-500 dark:text-[var(--text-muted)]">最新</span>
                 </div>
+                <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">PWA 自动更新机制</h4>
+                <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
+                  优化 PWA 更新体验，解决应用安装后版本不自动更新的问题，用户无需手动卸载重装即可获取最新版本。
+                </p>
+                <ul className="text-xs text-slate-500 dark:text-[var(--text-muted)] space-y-1 ml-2">
+                  <li>• 构建时自动更新缓存版本号</li>
+                  <li>• 检测新版本弹窗提示用户</li>
+                  <li>• 一键刷新获取最新版本</li>
+                  <li>• 支持 PWA 安装提示</li>
+                </ul>
+              </div>
+
+              {/* v2.13 */}
+              <div className="space-y-2 pt-4 border-t border-primary/5 dark:border-[var(--border-color)]">
+                <span className="bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-xs font-bold px-2 py-0.5 rounded">v2.13</span>
                 <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">下拉刷新功能</h4>
                 <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
                   为所有数据展示页面统一添加下拉刷新交互，提升用户体验，让数据更新更直观便捷。

@@ -40,14 +40,27 @@
           .then((registration) => {
             console.log('[PWA] Service Worker registered:', registration.scope);
 
-            // 检测到新版本时提示用户刷新
+            // 检测到新版本时触发事件通知 UI
             registration.addEventListener('updatefound', () => {
               const newWorker = registration.installing;
-              newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  console.log('[PWA] New version available, please refresh.');
-                }
-              });
+              if (newWorker) {
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    console.log('[PWA] New version available');
+                    window.dispatchEvent(new CustomEvent('pwa-update-available'));
+                  }
+                });
+              }
+            });
+
+            // 检查是否有等待中的 SW（页面加载时）
+            if (registration.waiting) {
+              window.dispatchEvent(new CustomEvent('pwa-update-available'));
+            }
+
+            // 监听 SW 控制权变化
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+              window.location.reload();
             });
           })
           .catch((error) => {

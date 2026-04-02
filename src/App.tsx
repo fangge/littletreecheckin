@@ -22,6 +22,7 @@ import RewardsManagement from './views/RewardsManagement';
 import { useAuth } from './contexts/AuthContext';
 import { GoalData } from './services/api';
 import TodayProgressModal from './components/TodayProgressModal';
+import UpdatePrompt from './components/UpdatePrompt';
 
 // 儿童模式下受限的视图列表
 const CHILD_MODE_RESTRICTED_VIEWS: ViewType[] = ['parent-control', 'add-goal', 'rewards-management'];
@@ -175,6 +176,8 @@ export default function App() {
       </div>
       {/* 今日任务进度弹层 */}
       <TodayProgressModal />
+      {/* PWA 更新提示 */}
+      <UpdatePrompt />
     </div>
   );
 }
