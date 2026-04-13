@@ -1,15 +1,89 @@
 import { Router, Request, Response, IRouter } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { supabase } from '../config/supabase.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { AuthRequest } from '../types.js';
 
 const router: IRouter = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
+// Access Token: 短期有效（15分钟），用于 API 认证
+const ACCESS_TOKEN_EXPIRES_IN = process.env.ACCESS_TOKEN_EXPIRES_IN || '15m';
+// Refresh Token: 长期有效（7天），用于续签
+const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
+// 密码重置 token 有效期（1小时）
+const RESET_TOKEN_EXPIRES = 60 * 60 * 1000;
+
+// ============================================================
+// 工具函数
+// ============================================================
+
+/** 生成安全的随机 token */
+const generateRefreshToken = (): string => crypto.randomBytes(40).toString('hex');
+
+/** 生成 access token */
+const signAccessToken = (payload: { id: string; username: string; role?: string }): string => {
+  return jwt.sign(
+    payload,
+    JWT_SECRET,
+    { expiresIn: ACCESS_TOKEN_EXPIRES_IN as jwt.SignOptions['expiresIn'] }
+  );
+};
+
+/** 保存 refresh token 到数据库 */
+const saveRefreshToken = async (userId: string, token: string): Promise<void> => {
+  const expiresAt = new Date();
+  // 解析过期时间（如 "7d" → 7天）
+  const match = REFRESH_TOKEN_EXPIRES_IN.match(/^(\d+)([smhd])$/);
+  if (match) {
+    const value = parseInt(match[1], 10);
+    const unit = match[2];
+    switch (unit) {
+      case 's': expiresAt.setSeconds(expiresAt.getSeconds() + value); break;
+      case 'm': expiresAt.setMinutes(expiresAt.getMinutes() + value); break;
+      case 'h': expiresAt.setHours(expiresAt.getHours() + value); break;
+      case 'd': expiresAt.setDate(expiresAt.getDate() + value); break;
+    }
+  } else {
+    expiresAt.setDate(expiresAt.getDate() + 7);
+  }
+
+  await supabase.from('refresh_tokens').insert({
+    user_id: userId,
+    token,
+    expires_at: expiresAt.toISOString(),
+  });
+};
+
+/** 验证 refresh token */
+const verifyRefreshToken = async (token: string): Promise<{ userId: string; tokenId: string } | null> => {
+  const { data, error } = await supabase
+    .from('refresh_tokens')
+    .select('id, user_id, expires_at')
+    .eq('token', token)
+    .single();
+
+  if (error || !data) return null;
+
+  // 检查是否过期
+  if (new Date(data.expires_at) < new Date()) {
+    await supabase.from('refresh_tokens').delete().eq('id', data.id);
+    return null;
+  }
+
+  return { userId: data.user_id, tokenId: data.id };
+};
+
+/** 吊销用户的所有 refresh token（登出/改密码时） */
+const revokeAllUserTokens = async (userId: string): Promise<void> => {
+  await supabase.from('refresh_tokens').delete().eq('user_id', userId);
+};
+
+// ============================================================
 // POST /api/v1/auth/register
+// ============================================================
 router.post('/register', async (req: Request, res: Response): Promise<void> => {
   const { username, password, phone, children } = req.body;
 
@@ -70,29 +144,34 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
     .select('id, name, age, gender, fruits_balance');
 
   if (childrenError) {
-    // 回滚：删除已创建的用户
     await supabase.from('users').delete().eq('id', newUser.id);
     res.status(500).json({ error: '创建孩子信息失败' });
     return;
   }
 
-  // 生成 JWT
-  const token = jwt.sign(
-    { id: newUser.id, username: newUser.username },
-    JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
-  );
+  // 双令牌：Access Token + Refresh Token
+  const accessToken = signAccessToken({
+    id: newUser.id,
+    username: newUser.username,
+    role: 'parent',
+  });
+
+  const refreshToken = generateRefreshToken();
+  await saveRefreshToken(newUser.id, refreshToken);
 
   res.status(201).json({
     data: {
-      token,
+      accessToken,
+      refreshToken,
       user: { ...newUser, children: newChildren },
     },
     message: '注册成功',
   });
 });
 
+// ============================================================
 // POST /api/v1/auth/login
+// ============================================================
 router.post('/login', async (req: Request, res: Response): Promise<void> => {
   try {
     const { username, password } = req.body;
@@ -100,60 +179,45 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
     console.log('[Login] 尝试登录:', { username, timestamp: new Date().toISOString() });
 
     if (!username || !password) {
-      console.log('[Login] 验证失败: 用户名或密码为空');
       res.status(400).json({ error: '用户名和密码不能为空' });
       return;
     }
 
     // 查询用户（支持用户名或手机号登录）
-    console.log('[Login] 查询用户:', username);
-    
-    // 先尝试用户名查询
     let { data: user, error: userError } = await supabase
       .from('users')
       .select('id, username, phone, password_hash, created_at')
       .eq('username', username)
       .maybeSingle();
-    
-    // 如果用户名未找到，尝试手机号查询
+
     if (!user && !userError) {
       const phoneResult = await supabase
         .from('users')
         .select('id, username, phone, password_hash, created_at')
         .eq('phone', username)
         .maybeSingle();
-      
       user = phoneResult.data;
       userError = phoneResult.error;
     }
 
     if (userError) {
-      console.error('[Login] 数据库查询错误:', userError);
       res.status(500).json({ error: '登录失败，请稍后重试' });
       return;
     }
 
     if (!user) {
-      console.log('[Login] 用户不存在:', username);
       res.status(401).json({ error: '用户名或密码错误' });
       return;
     }
-
-    console.log('[Login] 找到用户:', { id: user.id, username: user.username });
 
     // 验证密码
-    console.log('[Login] 验证密码...');
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
     if (!isPasswordValid) {
-      console.log('[Login] 密码验证失败');
       res.status(401).json({ error: '用户名或密码错误' });
       return;
     }
 
-    console.log('[Login] 密码验证成功');
-
     // 获取孩子列表
-    console.log('[Login] 获取孩子列表...');
     const { data: children, error: childrenError } = await supabase
       .from('children')
       .select('id, name, age, gender, avatar, fruits_balance')
@@ -162,26 +226,24 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
 
     if (childrenError) {
       console.error('[Login] 获取孩子列表错误:', childrenError);
-      // 不阻止登录，继续执行
     }
 
-    console.log('[Login] 找到孩子数量:', children?.length || 0);
+    // 双令牌
+    const accessToken = signAccessToken({
+      id: user.id,
+      username: user.username,
+      role: 'parent',
+    });
 
-    // 生成 JWT
-    console.log('[Login] 生成JWT token...');
-    const token = jwt.sign(
-      { id: user.id, username: user.username },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
-    );
+    const refreshToken = generateRefreshToken();
+    await saveRefreshToken(user.id, refreshToken);
 
     const { password_hash: _, ...userWithoutPassword } = user;
 
-    console.log('[Login] 登录成功:', { userId: user.id, username: user.username });
-
     res.json({
       data: {
-        token,
+        accessToken,
+        refreshToken,
         user: { ...userWithoutPassword, children: children || [] },
       },
       message: '登录成功',
@@ -192,7 +254,68 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+// ============================================================
+// POST /api/v1/auth/refresh - 刷新 Access Token
+// ============================================================
+router.post('/refresh', async (req: Request, res: Response): Promise<void> => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    res.status(400).json({ error: '缺少 refresh token' });
+    return;
+  }
+
+  // 验证 refresh token（数据库查询）
+  const tokenData = await verifyRefreshToken(refreshToken);
+  if (!tokenData) {
+    res.status(401).json({ error: 'Refresh token 无效或已过期，请重新登录' });
+    return;
+  }
+
+  // 获取用户信息
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('id, username, phone, created_at')
+    .eq('id', tokenData.userId)
+    .single();
+
+  if (error || !user) {
+    res.status(404).json({ error: '用户不存在' });
+    return;
+  }
+
+  // 获取孩子列表
+  const { data: children } = await supabase
+    .from('children')
+    .select('id, name, age, gender, avatar, fruits_balance')
+    .eq('parent_id', user.id)
+    .eq('is_deleted', false);
+
+  // 签发新的 access token 和 refresh token（rotation 策略：旧 refresh token 作废，新 token 生效）
+  const newAccessToken = signAccessToken({
+    id: user.id,
+    username: user.username,
+    role: 'parent',
+  });
+
+  const newRefreshToken = generateRefreshToken();
+
+  // 删除旧 refresh token，创建新的
+  await supabase.from('refresh_tokens').delete().eq('id', tokenData.tokenId);
+  await saveRefreshToken(user.id, newRefreshToken);
+
+  res.json({
+    data: {
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+      user: { ...user, children: children || [] },
+    },
+  });
+});
+
+// ============================================================
 // GET /api/v1/auth/me
+// ============================================================
 router.get('/me', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user!.id;
 
@@ -218,13 +341,18 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response): Promi
   });
 });
 
+// ============================================================
 // POST /api/v1/auth/logout
-router.post('/logout', authMiddleware, (_req: AuthRequest, res: Response): void => {
-  // JWT 无状态，客户端删除 token 即可
+// ============================================================
+router.post('/logout', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  // 吊销该用户所有 refresh token
+  await revokeAllUserTokens(req.user!.id);
   res.json({ message: '已退出登录' });
 });
 
+// ============================================================
 // POST /api/v1/auth/verify-password
+// ============================================================
 router.post('/verify-password', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { password } = req.body;
   const userId = req.user!.id;
@@ -254,12 +382,13 @@ router.post('/verify-password', authMiddleware, async (req: AuthRequest, res: Re
   res.json({ success: true });
 });
 
+// ============================================================
 // POST /api/v1/auth/change-password
+// ============================================================
 router.post('/change-password', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { currentPassword, newPassword, confirmPassword } = req.body;
   const userId = req.user!.id;
 
-  // 验证输入
   if (!currentPassword || !newPassword || !confirmPassword) {
     res.status(400).json({ error: '请填写所有密码字段' });
     return;
@@ -275,7 +404,6 @@ router.post('/change-password', authMiddleware, async (req: AuthRequest, res: Re
     return;
   }
 
-  // 获取当前用户
   const { data: user } = await supabase
     .from('users')
     .select('password_hash')
@@ -287,17 +415,14 @@ router.post('/change-password', authMiddleware, async (req: AuthRequest, res: Re
     return;
   }
 
-  // 验证当前密码
   const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password_hash);
   if (!isCurrentPasswordValid) {
     res.status(401).json({ error: '当前密码错误' });
     return;
   }
 
-  // 加密新密码
   const newPasswordHash = await bcrypt.hash(newPassword, 10);
 
-  // 更新密码
   const { error: updateError } = await supabase
     .from('users')
     .update({ password_hash: newPasswordHash })
@@ -308,7 +433,138 @@ router.post('/change-password', authMiddleware, async (req: AuthRequest, res: Re
     return;
   }
 
-  res.json({ success: true, message: '密码修改成功' });
+  // 改密码后吊销所有 refresh token，强制重新登录
+  await revokeAllUserTokens(userId);
+
+  res.json({ success: true, message: '密码修改成功，请重新登录' });
+});
+
+// ============================================================
+// POST /api/v1/auth/forgot-password - 发起密码重置请求
+// ============================================================
+router.post('/forgot-password', async (req: Request, res: Response): Promise<void> => {
+  const { identifier } = req.body; // 用户名或手机号
+
+  if (!identifier?.trim()) {
+    res.status(400).json({ error: '请输入用户名或手机号' });
+    return;
+  }
+
+  // 查询用户
+  let { data: user, error: userError } = await supabase
+    .from('users')
+    .select('id, username, phone')
+    .eq('username', identifier.trim())
+    .maybeSingle();
+
+  if (!user && !userError) {
+    const phoneResult = await supabase
+      .from('users')
+      .select('id, username, phone')
+      .eq('phone', identifier.trim())
+      .maybeSingle();
+    user = phoneResult.data;
+    userError = phoneResult.error;
+  }
+
+  if (userError || !user) {
+    // 安全考虑：不暴露用户是否存在，统一返回成功提示
+    // 但返回一个标志让前端知道是否需要显示"检查手机/邮箱"
+    res.json({
+      message: '如果该账号存在，重置链接/验证码已发送到关联的手机号',
+      found: false,
+    });
+    return;
+  }
+
+  // 生成重置 token
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  const resetExpiresAt = new Date(Date.now() + RESET_TOKEN_EXPIRES).toISOString();
+
+  // 保存重置 token（使用 password_resets 表或 users 表的临时字段）
+  // 方案：使用独立的 password_resets 表
+  await supabase.from('password_resets').upsert(
+    {
+      user_id: user.id,
+      token: resetToken,
+      expires_at: resetExpiresAt,
+      used: false,
+    },
+    { onConflict: 'user_id' }
+  );
+
+  // TODO: 实际项目中应集成短信服务（如腾讯云 SMS）或邮件服务发送验证码
+  // 当前将 token 返回给前端用于开发调试；生产环境应通过短信/邮件发送
+  console.log(`[Password Reset] 重置token已生成: ${resetToken} for user ${user.username}`);
+
+  res.json({
+    message: '如果该账号存在，重置验证码已发送',
+    found: true,
+    hasPhone: !!user.phone,
+    // 开发模式：返回 token 用于测试（生产环境应移除）
+    ...(process.env.NODE_ENV !== 'production' ? { _debugToken: resetToken } : {}),
+  });
+});
+
+// ============================================================
+// POST /api/v1/auth/reset-password - 通过 token 重置密码
+// ============================================================
+router.post('/reset-password', async (req: Request, res: Response): Promise<void> => {
+  const { token, newPassword, confirmPassword } = req.body;
+
+  if (!token || !newPassword || !confirmPassword) {
+    res.status(400).json({ error: '请填写完整信息' });
+    return;
+  }
+
+  if (newPassword.length < 6) {
+    res.status(400).json({ error: '密码长度不能少于6位' });
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    res.status(400).json({ error: '两次输入的密码不一致' });
+    return;
+  }
+
+  // 查找有效的重置 token
+  const { data: resetRecord, error: resetError } = await supabase
+    .from('password_resets')
+    .select('*')
+    .eq('token', token)
+    .eq('used', false)
+    .single();
+
+  if (resetError || !resetRecord) {
+    res.status(400).json({ error: '无效的重置链接或验证码' });
+    return;
+  }
+
+  // 检查是否过期
+  if (new Date(resetRecord.expires_at) < new Date()) {
+    res.status(400).json({ error: '重置链接已过期，请重新申请' });
+    return;
+  }
+
+  // 更新密码
+  const newPasswordHash = await bcrypt.hash(newPassword, 10);
+  const { error: updateError } = await supabase
+    .from('users')
+    .update({ password_hash: newPasswordHash })
+    .eq('id', resetRecord.user_id);
+
+  if (updateError) {
+    res.status(500).json({ error: '密码重置失败，请重试' });
+    return;
+  }
+
+  // 标记 token 为已使用
+  await supabase.from('password_resets').update({ used: true }).eq('id', resetRecord.id);
+
+  // 吊销该用户所有 refresh token
+  await revokeAllUserTokens(resetRecord.user_id);
+
+  res.json({ success: true, message: '密码重置成功，请使用新密码登录' });
 });
 
 export default router;

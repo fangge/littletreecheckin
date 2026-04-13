@@ -1,14 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { messagesApi, MessageData } from '../services/api';
 import PullToRefresh from '../components/PullToRefresh';
 
-interface MessagesProps {
-  onBack: () => void;
-}
-
-export default function Messages({ onBack }: MessagesProps) {
+export default function Messages() {
+  const navigate = useNavigate();
   const { currentChild, user } = useAuth();
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [inputText, setInputText] = useState('');
@@ -78,16 +76,16 @@ export default function Messages({ onBack }: MessagesProps) {
       <motion.div
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
-        className="flex-1 flex flex-col h-full bg-background-light"
+        className="flex flex-col h-screen bg-background-light"
       >
-      <header className="flex items-center bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md p-4 sticky top-0 z-10 justify-between border-b border-primary/10 dark:border-[var(--border-color)] transition-colors">
+      <header className="flex items-center bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md p-4 shrink-0 z-10 justify-between border-b border-primary/10 dark:border-[var(--border-color)] transition-colors">
         <div className="text-slate-900 dark:text-[var(--text-primary)] flex size-12 shrink-0 items-center justify-start">
           <span
-            onClick={onBack}
+            onClick={() => navigate('/tasks')}
             className="material-symbols-outlined cursor-pointer"
             role="button"
             tabIndex={0}
-            onKeyDown={e => e.key === 'Enter' && onBack()}
+            onKeyDown={e => e.key === 'Enter' && navigate('/tasks')}
             aria-label="返回"
           >
             arrow_back_ios
@@ -104,7 +102,7 @@ export default function Messages({ onBack }: MessagesProps) {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto relative pb-4 px-6">
+      <div className="flex-1 overflow-y-auto relative px-6 min-h-0">
         <div className="absolute inset-x-0 top-0 h-96 opacity-40 z-0 pointer-events-none">
           <div
             className="w-full h-full bg-cover bg-center"
@@ -113,7 +111,7 @@ export default function Messages({ onBack }: MessagesProps) {
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background-light" />
         </div>
 
-        <div className="relative z-10 pt-12">
+        <div className="relative z-10 pt-12 pb-24">
           <div className="flex flex-col items-center mb-8">
             <div className="relative">
               <div className="size-24 rounded-full border-4 border-primary bg-primary/10 flex items-center justify-center shadow-lg">
@@ -161,7 +159,7 @@ export default function Messages({ onBack }: MessagesProps) {
         </div>
       </div>
 
-      <div className="p-4 bg-white dark:bg-[var(--bg-surface)] border-t border-slate-100 dark:border-[var(--border-color)] flex items-center gap-3 sticky bottom-24 z-10 transition-colors">
+      <div className="p-4 bg-white dark:bg-[var(--bg-surface)] border-t border-slate-100 dark:border-[var(--border-color)] flex items-center gap-3 shrink-0 transition-colors">
         <button
           className="text-primary hover:text-primary/80 transition-colors"
           aria-label="添加附件"

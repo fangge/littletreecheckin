@@ -358,13 +358,7 @@ router.get('/:childId/fruits-history', authMiddleware, async (req: AuthRequest, 
     return;
   }
 
-  const items = (tasks || []).map((task: {
-    id: string;
-    title: string;
-    checkin_time: string;
-    bonus_fruits: number;
-    goals: { icon?: string; fruits_per_task?: number } | null;
-  }) => ({
+  const items = (tasks || []).map((task: Record<string, any>) => ({
     id: task.id,
     title: task.title,
     checkin_time: task.checkin_time,

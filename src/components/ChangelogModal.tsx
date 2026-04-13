@@ -34,8 +34,29 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
               </button>
             </div>
             <div className="overflow-y-auto max-h-[60vh] px-6 py-4 space-y-4">
-              {/* v2.15 */}
+              {/* v3.0 */}
               <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v3.0</span>
+                  <span className="text-sm text-slate-500 dark:text-[var(--text-muted)]">最新</span>
+                </div>
+                <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">架构全面升级</h4>
+                <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
+                  对认证系统、路由、安全性、性能四大核心领域进行深度重构，大幅提升应用的安全性与用户体验。
+                </p>
+                <ul className="text-xs text-slate-500 dark:text-[var(--text-muted)] space-y-1 ml-2">
+                  <li>• 全新双 Token 认证机制（Access Token + Refresh Token 自动续签）</li>
+                  <li>• 完整密码找回流程：发送验证码 → 重置新密码（支持开发调试模式）</li>
+                  <li>• React Router 路由系统：URL 导航、浏览器历史、深链接、PWA 快捷方式全部生效</li>
+                  <li>• 后端角色权限中间件：家长/儿童角色分离，写操作需家长权限验证</li>
+                  <li>• Vite 代码分割优化：React Vendor / Motion 独立打包，首屏加载更快</li>
+                  <li>• 移除 Vercel 不兼容的 better-sqlite3 依赖，纯 Supabase 架构</li>
+                </ul>
+              </div>
+
+              {/* v2.15 */}
+              <div className="space-y-2 pt-4 border-t border-primary/5 dark:border-[var(--border-color)]">
+                <span className="bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-xs font-bold px-2 py-0.5 rounded">v2.15</span>
                 <div className="flex items-center gap-2">
                   <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v2.15</span>
                   <span className="text-sm text-slate-500 dark:text-[var(--text-muted)]">最新</span>

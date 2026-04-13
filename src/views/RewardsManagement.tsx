@@ -1,24 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { rewardsApi, RewardData, RedemptionData } from '../services/api';
 import PullToRefresh from '../components/PullToRefresh';
 
-interface RewardsManagementProps {
-  onBack: () => void;
-}
-
 interface RewardForm {
   name: string;
   price: string;
-  image: string;
   category: 'activity' | 'toy' | 'snack';
 }
 
-const EMPTY_FORM: RewardForm = { name: '', price: '', image: '', category: 'activity' };
+const EMPTY_FORM: RewardForm = { name: '', price: '', category: 'activity' };
 const CATEGORY_LABELS = { activity: '活动', toy: '玩具', snack: '零食' };
 
-export default function RewardsManagement({ onBack }: RewardsManagementProps) {
+export default function RewardsManagement() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'rewards' | 'redemptions'>('rewards');
 
@@ -84,7 +81,7 @@ export default function RewardsManagement({ onBack }: RewardsManagementProps) {
 
   const handleOpenEdit = (reward: RewardData & { is_active: boolean }) => {
     setEditingReward(reward);
-    setForm({ name: reward.name, price: String(reward.price), image: reward.image || '', category: reward.category as 'activity' | 'toy' | 'snack' });
+    setForm({ name: reward.name, price: String(reward.price), category: reward.category as 'activity' | 'toy' | 'snack' });
     setFormError('');
     setShowForm(true);
   };
@@ -97,9 +94,9 @@ export default function RewardsManagement({ onBack }: RewardsManagementProps) {
     setFormError('');
     try {
       if (editingReward) {
-        await rewardsApi.update(editingReward.id, { name: form.name.trim(), price, image: form.image.trim() || undefined, category: form.category });
+        await rewardsApi.update(editingReward.id, { name: form.name.trim(), price, category: form.category });
       } else {
-        await rewardsApi.create({ name: form.name.trim(), price, image: form.image.trim() || undefined, category: form.category });
+        await rewardsApi.create({ name: form.name.trim(), price, category: form.category });
       }
       setShowForm(false);
       await fetchRewards();
@@ -159,7 +156,7 @@ export default function RewardsManagement({ onBack }: RewardsManagementProps) {
       >
       <header className="sticky top-0 z-10 bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md border-b border-primary/10 dark:border-[var(--border-color)] transition-colors">
         <div className="flex items-center px-4 py-4 justify-between lg:max-w-2xl lg:mx-auto">
-          <button onClick={onBack} className="p-2 hover:bg-primary/10 rounded-full transition-colors" aria-label="返回">
+          <button onClick={() => navigate('/profile')} className="p-2 hover:bg-primary/10 rounded-full transition-colors" aria-label="返回">
             <span className="material-symbols-outlined">arrow_back</span>
           </button>
           <h1 className="text-xl font-bold tracking-tight">奖品与兑换管理</h1>
@@ -207,7 +204,6 @@ export default function RewardsManagement({ onBack }: RewardsManagementProps) {
                         ))}
                       </div>
                     </div>
-                    <input className="form-input w-full rounded-xl border-slate-200 dark:border-[var(--border-color)] bg-white dark:bg-[var(--bg-card)] text-slate-900 dark:text-[var(--text-primary)] h-11 text-sm placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary px-3 transition-colors" placeholder="图片 URL（可选）" value={form.image} onChange={e => setForm(p => ({ ...p, image: e.target.value }))} />
                     <div className="flex gap-2">
                       <button className="flex-1 py-2.5 bg-primary text-white text-sm font-bold rounded-xl disabled:opacity-60" onClick={handleSave} disabled={isSaving}>{isSaving ? '保存中...' : '保存'}</button>
                       <button className="px-4 py-2.5 bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-sm font-bold rounded-xl" onClick={() => setShowForm(false)}>取消</button>
@@ -230,14 +226,8 @@ export default function RewardsManagement({ onBack }: RewardsManagementProps) {
               rewards.map(reward => (
                 <div key={reward.id} className={`bg-white dark:bg-[var(--bg-surface)] rounded-2xl shadow-sm border overflow-hidden ${!reward.is_active ? 'opacity-60 border-slate-200 dark:border-[var(--border-color)]' : 'border-primary/5 dark:border-[var(--border-color)]'} transition-colors`}>
                   <div className="p-4 flex gap-3 items-center">
-                    <div className="w-16 h-16 rounded-xl bg-slate-100 dark:bg-[var(--bg-card)] overflow-hidden shrink-0">
-                      {reward.image ? (
-                        <img alt={reward.name} className="w-full h-full object-cover" src={reward.image} />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-[var(--text-muted)]">
-                          <span className="material-symbols-outlined text-3xl">redeem</span>
-                        </div>
-                      )}
+                    <div className="w-16 h-16 rounded-xl bg-slate-100 dark:bg-[var(--bg-card)] shrink-0 flex items-center justify-center text-slate-300 dark:text-[var(--text-muted)]">
+                      <span className="material-symbols-outlined text-3xl">redeem</span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -281,14 +271,8 @@ export default function RewardsManagement({ onBack }: RewardsManagementProps) {
               redemptions.map(r => (
                 <div key={r.id} className="bg-white dark:bg-[var(--bg-surface)] rounded-2xl shadow-sm border border-primary/5 dark:border-[var(--border-color)] overflow-hidden transition-colors">
                   <div className="p-4 flex gap-3 items-center">
-                    <div className="w-16 h-16 rounded-xl bg-slate-100 dark:bg-[var(--bg-card)] overflow-hidden shrink-0">
-                      {r.rewards?.image ? (
-                        <img alt={r.rewards.name} className="w-full h-full object-cover" src={r.rewards.image} />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-[var(--text-muted)]">
-                          <span className="material-symbols-outlined text-3xl">redeem</span>
-                        </div>
-                      )}
+                    <div className="w-16 h-16 rounded-xl bg-slate-100 dark:bg-[var(--bg-card)] shrink-0 flex items-center justify-center text-slate-300 dark:text-[var(--text-muted)]">
+                      <span className="material-symbols-outlined text-3xl">redeem</span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-slate-900 dark:text-[var(--text-primary)] truncate">{r.rewards?.name || '未知奖品'}</p>

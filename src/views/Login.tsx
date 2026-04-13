@@ -1,14 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 
-interface LoginProps {
-  onBack: () => void;
-  onRegister: () => void;
-  onLoginSuccess: () => void;
-}
-
-export default function Login({ onBack, onRegister, onLoginSuccess }: LoginProps) {
+export default function Login() {
+  const navigate = useNavigate();
   const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -27,7 +23,7 @@ export default function Login({ onBack, onRegister, onLoginSuccess }: LoginProps
 
     try {
       await login(username.trim(), password);
-      onLoginSuccess();
+      // 登录成功后 AuthContext 会自动导航到首页
     } catch (err) {
       setError(err instanceof Error ? err.message : '登录失败，请重试');
     } finally {
@@ -49,7 +45,7 @@ export default function Login({ onBack, onRegister, onLoginSuccess }: LoginProps
       {/* Top Navigation */}
       <div className="flex items-center px-4 pt-6 pb-2 justify-between sticky top-0 bg-white/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md z-10 lg:rounded-t-2xl transition-colors">
         <button
-          onClick={onBack}
+          onClick={() => navigate('/')}
           className="text-slate-900 flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
           aria-label="返回"
         >
@@ -114,7 +110,17 @@ export default function Login({ onBack, onRegister, onLoginSuccess }: LoginProps
             </button>
           </div>
         </div>
-      </div>
+        </div>
+
+        {/* 忘记密码 */}
+        <div className="px-6 flex justify-end -mt-1">
+          <button
+            onClick={() => navigate('/forgot-password')}
+            className="text-sm text-primary font-medium cursor-pointer"
+          >
+            忘记密码？
+          </button>
+        </div>
 
       {/* Submit Section */}
       <div className="p-6 space-y-6">
@@ -129,7 +135,7 @@ export default function Login({ onBack, onRegister, onLoginSuccess }: LoginProps
         <div className="text-center">
           <p className="text-sm text-slate-500">
             还没有账户？{' '}
-            <button onClick={onRegister} className="text-primary font-bold">新用户注册</button>
+            <button onClick={() => navigate('/register')} className="text-primary font-bold">新用户注册</button>
           </p>
         </div>
 

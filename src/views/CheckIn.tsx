@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -12,15 +13,8 @@ import {
 import CelebrationPopup from '../components/CelebrationPopup';
 import PullToRefresh from '../components/PullToRefresh';
 
-interface CheckInProps {
-  onViewMessages: () => void;
-  onViewProfile: () => void;
-}
-
-export default function CheckIn({
-  onViewMessages,
-  onViewProfile
-}: CheckInProps) {
+export default function CheckIn() {
+  const navigate = useNavigate();
   const { user, currentChild, setCurrentChild } = useAuth();
   const { isDark } = useTheme();
   const [growingTrees, setGrowingTrees] = useState<TreeData[]>([]);
@@ -273,7 +267,7 @@ export default function CheckIn({
           <header className="w-full bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md sticky top-0 z-10 px-3 lg:max-w-xl lg:mx-auto transition-colors">
             <div className="flex items-center py-4 justify-between">
               <button
-                onClick={onViewProfile}
+                onClick={() => navigate('/profile')}
                 className="text-slate-900 dark:text-[var(--text-primary)] flex size-12 shrink-0 items-center justify-start hover:text-primary transition-colors"
                 aria-label="设置"
               >
@@ -286,7 +280,7 @@ export default function CheckIn({
               </h2>
               <div className="flex w-12 items-center justify-end">
                 <button
-                  onClick={onViewMessages}
+                  onClick={() => navigate('/messages')}
                   className="flex items-center justify-center rounded-full size-10 bg-primary/10 text-primary"
                   aria-label="消息"
                 >

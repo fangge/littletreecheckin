@@ -44,12 +44,28 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(__dirname, '.'),
       },
     },
+
+    // ============================================================
+    // 性能优化配置
+    // ============================================================
+    build: {
+      // 代码分割策略：按路由和第三方库自动分割
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // React 核心单独打包（长期缓存）
+            'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+            // 动画库单独打包
+            'motion': ['motion'],
+          },
+        },
+      },
+      // chunk 大小警告阈值（300KB）
+      chunkSizeWarningLimit: 300,
+    },
+
     server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
-      // 本地开发：将 /api 请求代理到后端服务器，避免跨域问题
-      // 生产环境（Vercel）：/api 请求由 Vercel Serverless Function 处理，无需代理
       proxy: {
         '/api': {
           target: `http://localhost:${env.PORT || '3001'}`,

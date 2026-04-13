@@ -1,6 +1,7 @@
 import express, { Express } from 'express';
 import cors from 'cors';
 import { errorHandler } from './middleware/errorHandler.js';
+import { requireParentRole } from './middleware/auth.js';
 import authRouter from './routes/auth.js';
 import childrenRouter from './routes/children.js';
 import treesRouter from './routes/trees.js';

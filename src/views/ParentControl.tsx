@@ -1,19 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { tasksApi, messagesApi, TaskData } from '../services/api';
 import PullToRefresh from '../components/PullToRefresh';
-
-interface ParentControlProps {
-  onBack: () => void;
-}
 
 interface TaskWithChild extends TaskData {
   childName?: string;
   childId?: string;
 }
 
-export default function ParentControl({ onBack }: ParentControlProps) {
+export default function ParentControl() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [tasks, setTasks] = useState<TaskWithChild[]>([]);
   const [activeTab, setActiveTab] = useState<'pending' | 'approved'>('pending');
@@ -112,7 +110,7 @@ export default function ParentControl({ onBack }: ParentControlProps) {
       <header className="sticky top-0 z-10 bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md border-b border-primary/10 dark:border-[var(--border-color)] px-4 py-4 transition-colors">
         <div className="flex items-center justify-between max-w-md mx-auto lg:max-w-2xl">
           <div className="flex items-center gap-3">
-            <button onClick={onBack} className="p-2 hover:bg-primary/10 rounded-full transition-colors" aria-label="返回">
+            <button onClick={() => navigate('/profile')} className="p-2 hover:bg-primary/10 rounded-full transition-colors" aria-label="返回">
               <span className="material-symbols-outlined">arrow_back</span>
             </button>
             <div className="p-2 rounded-lg bg-primary/10 text-primary">

@@ -1,14 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { medalsApi, MedalData } from '../services/api';
 import PullToRefresh from '../components/PullToRefresh';
 
-interface MedalsProps {
-  onBack: () => void;
-}
-
-export default function Medals({ onBack }: MedalsProps) {
+export default function Medals() {
+  const navigate = useNavigate();
   const { user, currentChild, setCurrentChild } = useAuth();
   const [medals, setMedals] = useState<MedalData[]>([]);
   const [filter, setFilter] = useState<'all' | 'unlocked' | 'locked'>('all');
@@ -58,7 +56,7 @@ export default function Medals({ onBack }: MedalsProps) {
       <header className="sticky top-0 z-10 bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md border-b border-primary/10 dark:border-[var(--border-color)] transition-colors">
         <div className="px-4 py-4 flex items-center justify-between lg:max-w-2xl lg:mx-auto">
           <button
-            onClick={onBack}
+            onClick={() => navigate('/')}
             className="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-[var(--bg-card)] shadow-sm border border-primary/20 dark:border-[var(--border-color)]"
             aria-label="返回"
           >

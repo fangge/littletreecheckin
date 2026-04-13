@@ -1,13 +1,8 @@
 import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { treesApi, Child, GoalData } from '../services/api';
-
-interface GoalSettingProps {
-  onBack: () => void;
-  // 编辑模式：传入现有目标数据
-  editGoal?: GoalData & { childId?: string };
-}
 
 const ICONS = [
   'auto_stories', 'fitness_center', 'brush', 'piano',
@@ -47,7 +42,11 @@ const toMinutes = (value: number, unit: DailyUnit): number => {
   }
 };
 
-export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
+export default function GoalSetting() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  // 从 URL state 获取编辑目标数据（由 Dashboard 传递）
+  const editGoal = (location.state as { editGoal?: GoalData & { childId?: string } })?.editGoal;
   const { user, currentChild, setCurrentChild } = useAuth();
   const isEditMode = !!editGoal;
 
@@ -152,7 +151,7 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
           setCurrentChild(selectedChild);
         }
       }
-      onBack();
+      navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : `${isEditMode ? '更新' : '创建'}目标失败，请重试`);
     } finally {
@@ -167,7 +166,7 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
     setIsDeleting(true);
     try {
       await treesApi.deleteGoal(editGoal.id);
-      onBack();
+      navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : '删除失败，请重试');
     } finally {
@@ -187,7 +186,7 @@ export default function GoalSetting({ onBack, editGoal }: GoalSettingProps) {
     >
       <div className="flex items-center p-6 pb-2 justify-between lg:max-w-xl lg:mx-auto lg:w-full">
         <button
-          onClick={onBack}
+          onClick={() => navigate('/')}
           className="text-slate-900 dark:text-[var(--text-primary)] flex size-10 shrink-0 items-center justify-center rounded-full bg-white dark:bg-[var(--bg-card)] shadow-sm"
           aria-label="返回"
         >

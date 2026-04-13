@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -6,20 +7,14 @@ import { childrenApi, authApi, Child } from '../services/api';
 import PasswordConfirmModal from '../components/PasswordConfirmModal';
 import ChangelogModal from '../components/ChangelogModal';
 
-interface ProfileProps {
-  onBack: () => void;
-  onLogout: () => void;
-  onViewParentControl: () => void;
-  onViewRewardsManagement: () => void;
-}
-
 interface AddChildForm {
   name: string;
   age: string;
   gender: 'male' | 'female';
 }
 
-export default function Profile({ onBack, onLogout, onViewParentControl, onViewRewardsManagement }: ProfileProps) {
+export default function Profile() {
+  const navigate = useNavigate();
   const { user, currentChild, setCurrentChild, logout, isChildMode, enableChildMode, disableChildMode } = useAuth();
   const { theme, setTheme, isDark } = useTheme();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -129,7 +124,7 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
   const handleLogout = () => {
     setIsLoggingOut(true);
     logout();
-    onLogout();
+    // AuthContext 的 logout 会自动导航到 /login
   };
 
   const handleChildModeToggleClick = () => {
@@ -202,7 +197,7 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
       className="flex-1 flex flex-col bg-background-light min-h-screen overflow-x-hidden pb-32 lg:pb-8"
     >
       <div className="flex items-center bg-white dark:bg-[var(--bg-surface)] p-4 pb-2 justify-between sticky top-0 z-10 border-b border-primary/10 dark:border-[var(--border-color)] lg:max-w-2xl lg:mx-auto lg:w-full transition-colors">
-        <button onClick={onBack} className="text-slate-900 dark:text-[var(--text-primary)] flex size-12 shrink-0 items-center justify-center cursor-pointer" aria-label="返回">
+        <button onClick={() => navigate('/')} className="text-slate-900 dark:text-[var(--text-primary)] flex size-12 shrink-0 items-center justify-center cursor-pointer" aria-label="返回">
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
         <h2 className="text-slate-900 dark:text-[var(--text-primary)] text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center pr-12">个人管理中心</h2>
@@ -232,7 +227,7 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
               <span className="material-symbols-outlined text-primary text-sm">shield_person</span>
               家长审核
             </h3>
-            <button onClick={onViewParentControl} className="w-full flex items-center justify-between py-2 hover:bg-slate-50 dark:hover:bg-[var(--bg-card)] transition-colors rounded-lg px-2" aria-label="进入待审核任务">
+            <button onClick={() => navigate('/parent-control')} className="w-full flex items-center justify-between py-2 hover:bg-slate-50 dark:hover:bg-[var(--bg-card)] transition-colors rounded-lg px-2" aria-label="进入待审核任务">
               <p className="text-slate-600 dark:text-[var(--text-secondary)] text-sm">进入待审核任务</p>
               <span className="material-symbols-outlined text-slate-400">chevron_right</span>
             </button>
@@ -246,7 +241,7 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
               <span className="material-symbols-outlined text-primary text-sm">redeem</span>
               奖品与兑换
             </h3>
-            <button onClick={onViewRewardsManagement} className="w-full flex items-center justify-between py-2 hover:bg-slate-50 dark:hover:bg-[var(--bg-card)] transition-colors rounded-lg px-2" aria-label="管理奖品和兑换记录">
+            <button onClick={() => navigate('/rewards-management')} className="w-full flex items-center justify-between py-2 hover:bg-slate-50 dark:hover:bg-[var(--bg-card)] transition-colors rounded-lg px-2" aria-label="管理奖品和兑换记录">
               <p className="text-slate-600 dark:text-[var(--text-secondary)] text-sm">管理奖品 · 查看兑换记录</p>
               <span className="material-symbols-outlined text-slate-400">chevron_right</span>
             </button>
@@ -288,7 +283,7 @@ export default function Profile({ onBack, onLogout, onViewParentControl, onViewR
                 <p className="text-slate-400 dark:text-[var(--text-muted)] text-xs mt-0.5">成就丛林 HappyGrow</p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="bg-primary/10 text-primary text-sm font-bold px-3 py-1 rounded-full">v2.12</span>
+                <span className="bg-primary/10 text-primary text-sm font-bold px-3 py-1 rounded-full">v3.0</span>
               </div>
             </div>
             <button

@@ -1,12 +1,7 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
-
-interface RegisterProps {
-  onBack: () => void;
-  onLogin: () => void;
-  onRegisterSuccess: () => void;
-}
 
 interface ChildForm {
   name: string;
@@ -14,7 +9,8 @@ interface ChildForm {
   gender: 'male' | 'female';
 }
 
-export default function Register({ onBack, onLogin, onRegisterSuccess }: RegisterProps) {
+export default function Register() {
+  const navigate = useNavigate();
   const { register } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -76,7 +72,7 @@ export default function Register({ onBack, onLogin, onRegisterSuccess }: Registe
           gender: c.gender,
         })),
       });
-      onRegisterSuccess();
+      // 注册成功后 AuthContext 会自动导航到首页
     } catch (err) {
       setError(err instanceof Error ? err.message : '注册失败，请重试');
     } finally {
@@ -93,7 +89,7 @@ export default function Register({ onBack, onLogin, onRegisterSuccess }: Registe
       {/* Top Navigation */}
       <div className="flex items-center px-4 pt-6 pb-2 justify-between sticky top-0 bg-white/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md z-10 transition-colors">
         <button
-          onClick={onBack}
+          onClick={() => navigate('/login')}
           className="text-slate-900 flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
           aria-label="返回"
         >
@@ -251,7 +247,7 @@ export default function Register({ onBack, onLogin, onRegisterSuccess }: Registe
         <div className="text-center">
           <p className="text-sm text-slate-500">
             已经有账户了？{' '}
-            <button onClick={onLogin} className="text-primary font-bold">登录</button>
+            <button onClick={() => navigate('/login')} className="text-primary font-bold">登录</button>
           </p>
         </div>
       </div>

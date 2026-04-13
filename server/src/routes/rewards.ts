@@ -11,7 +11,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response): Promise
 
   let query = supabase
     .from('rewards')
-    .select('id, name, price, image, category')
+    .select('id, name, price, category')
     .eq('is_active', true)
     .order('price', { ascending: true });
 
@@ -142,7 +142,7 @@ router.get('/children/:childId/redemptions', authMiddleware, async (req: AuthReq
     .from('reward_redemptions')
     .select(`
       id, redeemed_at, status,
-      rewards(name, image, price, category)
+      rewards(name, price, category)
     `)
     .eq('child_id', childId)
     .order('redeemed_at', { ascending: false });
@@ -174,7 +174,7 @@ router.put('/redemptions/:redemptionId/complete', authMiddleware, async (req: Au
 
 // POST /api/v1/rewards  (创建奖品)
 router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
-  const { name, price, image, category } = req.body;
+  const { name, price, category } = req.body;
 
   if (!name || !price || !category) {
     res.status(400).json({ error: '名称、价格和分类不能为空' });
@@ -193,8 +193,8 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
 
   const { data, error } = await supabase
     .from('rewards')
-    .insert({ name, price, image: image || null, category, is_active: true })
-    .select('id, name, price, image, category, is_active')
+    .insert({ name, price, category, is_active: true })
+    .select('id, name, price, category, is_active')
     .single();
 
   if (error || !data) {
@@ -208,7 +208,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
 // PUT /api/v1/rewards/:rewardId  (更新奖品)
 router.put('/:rewardId', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { rewardId } = req.params;
-  const { name, price, image, category, is_active } = req.body;
+  const { name, price, category, is_active } = req.body;
 
   const { data: existing } = await supabase
     .from('rewards')
@@ -224,7 +224,6 @@ router.put('/:rewardId', authMiddleware, async (req: AuthRequest, res: Response)
   const updateData: Record<string, unknown> = {};
   if (name !== undefined) updateData.name = name;
   if (price !== undefined) updateData.price = price;
-  if (image !== undefined) updateData.image = image;
   if (category !== undefined) updateData.category = category;
   if (is_active !== undefined) updateData.is_active = is_active;
 
@@ -232,7 +231,7 @@ router.put('/:rewardId', authMiddleware, async (req: AuthRequest, res: Response)
     .from('rewards')
     .update(updateData)
     .eq('id', rewardId)
-    .select('id, name, price, image, category, is_active')
+    .select('id, name, price, category, is_active')
     .single();
 
   if (error || !data) {
@@ -275,7 +274,7 @@ router.delete('/:rewardId', authMiddleware, async (req: AuthRequest, res: Respon
 router.get('/all', authMiddleware, async (_req: AuthRequest, res: Response): Promise<void> => {
   const { data, error } = await supabase
     .from('rewards')
-    .select('id, name, price, image, category, is_active')
+    .select('id, name, price, category, is_active')
     .order('created_at', { ascending: false });
 
   if (error) {

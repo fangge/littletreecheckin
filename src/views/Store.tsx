@@ -1,13 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { rewardsApi, RewardData, Child } from '../services/api';
 import PullToRefresh from '../components/PullToRefresh';
-
-interface StoreProps {
-  onBack: () => void;
-  onViewFruitsHistory: () => void;
-}
 
 const CATEGORIES = [
   { key: '', label: '全部奖励' },
@@ -16,7 +12,8 @@ const CATEGORIES = [
   { key: 'snack', label: '零食' },
 ];
 
-export default function Store({ onBack, onViewFruitsHistory }: StoreProps) {
+export default function Store() {
+  const navigate = useNavigate();
   const { user, currentChild, setCurrentChild, refreshUser } = useAuth();
   const [selectedChild, setSelectedChild] = useState<Child | null>(currentChild);
   const [rewards, setRewards] = useState<RewardData[]>([]);
@@ -89,7 +86,7 @@ export default function Store({ onBack, onViewFruitsHistory }: StoreProps) {
       <div className="sticky top-0 z-10 bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md transition-colors">
         <div className="flex items-center px-6 pb-2 pt-6 lg:max-w-2xl lg:mx-auto">
           <button
-            onClick={onBack}
+            onClick={() => navigate('/')}
             className="flex size-10 items-center justify-center rounded-full bg-slate-200/50"
             aria-label="返回"
           >
@@ -135,7 +132,7 @@ export default function Store({ onBack, onViewFruitsHistory }: StoreProps) {
                 <span className="mb-1 text-2xl">🍎</span>
               </div>
               <button
-                onClick={onViewFruitsHistory}
+                onClick={() => navigate('/store/fruits-history')}
                 className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition-colors px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm shrink-0"
                 aria-label="查看果实获取记录"
               >
@@ -173,16 +170,7 @@ export default function Store({ onBack, onViewFruitsHistory }: StoreProps) {
           <div className="mt-6 grid grid-cols-2 gap-4">
             {rewards.map((reward) => (
               <div key={reward.id} className="group flex flex-col rounded-xl bg-white dark:bg-[var(--bg-surface)] p-3 shadow-sm transition-all hover:shadow-md">
-                <div className="aspect-square w-full overflow-hidden rounded-lg bg-slate-100">
-                  {reward.image ? (
-                    <img alt={reward.name} className="h-full w-full object-cover" src={reward.image} />
-                  ) : (
-                    <div className="h-full w-full flex items-center justify-center text-slate-300">
-                      <span className="material-symbols-outlined text-5xl">redeem</span>
-                    </div>
-                  )}
-                </div>
-                <div className="mt-3 flex flex-col">
+                <div className="flex flex-col">
                   <h4 className="text-sm font-bold text-slate-900 text-ellipsis overflow-hidden whitespace-nowrap">{reward.name}</h4>
                   <div className="mt-1 flex items-center gap-1">
                     <span className="text-xs font-bold text-primary">{reward.price} 🍎</span>

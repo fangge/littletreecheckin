@@ -1,12 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { childrenApi, rewardsApi, FruitsHistoryItem } from '../services/api';
 import PullToRefresh from '../components/PullToRefresh';
-
-interface FruitsHistoryProps {
-  onBack: () => void;
-}
 
 // 根据 goal_icon 生成彩色背景
 const ICON_COLORS = [
@@ -30,7 +27,8 @@ const formatCheckinTime = (isoStr: string): string => {
   return `${y}-${m}-${d} ${hh}:${mm}`;
 };
 
-export default function FruitsHistory({ onBack }: FruitsHistoryProps) {
+export default function FruitsHistory() {
+  const navigate = useNavigate();
   const { currentChild } = useAuth();
   const [items, setItems] = useState<FruitsHistoryItem[]>([]);
   const [fruitsBalance, setFruitsBalance] = useState(0);
@@ -74,7 +72,7 @@ export default function FruitsHistory({ onBack }: FruitsHistoryProps) {
       <header className="sticky top-0 z-10 bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md border-b border-primary/10 dark:border-[var(--border-color)] px-4 py-4 transition-colors">
         <div className="flex items-center gap-3 max-w-md mx-auto lg:max-w-2xl">
           <button
-            onClick={onBack}
+            onClick={() => navigate('/store')}
             className="p-2 hover:bg-primary/10 rounded-full transition-colors"
             aria-label="返回"
           >

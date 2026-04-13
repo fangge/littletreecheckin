@@ -1,17 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { treesApi, childrenApi, TreeData, StatsData, GoalData, CalendarData, CalendarTask } from '../services/api';
 import CheckinCalendar from '../components/CheckinCalendar';
 import CheckinDetailPopup from '../components/CheckinDetailPopup';
 import PullToRefresh from '../components/PullToRefresh';
-
-interface DashboardProps {
-  onAddGoal: () => void;
-  onViewStore: () => void;
-  onViewProfile: () => void;
-  onEditGoal: (goal: GoalData & { childId?: string }) => void;
-}
 
 type TimeFilter = 'month' | 'quarter' | 'year';
 
@@ -21,7 +15,8 @@ const TIME_FILTER_LABELS: Record<TimeFilter, string> = {
   year: '过去一年',
 };
 
-export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEditGoal }: DashboardProps) {
+export default function Dashboard() {
+  const navigate = useNavigate();
   const { user, currentChild, setCurrentChild, isChildMode } = useAuth();
   const [trees, setTrees] = useState<TreeData[]>([]);
   const [goals, setGoals] = useState<GoalData[]>([]);
@@ -110,7 +105,8 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
   const handleEditTree = (tree: TreeData) => {
     const goal = getGoalForTree(tree);
     if (!goal) return;
-    onEditGoal({ ...goal, childId: currentChild?.id });
+    // 通过 URL state 传递编辑目标数据
+    navigate('/add-goal', { state: { editGoal: { ...goal, childId: currentChild?.id } } });
   };
 
   // 下拉刷新处理函数
@@ -149,7 +145,7 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
       <header className="sticky top-0 z-10 bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md border-b border-primary/10 dark:border-[var(--border-color)] lg:max-w-4xl lg:mx-auto lg:border-x lg:border-primary/10 dark:lg:border-[var(--border-color)] transition-colors">
         <div className="flex items-center p-4 pb-2 justify-between">
           <button
-            onClick={onViewProfile}
+            onClick={() => navigate('/profile')}
             className="flex size-12 shrink-0 items-center justify-start hover:text-primary transition-colors"
             aria-label="设置"
           >
@@ -160,7 +156,7 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
           </h1>
           <div className="flex size-12 items-center justify-end">
             <button
-              onClick={onViewStore}
+              onClick={() => navigate('/store')}
               className="flex size-10 cursor-pointer items-center justify-center rounded-full bg-primary/20 dark:bg-[var(--bg-card)] text-slate-900 dark:text-[var(--text-primary)]"
               aria-label="商店"
             >
@@ -249,7 +245,7 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
       {!isChildMode && (
         <div className="px-4 mt-4 lg:max-w-4xl lg:mx-auto">
           <button
-            onClick={onAddGoal}
+            onClick={() => navigate('/add-goal')}
             className="w-full bg-gradient-to-r from-primary to-emerald-500 p-4 rounded-2xl flex items-center justify-between text-white shadow-lg shadow-primary/20 active:scale-[0.98] transition-all"
             aria-label="添加新目标"
           >
@@ -359,7 +355,7 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
           {/* Add Goal Entry（儿童模式下隐藏） */}
           {!isChildMode && (
             <button
-              onClick={onAddGoal}
+              onClick={() => navigate('/add-goal')}
               className="relative flex flex-col items-center justify-center gap-3 rounded-xl aspect-square border-2 border-dashed border-primary/30 dark:border-[var(--border-color)] bg-primary/5 dark:bg-[var(--bg-card)] hover:bg-primary/10 transition-colors group"
               aria-label="添加新目标"
             >
@@ -387,7 +383,7 @@ export default function Dashboard({ onAddGoal, onViewStore, onViewProfile, onEdi
       {!isChildMode && (
         <div className="fixed bottom-24 right-6 z-30 lg:hidden">
           <button
-            onClick={onAddGoal}
+            onClick={() => navigate('/add-goal')}
             className="flex size-14 items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/40 text-white transition-transform active:scale-95"
             aria-label="快速添加目标"
           >
