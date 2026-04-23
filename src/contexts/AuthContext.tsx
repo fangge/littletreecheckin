@@ -138,7 +138,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (cachedUser) {
         setUser(cachedUser);
         restoreChild(cachedUser);
-        setIsLoading(false);
       }
 
       // 第二步：后台静默验证
@@ -155,17 +154,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           (err.message.includes('已过期') || err.message.includes('TOKEN_EXPIRED'))
         ) {
           const refreshed = await refreshToken();
-          if (!refreshed && !cachedUser) {
-            setIsLoading(false);
+          if (!refreshed) {
+            // 刷新失败，如果有缓存用户则保留，否则登出
+            if (!cachedUser) {
+              handleLogout();
+            }
           }
         } else if (err instanceof Error && err.message.includes('认证已过期')) {
           handleLogout();
         }
         // 网络错误保留缓存
       } finally {
-        if (!cachedUser) {
-          setIsLoading(false);
-        }
+        setIsLoading(false);
       }
     };
 

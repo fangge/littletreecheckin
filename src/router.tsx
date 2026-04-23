@@ -17,11 +17,23 @@ import Profile from './views/Profile';
 import RewardsManagement from './views/RewardsManagement';
 import ForgotPassword from './views/ForgotPassword';
 
+// 加载中的占位组件
+function LoadingScreen() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background-light dark:bg-[var(--bg-primary)]">
+      <div className="text-center">
+        <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"></div>
+        <p className="text-gray-600 dark:text-gray-400">加载中...</p>
+      </div>
+    </div>
+  );
+}
+
 // 受保护的路由包装器：未登录时重定向到 /login
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
 
-  if (isLoading) return null; // App 层已有 loading UI
+  if (isLoading) return <LoadingScreen />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
@@ -29,7 +41,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 // 公共路由：已登录时重定向到 /
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
-  if (isLoading) return null;
+  if (isLoading) return <LoadingScreen />;
   if (isAuthenticated) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
