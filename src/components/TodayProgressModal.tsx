@@ -42,6 +42,13 @@ export default function TodayProgressModal() {
     const loadProgressData = async () => {
       if (!isAuthenticated || isLoading || !user?.children?.length) return;
       
+      // 检查今天是否已经显示过弹窗
+      const lastShown = localStorage.getItem('todayProgressLastShown');
+      const today = new Date().toDateString();
+      if (lastShown === today) {
+        console.log('今日进度弹窗已显示过，跳过');
+        return;
+      }
 
       try {
         const progressList: ChildProgress[] = [];
