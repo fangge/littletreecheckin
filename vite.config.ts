@@ -57,6 +57,8 @@ export default defineConfig(({ mode }) => {
             'react-vendor': ['react', 'react-dom', 'react-router-dom'],
             // 动画库单独打包
             'motion': ['motion'],
+            // Three.js 3D引擎单独打包（仅庆祝弹窗动画使用，按需加载）
+            'three-vendor': ['three'],
           },
         },
       },

@@ -16,10 +16,10 @@ const STATIC_ASSETS = [
 // API 请求前缀 - 这些请求走网络优先策略
 const API_PREFIX = '/api/';
 
-// Google Fonts 等外部资源前缀
+// 外部字体资源前缀（国内 CDN 加速）
 const EXTERNAL_PREFIXES = [
-  'https://fonts.googleapis.com',
-  'https://fonts.gstatic.com',
+  'https://fonts.loli.net',
+  'https://gstatic.loli.net',
 ];
 
 // ============================================================
