@@ -4,6 +4,7 @@
   "version": "2.6",
   "type": "module",
   "scripts": {
+    "start": "(trap 'kill 0' SIGINT; pnpm dev & pnpm server:dev & wait)",
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
@@ -14,8 +15,7 @@
     "lint": "tsc --noEmit",
     "cert": "node scripts/generate-cert.js",
     "server:dev": "cd server && pnpm dev",
-    "server:start": "cd server && pnpm start",
-    "dev:all": "concurrently \"pnpm dev\" \"pnpm server:dev\""
+    "server:start": "cd server && pnpm start"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

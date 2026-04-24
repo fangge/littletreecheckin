@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { treesApi, childrenApi, TreeData, StatsData, GoalData, CalendarData, CalendarTask } from '../services/api';
 import CheckinCalendar from '../components/CheckinCalendar';
 import CheckinDetailPopup from '../components/CheckinDetailPopup';
+import MonthlySummaryModal from '../components/MonthlySummaryModal';
 import PullToRefresh from '../components/PullToRefresh';
 
 type TimeFilter = 'month' | 'quarter' | 'year';
@@ -31,6 +32,7 @@ export default function Dashboard() {
   });
   const [calendarData, setCalendarData] = useState<CalendarData | null>(null);
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
+  const [showMonthlySummary, setShowMonthlySummary] = useState(false);
 
   useEffect(() => {
     if (!currentChild) return;
@@ -199,21 +201,32 @@ export default function Dashboard() {
       </div>
 
       <div className="flex gap-3 p-4 overflow-x-auto no-scrollbar lg:max-w-4xl lg:mx-auto">
-        {(Object.keys(TIME_FILTER_LABELS) as TimeFilter[]).map(filter => (
-          <button
-            key={filter}
-            className={`flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-full px-6 transition-all ${
-              timeFilter === filter
-                ? 'bg-primary text-white font-bold'
-                : 'bg-primary/10 dark:bg-[var(--bg-card)] text-slate-700 dark:text-[var(--text-primary)] font-medium hover:bg-primary/20'
-            }`}
-            onClick={() => handleTimeFilterChange(filter)}
-            aria-label={`筛选${TIME_FILTER_LABELS[filter]}数据`}
-            aria-pressed={timeFilter === filter}
-          >
-            <p className="text-sm leading-normal">{TIME_FILTER_LABELS[filter]}</p>
-          </button>
-        ))}
+        <div className="flex gap-3 flex-1 overflow-x-auto no-scrollbar">
+          {(Object.keys(TIME_FILTER_LABELS) as TimeFilter[]).map(filter => (
+            <button
+              key={filter}
+              className={`flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-full px-6 transition-all ${
+                timeFilter === filter
+                  ? 'bg-primary text-white font-bold'
+                  : 'bg-primary/10 dark:bg-[var(--bg-card)] text-slate-700 dark:text-[var(--text-primary)] font-medium hover:bg-primary/20'
+              }`}
+              onClick={() => handleTimeFilterChange(filter)}
+              aria-label={`筛选${TIME_FILTER_LABELS[filter]}数据`}
+              aria-pressed={timeFilter === filter}
+            >
+              <p className="text-sm leading-normal">{TIME_FILTER_LABELS[filter]}</p>
+            </button>
+          ))}
+        </div>
+        {/* 任务总结入口按钮 */}
+        <button
+          onClick={() => setShowMonthlySummary(true)}
+          className="flex h-10 shrink-0 items-center justify-center gap-x-1.5 rounded-full px-4 bg-gradient-to-r from-primary to-emerald-500 text-white font-bold hover:shadow-lg hover:shadow-primary/30 transition-all active:scale-95"
+          aria-label="查看月度任务总结"
+        >
+          <span className="material-symbols-outlined text-lg">emoji_events</span>
+          <p className="text-sm leading-normal">成就单</p>
+        </button>
       </div>
 
       <div className="px-4 py-2 lg:max-w-4xl lg:mx-auto">
@@ -377,6 +390,14 @@ export default function Dashboard() {
         date={selectedCalendarDate}
         tasks={selectedDateTasks}
         onClose={handleCloseDetailPopup}
+      />
+
+      {/* 月度任务总结弹窗 */}
+      <MonthlySummaryModal
+        isOpen={showMonthlySummary}
+        onClose={() => setShowMonthlySummary(false)}
+        calendarData={calendarData}
+        selectedMonth={selectedMonth}
       />
 
       {/* FAB：仅移动端显示，儿童模式下隐藏 */}
