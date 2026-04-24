@@ -1,7 +1,7 @@
 {
   "name": "littletreecheckin",
   "private": true,
-  "version": "2.16",
+  "version": "3.1",
   "type": "module",
   "scripts": {
     "start": "(trap 'kill 0' SIGINT; pnpm dev & pnpm server:dev & wait)",

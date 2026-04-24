@@ -34,12 +34,27 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
               </button>
             </div>
             <div className="overflow-y-auto max-h-[60vh] px-6 py-4 space-y-4">
-              {/* v3.0 */}
+              {/* v3.1 */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v3.0</span>
+                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v3.1</span>
                   <span className="text-sm text-slate-500 dark:text-[var(--text-muted)]">最新</span>
                 </div>
+                <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">月度任务打卡总结</h4>
+                <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
+                  新增月度任务打卡总结功能，用户可查看本月打卡成就单，直观了解任务完成情况，激励持续打卡。
+                </p>
+                <ul className="text-xs text-slate-500 dark:text-[var(--text-muted)] space-y-1 ml-2">
+                  <li>• Dashboard 新增"成就单"入口按钮</li>
+                  <li>• 展示打卡之王（最多）和加油小能手（最少）</li>
+                  <li>• 完整罗列所有任务打卡次数</li>
+                  <li>• 符合"Pure Sprout"设计风格</li>
+                </ul>
+              </div>
+
+              {/* v3.0 */}
+              <div className="space-y-2 pt-4 border-t border-primary/5 dark:border-[var(--border-color)]">
+                <span className="bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-xs font-bold px-2 py-0.5 rounded">v3.0</span>
                 <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">架构全面升级</h4>
                 <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
                   对认证系统、路由、安全性、性能四大核心领域进行深度重构，大幅提升应用的安全性与用户体验。
@@ -57,10 +72,6 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
               {/* v2.15 */}
               <div className="space-y-2 pt-4 border-t border-primary/5 dark:border-[var(--border-color)]">
                 <span className="bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-xs font-bold px-2 py-0.5 rounded">v2.15</span>
-                <div className="flex items-center gap-2">
-                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v2.15</span>
-                  <span className="text-sm text-slate-500 dark:text-[var(--text-muted)]">最新</span>
-                </div>
                 <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">PWA 自动更新机制</h4>
                 <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
                   优化 PWA 更新体验，解决应用安装后版本不自动更新的问题，用户无需手动卸载重装即可获取最新版本。
