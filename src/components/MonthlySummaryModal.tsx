@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { useMemo } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 
 interface TaskSummary {
   taskName: string;
@@ -21,6 +21,7 @@ interface MonthlySummaryModalProps {
     }>>;
   } | null;
   selectedMonth: Date;
+  childName?: string;
 }
 
 export default function MonthlySummaryModal({
@@ -28,7 +29,29 @@ export default function MonthlySummaryModal({
   onClose,
   calendarData,
   selectedMonth,
+  childName,
 }: MonthlySummaryModalProps) {
+  const modalContentRef = useRef<HTMLDivElement>(null);
+
+  // 阻止弹窗内的触摸事件冒泡到下拉刷新组件
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const modalContent = modalContentRef.current;
+    if (!modalContent) return;
+
+    const handleTouchMove = (e: TouchEvent) => {
+      // 阻止事件冒泡，防止触发下拉刷新
+      e.stopPropagation();
+    };
+
+    modalContent.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+    return () => {
+      modalContent.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, [isOpen]);
+
   // 计算任务统计数据
   const taskStats = useMemo(() => {
     if (!calendarData) return null;
@@ -88,6 +111,7 @@ export default function MonthlySummaryModal({
           onClick={onClose}
         >
           <motion.div
+            ref={modalContentRef}
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -117,6 +141,7 @@ export default function MonthlySummaryModal({
             {/* 标题 */}
             <div className="text-center px-6 pb-6">
               <h2 className="text-2xl font-extrabold text-slate-900 dark:text-[var(--text-primary)] mb-2">
+                {childName && <span>{childName}的</span>}
                 {monthName.replace('年', '年 ')}成就单
               </h2>
               {taskStats && (

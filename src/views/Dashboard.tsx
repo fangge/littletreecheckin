@@ -138,7 +138,7 @@ export default function Dashboard() {
   }, [currentChild, timeFilter, selectedMonth]);
 
   return (
-    <PullToRefresh onRefresh={handleRefresh}>
+    <PullToRefresh onRefresh={handleRefresh} disabled={showMonthlySummary || selectedCalendarDate !== null}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -398,6 +398,7 @@ export default function Dashboard() {
         onClose={() => setShowMonthlySummary(false)}
         calendarData={calendarData}
         selectedMonth={selectedMonth}
+        childName={currentChild?.name}
       />
 
       {/* FAB：仅移动端显示，儿童模式下隐藏 */}
