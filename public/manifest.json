@@ -3,6 +3,7 @@
   "short_name": "成就丛林",
   "description": "通过养成好习惯来种植虚拟森林的趣味应用，包含任务打卡、家长审核、勋章成就和奖励商店。",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#16a34a",
@@ -12,11 +13,38 @@
     {
       "src": "/logo2.png",
       "sizes": "140x140",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo2-192.png",
+      "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/logo2-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo2-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/logo2-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
-  "categories": ["lifestyle", "education", "productivity"],
+  "categories": [
+    "lifestyle",
+    "education",
+    "productivity"
+  ],
   "screenshots": [],
   "shortcuts": [
     {

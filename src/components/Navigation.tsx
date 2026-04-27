@@ -87,7 +87,7 @@ export default function Navigation() {
 
         {/* 底部版权 */}
         <div className="px-6 py-4 border-t border-primary/10 dark:border-[var(--border-color)]">
-          <p className="text-slate-400 dark:text-[var(--text-muted)] text-[10px]">© 2025 成就丛林</p>
+          <p className="text-slate-400 dark:text-[var(--text-muted)] text-[10px]">©2026 成就丛林</p>
         </div>
       </aside>
     </>

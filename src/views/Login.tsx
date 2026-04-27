@@ -1,7 +1,31 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
+
+const REMEMBER_KEY = 'login_remember_credentials';
+
+interface SavedCredentials {
+  username: string;
+  password: string;
+}
+
+const loadSavedCredentials = (): SavedCredentials | null => {
+  try {
+    const raw = localStorage.getItem(REMEMBER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const saveCredentials = (username: string, password: string) => {
+  localStorage.setItem(REMEMBER_KEY, JSON.stringify({ username, password }));
+};
+
+const clearSavedCredentials = () => {
+  localStorage.removeItem(REMEMBER_KEY);
+};
 
 export default function Login() {
   const navigate = useNavigate();
@@ -11,6 +35,33 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
+
+  // 初始化：如果有记住的登录信息，自动填充并尝试自动登录
+  useEffect(() => {
+    const saved = loadSavedCredentials();
+    if (saved && saved.username && saved.password) {
+      setUsername(saved.username);
+      setPassword(saved.password);
+      setRememberMe(true);
+      // 自动触发登录（静默）
+      doAutoLogin(saved.username, saved.password);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const doAutoLogin = async (autoUser: string, autoPass: string) => {
+    setIsLoading(true);
+    setError('');
+    try {
+      await login(autoUser.trim(), autoPass);
+    } catch (err) {
+      // 自动登录失败不显示错误，让用户手动操作
+      clearSavedCredentials();
+      setRememberMe(false);
+      setIsLoading(false);
+    }
+  };
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
@@ -23,7 +74,12 @@ export default function Login() {
 
     try {
       await login(username.trim(), password);
-      // 登录成功后 AuthContext 会自动导航到首页
+      // 登录成功后根据是否勾选"记住我"来决定是否保存凭据
+      if (rememberMe) {
+        saveCredentials(username.trim(), password);
+      } else {
+        clearSavedCredentials();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '登录失败，请重试');
     } finally {
@@ -110,6 +166,19 @@ export default function Login() {
             </button>
           </div>
         </div>
+        </div>
+
+        {/* 记住登录信息 */}
+        <div className="px-6 flex items-center -mt-1">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={e => setRememberMe(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary accent-primary cursor-pointer"
+            />
+            <span className="text-sm text-slate-600">记住登录信息</span>
+          </label>
         </div>
 
         {/* 忘记密码 */}

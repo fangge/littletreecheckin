@@ -108,7 +108,7 @@ export default function CheckIn() {
 
     setIsChecking(true);
     setError('');
-
+    setIsCelebrationOpen(true);
     try {
       const isBackfill = selectedDate !== getUTC8Today();
       const res = await tasksApi.checkin(
@@ -141,7 +141,7 @@ export default function CheckIn() {
         treeName: refreshedTree?.name ?? selectedTree.name,
         isTreeCompleted: refreshedTree?.status === 'completed'
       });
-      setIsCelebrationOpen(true);
+
       // 刷新树木数据
       await fetchData();
     } catch (err) {
@@ -181,14 +181,23 @@ export default function CheckIn() {
         return;
       }
       try {
-        const res = await tasksApi.list(currentChild.id, undefined, selectedTree.goal_id);
+        const res = await tasksApi.list(
+          currentChild.id,
+          undefined,
+          selectedTree.goal_id
+        );
         setSelectedTreeTasks(res.data);
         // 打印该任务的所有打卡日期
         if (res.data.length > 0) {
-          const checkinRecords = res.data.map(task => ({
+          const checkinRecords = res.data.map((task) => ({
             日期: task.checkin_time.split('T')[0],
             时间: formatCheckinTime(task.checkin_time),
-            状态: task.status === 'approved' ? '已通过' : task.status === 'rejected' ? '已拒绝' : '审核中'
+            状态:
+              task.status === 'approved'
+                ? '已通过'
+                : task.status === 'rejected'
+                  ? '已拒绝'
+                  : '审核中'
           }));
           console.log(`【${selectedTree.name}】打卡记录:`);
           console.table(checkinRecords);
