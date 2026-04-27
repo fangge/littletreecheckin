@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
-import { treesApi, childrenApi, TreeData, StatsData, GoalData, CalendarData, CalendarTask } from '../services/api';
+import { treesApi, childrenApi, TreeData, StatsData, GoalData, CalendarData, CalendarTask, invalidateChildDataCache } from '../services/api';
 import CheckinCalendar from '../components/CheckinCalendar';
 import CheckinDetailPopup from '../components/CheckinDetailPopup';
 import MonthlySummaryModal from '../components/MonthlySummaryModal';
@@ -40,14 +40,21 @@ export default function Dashboard() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const [treesRes, statsRes, goalsRes] = await Promise.all([
-          treesApi.list(currentChild.id),
-          childrenApi.stats(currentChild.id, timeFilter),
-          treesApi.listGoals(currentChild.id),
+        // 使用聚合接口一次获取树木+目标+统计数据（替代3次独立请求，减少 ~7 次冗余 DB 查询）
+        const [dashboardRes, calendarRes] = await Promise.all([
+          treesApi.dashboardData(currentChild.id, timeFilter),
+          // 日历数据独立请求（按月变化）
+          childrenApi.getCheckinCalendar(
+            currentChild.id,
+            selectedMonth.getFullYear(),
+            selectedMonth.getMonth() + 1
+          ),
         ]);
-        setTrees(treesRes.data);
-        setStats(statsRes.data);
-        setGoals(goalsRes.data);
+        
+        setTrees(dashboardRes.data.trees);
+        setGoals(dashboardRes.data.goals);
+        setStats(dashboardRes.data.stats);
+        setCalendarData(calendarRes.data);
       } catch (err) {
         console.error('获取数据失败:', err);
       } finally {
@@ -58,7 +65,7 @@ export default function Dashboard() {
     fetchData();
   }, [currentChild, timeFilter]);
 
-  // 获取日历打卡数据
+  // 获取日历打卡数据（仅当月份变化时触发，与主数据加载分离以减少不必要的请求）
   useEffect(() => {
     if (!currentChild) return;
 
@@ -111,16 +118,17 @@ export default function Dashboard() {
     navigate('/add-goal', { state: { editGoal: { ...goal, childId: currentChild?.id } } });
   };
 
-  // 下拉刷新处理函数
+  // 下拉刷新处理函数（清除缓存后强制刷新）
   const handleRefresh = useCallback(async () => {
     if (!currentChild) return;
+
+    // 先清除该孩子的所有缓存，确保获取最新数据
+    invalidateChildDataCache(currentChild.id);
     
     try {
-      // 并行刷新所有数据
-      const [treesRes, statsRes, goalsRes, calendarRes] = await Promise.all([
-        treesApi.list(currentChild.id),
-        childrenApi.stats(currentChild.id, timeFilter),
-        treesApi.listGoals(currentChild.id),
+      // 聚合接口 + 日历接口并行
+      const [dashboardRes, calendarRes] = await Promise.all([
+        treesApi.dashboardData(currentChild.id, timeFilter),
         childrenApi.getCheckinCalendar(
           currentChild.id,
           selectedMonth.getFullYear(),
@@ -128,9 +136,9 @@ export default function Dashboard() {
         ),
       ]);
       
-      setTrees(treesRes.data);
-      setStats(statsRes.data);
-      setGoals(goalsRes.data);
+      setTrees(dashboardRes.data.trees);
+      setGoals(dashboardRes.data.goals);
+      setStats(dashboardRes.data.stats);
       setCalendarData(calendarRes.data);
     } catch (err) {
       console.error('刷新数据失败:', err);

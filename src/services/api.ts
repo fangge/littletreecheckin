@@ -1,7 +1,9 @@
 // ============================================================
 // 前端 API 服务层 - 统一封装所有后端 API 调用
-// 支持 Refresh Token 自动续签机制
+// 支持 Refresh Token 自动续签机制 + 请求缓存
 // ============================================================
+
+import { cachedRequest, invalidateChildCache } from '../utils/requestCache';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
@@ -124,6 +126,20 @@ function isLoginEndpoint(endpoint: string): boolean {
     '/api/v1/auth/reset-password',
   ].includes(endpoint);
 }
+
+/**
+ * 带缓存的 GET 请求（用于数据读取接口，避免短时间内重复请求）
+ * 默认 30 秒缓存，写操作后可调用 invalidateChildCache 清除
+ */
+const cachedGet = <T>(endpoint: string, ttl = 30000) =>
+  cachedRequest<T>(
+    endpoint,
+    () => request<T>(endpoint),
+    ttl,
+  );
+
+/** 清除指定孩子相关的所有缓存（打卡/审核后调用） */
+export const invalidateChildDataCache = (childId: string) => invalidateChildCache(childId);
 
 // ============================================================
 // 类型定义
@@ -346,12 +362,12 @@ export const childrenApi = {
     }),
 
   stats: (childId: string, period?: 'month' | 'quarter' | 'year') =>
-    request<{ data: StatsData }>(
+    cachedGet<{ data: StatsData }>(
       `/api/v1/children/${childId}/stats${period ? `?period=${period}` : ''}`
     ),
 
   getCheckinCalendar: (childId: string, year: number, month: number) =>
-    request<{ data: CalendarData }>(
+    cachedGet<{ data: CalendarData }>(
       `/api/v1/children/${childId}/checkin-calendar?year=${year}&month=${month}`
     ),
 
@@ -366,8 +382,14 @@ export const childrenApi = {
 // ============================================================
 export const treesApi = {
   list: (childId: string, status?: 'growing' | 'completed') =>
-    request<{ data: TreeData[] }>(
+    cachedGet<{ data: TreeData[] }>(
       `/api/v1/children/${childId}/trees${status ? `?status=${status}` : ''}`
+    ),
+
+  // 聚合接口：一次请求获取树木+目标+统计数据（替代分别调用三个接口）
+  dashboardData: (childId: string, period?: 'month' | 'quarter' | 'year') =>
+    cachedGet<{ data: { trees: TreeData[]; goals: Array<GoalData & { completed_days?: number; checked_in_today?: boolean; calculated_progress?: number }>; stats: StatsData } }>(
+      `/api/v1/children/${childId}/dashboard-data${period ? `?period=${period}` : ''}`
     ),
 
   createGoal: (childId: string, goal: {
@@ -385,7 +407,7 @@ export const treesApi = {
     ),
 
   listGoals: (childId: string, activeOnly = false) =>
-    request<{ data: Array<GoalData & { trees?: TreeData[] }> }>(
+    cachedGet<{ data: Array<GoalData & { trees?: TreeData[] }> }>(
       `/api/v1/children/${childId}/goals${activeOnly ? '?active=true' : ''}`
     ),
 
@@ -415,9 +437,9 @@ export const treesApi = {
 // 任务打卡 API
 // ============================================================
 export const tasksApi = {
-  list: (childId: string, status?: string, goalId?: string) =>
-    request<{ data: TaskData[] }>(
-      `/api/v1/children/${childId}/tasks${status ? `?status=${status}` : ''}${goalId ? `${status ? '&' : '?'}goal_id=${goalId}` : ''}`
+  list: (childId: string, status?: string, goalId?: string, limit = 200) =>
+    cachedGet<{ data: TaskData[]; total: number; hasMore: boolean }>(
+      `/api/v1/children/${childId}/tasks${status ? `?status=${status}` : ''}${goalId ? `${status ? '&' : '?'}goal_id=${goalId}` : ''}${`&limit=${limit}`}`
     ),
 
   checkin: (goalId: string, childId: string, imageUrl?: string, checkinDate?: string) => {
@@ -466,7 +488,7 @@ export const tasksApi = {
 // ============================================================
 export const medalsApi = {
   list: (childId: string) =>
-    request<{ data: MedalData[] }>(`/api/v1/children/${childId}/medals`),
+    cachedGet<{ data: MedalData[] }>(`/api/v1/children/${childId}/medals`),
 };
 
 // ============================================================

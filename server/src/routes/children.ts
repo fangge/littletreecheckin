@@ -193,43 +193,28 @@ router.get('/:childId/stats', authMiddleware, async (req: AuthRequest, res: Resp
     }
   }
 
-  // 获取时间范围内的任务（计算森林健康度和完成数）
-  const { data: periodTasks } = await supabase
-    .from('tasks')
-    .select('id, status, checkin_time')
-    .eq('child_id', childId)
-    .gte('checkin_time', startDate.toISOString())
-    .lte('checkin_time', endDate.toISOString());
+  // 使用 SQL 聚合函数获取统计数据（替代拉全量数据到应用层过滤）
+  const { data: statsData, error: statsError } = await supabase
+    .rpc('get_child_stats', {
+      p_child_id: childId,
+      p_start_date: startDate.toISOString(),
+      p_end_date: endDate.toISOString(),
+    });
 
-  const totalPeriodTasks = periodTasks?.length || 0;
-  const approvedPeriodTasks = periodTasks?.filter((t: { status: string }) => t.status === 'approved').length || 0;
-  const forestHealth = totalPeriodTasks > 0
-    ? Math.round((approvedPeriodTasks / totalPeriodTasks) * 100)
-    : 0;
+  if (statsError) {
+    res.status(500).json({ error: '获取统计数据失败' });
+    return;
+  }
 
-  // 进行中目标数（不受时间范围影响）
-  const { count: activeGoals } = await supabase
-    .from('goals')
-    .select('id', { count: 'exact' })
-    .eq('child_id', childId)
-    .eq('is_active', true);
-
-  // 时间范围内完成的树木数
-  const { count: completedTrees } = await supabase
-    .from('trees')
-    .select('id', { count: 'exact' })
-    .eq('child_id', childId)
-    .eq('status', 'completed')
-    .gte('updated_at', startDate.toISOString())
-    .lte('updated_at', endDate.toISOString());
+  const row = (statsData && statsData.length > 0) ? statsData[0] : null;
 
   res.json({
     data: {
-      forestHealth,
-      totalApprovedTasks: approvedPeriodTasks,
-      activeGoals: activeGoals || 0,
-      completedTrees: completedTrees || 0,
-      fruitsBalance: child.fruits_balance,
+      forestHealth: row?.forest_health ?? 0,
+      totalApprovedTasks: row?.approved_tasks ?? 0,
+      activeGoals: row?.active_goals ?? 0,
+      completedTrees: row?.completed_trees ?? 0,
+      fruitsBalance: row?.fruits_balance ?? child.fruits_balance,
     },
   });
 });
@@ -351,7 +336,8 @@ router.get('/:childId/fruits-history', authMiddleware, async (req: AuthRequest, 
     .select('id, title, checkin_time, bonus_fruits, goals(icon, fruits_per_task)')
     .eq('child_id', childId)
     .eq('status', 'approved')
-    .order('checkin_time', { ascending: false });
+    .order('checkin_time', { ascending: false })
+    .limit(200);
 
   if (error) {
     res.status(500).json({ error: '获取果实获取记录失败' });

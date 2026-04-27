@@ -7,9 +7,10 @@ import { checkAndUnlockMedals } from '../services/medalService.js';
 const router: Router = Router();
 
 // GET /api/v1/children/:childId/tasks
+// 支持参数：status, goal_id, limit(默认200,最大500), offset(默认0)
 router.get('/:childId/tasks', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { childId } = req.params;
-  const { status, goal_id } = req.query;
+  const { status, goal_id, limit, offset } = req.query;
 
   const { data: child } = await supabase
     .from('children')
@@ -23,6 +24,10 @@ router.get('/:childId/tasks', authMiddleware, async (req: AuthRequest, res: Resp
     return;
   }
 
+  // 分页控制：默认限制200条，上限500条，避免全量拉取
+  const pageSize = Math.min(parseInt(limit as string) || 200, 500);
+  const pageOffset = Math.max(parseInt(offset as string) || 0, 0);
+
   let query = supabase
     .from('tasks')
     .select(`
@@ -31,7 +36,8 @@ router.get('/:childId/tasks', authMiddleware, async (req: AuthRequest, res: Resp
       trees(name, image)
     `)
     .eq('child_id', childId)
-    .order('checkin_time', { ascending: false });
+    .order('checkin_time', { ascending: false })
+    .range(pageOffset, pageOffset + pageSize - 1);
 
   if (status && ['pending', 'approved', 'rejected'].includes(status as string)) {
     query = query.eq('status', status as string);
@@ -42,14 +48,34 @@ router.get('/:childId/tasks', authMiddleware, async (req: AuthRequest, res: Resp
     query = query.eq('goal_id', goal_id);
   }
 
-  const { data, error } = await query;
+  // 先获取带分页的数据和总数（用于前端判断是否有更多数据）
+  let countQuery = supabase
+    .from('tasks')
+    .select('id', { count: 'exact', head: true })
+    .eq('child_id', childId);
 
-  if (error) {
+  if (status && ['pending', 'approved', 'rejected'].includes(status as string)) {
+    countQuery = countQuery.eq('status', status as string);
+  }
+  if (goal_id && typeof goal_id === 'string') {
+    countQuery = countQuery.eq('goal_id', goal_id);
+  }
+
+  const [dataResult, countResult] = await Promise.all([
+    query,
+    countQuery,
+  ]);
+
+  if (dataResult.error) {
     res.status(500).json({ error: '获取任务列表失败' });
     return;
   }
 
-  res.json({ data: data || [] });
+  res.json({
+    data: dataResult.data || [],
+    total: countResult.count || 0,
+    hasMore: (pageOffset + pageSize) < (countResult.count || 0),
+  });
 });
 
 // 获取 UTC+8 时区的今天日期字符串（YYYY-MM-DD）
@@ -164,119 +190,48 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
   res.status(201).json({ data: task, message: '打卡成功，等待家长审核' });
 });
 
-// PUT /api/v1/tasks/:taskId/approve  (家长审核通过)
+// PUT /api/v1/tasks/:taskId/approve  (家长审核通过 - 使用数据库事务保证原子性)
 router.put('/:taskId/approve', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { taskId } = req.params;
   const bonusFruits = Math.max(0, parseInt(req.body?.bonus_fruits ?? '0', 10) || 0);
 
-  // 获取任务信息
-  const { data: task } = await supabase
-    .from('tasks')
-    .select('id, status, child_id, goal_id, tree_id')
-    .eq('id', taskId)
-    .single();
+  // 调用 RPC 存储过程，所有操作在一个事务中完成
+  const { data: result, error } = await supabase
+    .rpc('approve_task_rpc', {
+      p_task_id: taskId,
+      p_bonus_fruits: bonusFruits,
+    });
 
-  if (!task) {
-    res.status(404).json({ error: '任务不存在' });
-    return;
-  }
-
-  if (task.status !== 'pending') {
-    res.status(400).json({ error: '任务已审核，无法重复操作' });
-    return;
-  }
-
-  // 验证家长有权审核（孩子属于该家长）
-  const { data: child } = await supabase
-    .from('children')
-    .select('id, fruits_balance')
-    .eq('id', task.child_id)
-    .single();
-
-  if (!child) {
-    res.status(403).json({ error: '无权审核此任务' });
-    return;
-  }
-
-  // 1. 更新任务状态
-  const { data: updatedTask, error: taskError } = await supabase
-    .from('tasks')
-    .update({ status: 'approved', bonus_fruits: bonusFruits })
-    .eq('id', taskId)
-    .select('id, title, type, status, checkin_time, image_url, progress, created_at')
-    .single();
-
-  if (taskError || !updatedTask) {
+  if (error || !result || result.length === 0) {
     res.status(500).json({ error: '审核失败' });
     return;
   }
 
-  // 2. 从 goal 读取 fruits_per_task 和 duration_days（一次查询，供后续步骤复用）
-  let baseFruits = 10;
-  let durationDays = 30;
-  if (task.goal_id) {
-    const { data: goalInfo } = await supabase
-      .from('goals')
-      .select('duration_days, fruits_per_task')
-      .eq('id', task.goal_id)
-      .single();
-    if (goalInfo) {
-      baseFruits = goalInfo.fruits_per_task ?? 10;
-      durationDays = goalInfo.duration_days || 30;
-    }
-  }
-  const totalFruits = baseFruits + bonusFruits;
+  const row = result[0];
 
-  // 增加果实余额
-  await supabase
-    .from('children')
-    .update({ fruits_balance: child.fruits_balance + totalFruits })
-    .eq('id', task.child_id);
-
-  // 3. 更新树木成长进度
-  if (task.tree_id) {
-    const { data: tree } = await supabase
-      .from('trees')
-      .select('id, progress, status, goal_id')
-      .eq('id', task.tree_id)
-      .single();
-
-    if (tree && tree.status === 'growing') {
-      const progressIncrement = Math.round(100 / durationDays);
-      const newProgress = Math.min(100, tree.progress + progressIncrement);
-      const newStatus = newProgress >= 100 ? 'completed' : 'growing';
-
-      await supabase
-        .from('trees')
-        .update({ progress: newProgress, status: newStatus })
-        .eq('id', task.tree_id);
-
-      // 如果树木完成，将目标标记为非活跃
-      if (newStatus === 'completed') {
-        await supabase
-          .from('goals')
-          .update({ is_active: false })
-          .eq('id', task.goal_id);
-      }
-    }
+  // 如果存储过程返回了错误信息
+  if (row.error_msg) {
+    const statusCode = row.error_msg.includes('不存在') ? 404 : 400;
+    res.status(statusCode).json({ error: row.error_msg });
+    return;
   }
 
-  // 4. 发送系统消息通知
-  const fruitMsg = bonusFruits > 0
-    ? `获得 ${totalFruits} 个果实（含额外奖励 ${bonusFruits} 个）`
-    : `获得 ${totalFruits} 个果实`;
-  await supabase.from('messages').insert({
-    child_id: task.child_id,
-    sender_type: 'system',
-    text: `🎉 太棒了！你的任务"${updatedTask.title}"已通过审核，${fruitMsg}！`,
-    type: 'text',
-    is_read: false,
+  // 返回更新后的任务信息
+  const { data: updatedTask } = await supabase
+    .from('tasks')
+    .select('id, title, type, status, checkin_time, image_url, progress, created_at')
+    .eq('id', taskId)
+    .single();
+
+  // 异步检查勋章解锁（不阻塞响应）
+  checkAndUnlockMedals((await supabase.from('tasks').select('child_id').eq('id', taskId).single())?.data?.child_id ?? '')
+    .catch(console.error);
+
+  res.json({
+    data: updatedTask,
+    message: '审核通过',
+    ...(row.tree_completed ? { treeCompleted: true, goalTitle: row.goal_title } : {}),
   });
-
-  // 5. 检查并解锁勋章（异步，不阻塞响应）
-  checkAndUnlockMedals(task.child_id).catch(console.error);
-
-  res.json({ data: updatedTask, message: '审核通过' });
 });
 
 // PUT /api/v1/tasks/:taskId/reject  (家长拒绝)

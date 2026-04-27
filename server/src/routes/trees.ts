@@ -3,6 +3,8 @@ import { supabase } from '../config/supabase.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { AuthRequest } from '../types.js';
 
+const router: Router = Router();
+
 // 辅助：验证孩子属于当前家长
 const verifyChildOwnership = async (childId: string): Promise<boolean> => {
   const { data } = await supabase
@@ -14,7 +16,196 @@ const verifyChildOwnership = async (childId: string): Promise<boolean> => {
   return !!data;
 };
 
-const router: Router = Router();
+// GET /api/v1/children/:childId/dashboard-data
+// 聚合接口：一次请求返回树木列表(含enriched字段) + 统计数据 + 目标列表 + 今日签到状态
+// 将原来 Dashboard 需要调用的 trees + stats + goals 三个接口合并为一个，
+// 消除 completed_days/checked_in_today 的重复计算（trees 和 goals 接口各算一遍）
+router.get('/:childId/dashboard-data', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { childId } = req.params;
+  const { period } = req.query; // 'month' | 'quarter' | 'year'，默认最近7天
+
+  // 验证孩子存在
+  const { data: child } = await supabase
+    .from('children')
+    .select('id, fruits_balance')
+    .eq('id', childId)
+    .eq('is_deleted', false)
+    .single();
+
+  if (!child) {
+    res.status(404).json({ error: '孩子不存在' });
+    return;
+  }
+
+  // 根据 period 计算时间范围（与原 stats 接口逻辑一致）
+  const now = new Date();
+  let startDate: Date;
+  let endDate: Date = now;
+
+  switch (period) {
+    case 'month': {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      break;
+    }
+    case 'quarter': {
+      const currentQuarter = Math.floor(now.getMonth() / 3);
+      if (currentQuarter === 0) {
+        startDate = new Date(now.getFullYear() - 1, 9, 1);
+        endDate = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59);
+      } else {
+        startDate = new Date(now.getFullYear(), (currentQuarter - 1) * 3, 1);
+        endDate = new Date(now.getFullYear(), currentQuarter * 3, 0, 23, 59, 59);
+      }
+      break;
+    }
+    case 'year': {
+      startDate = new Date(now);
+      startDate.setFullYear(startDate.getFullYear() - 1);
+      break;
+    }
+    default: {
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - 7);
+    }
+  }
+
+  // 并行获取树木、目标、统计数据
+  const [treesResult, goalsResult, statsResult] = await Promise.all([
+    // 树木列表（基础信息）
+    supabase
+      .from('trees')
+      .select('id, name, image, status, progress, goal_id, created_at')
+      .eq('child_id', childId)
+      .order('created_at', { ascending: false }),
+
+    // 目标列表
+    supabase
+      .from('goals')
+      .select(`id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, fruits_per_task, created_at`)
+      .eq('child_id', childId)
+      .order('created_at', { ascending: false }),
+
+    // 统计数据（使用 SQL 聚合函数）
+    supabase.rpc('get_child_stats', {
+      p_child_id: childId,
+      p_start_date: startDate.toISOString(),
+      p_end_date: endDate.toISOString(),
+    }),
+  ]);
+
+  // 树木和目标是核心数据，失败则报错；统计失败时降级处理
+  if (treesResult.error || !treesResult.data) {
+    res.status(500).json({ error: '获取树木列表失败' });
+    return;
+  }
+  if (goalsResult.error || !goalsResult.data) {
+    res.status(500).json({ error: '获取目标列表失败' });
+    return;
+  }
+
+  const trees = treesResult.data;
+  const goals = goalsResult.data;
+
+  // 统计数据：优先使用 SQL 聚合函数，失败时降级为内联计算（保证接口可用性）
+  let statsRow: Record<string, unknown> | undefined;
+  if (!statsResult.error && statsResult.data?.length > 0) {
+    statsRow = statsResult.data[0] as unknown as Record<string, unknown>;
+  } else {
+    // 降级：RPC 不可用时，使用默认值（前端仍可正常显示树木/目标）
+    console.warn('[dashboard-data] get_child_stats RPC 不可用，使用降级统计数据');
+    statsRow = {
+      forest_health: 0,
+      approved_tasks: 0,
+      active_goals: goals.filter((g: { is_active: boolean }) => g.is_active).length,
+      completed_trees: trees.filter((t: { status: string }) => t.status === 'completed').length,
+      fruits_balance: child.fruits_balance,
+    };
+  }
+
+  // 收集所有 goal_id，批量查询 completed_days 和 checked_in_today（只查一次！）
+  const goalIds = [
+    ...trees.map(t => t.goal_id).filter(Boolean),
+    ...goals.map(g => g.id),
+  ] as string[];
+
+  // 去重
+  const uniqueGoalIds = [...new Set(goalIds)];
+
+  let completedDaysMap = new Map<string, number>();
+  let checkedInTodaySet = new Set<string>();
+  let goalDurationMap = new Map<string, number>();
+
+  if (uniqueGoalIds.length > 0) {
+    // 批量查询已完成天数和今日签到状态（并行执行）
+    const [approvedTasksRes, todayTasksRes, goalsDurationRes] = await Promise.all([
+      supabase.from('tasks').select('goal_id').in('goal_id', uniqueGoalIds).eq('status', 'approved'),
+      (() => {
+        const utc8Offset = 8 * 60 * 60 * 1000;
+        const today = new Date(Date.now() + utc8Offset).toISOString().split('T')[0];
+        return supabase.from('tasks').select('goal_id')
+          .in('goal_id', uniqueGoalIds).neq('status', 'rejected')
+          .gte('checkin_time', `${today}T00:00:00+08:00`)
+          .lte('checkin_time', `${today}T23:59:59.999+08:00`);
+      })(),
+      supabase.from('goals').select('id, duration_days').in('id', uniqueGoalIds),
+    ]);
+
+    // 构建 completedDaysMap
+    for (const task of approvedTasksRes.data || []) {
+      if (task.goal_id) {
+        completedDaysMap.set(task.goal_id, (completedDaysMap.get(task.goal_id) || 0) + 1);
+      }
+    }
+
+    // 构建 checkedInTodaySet
+    for (const t of todayTasksRes.data || []) {
+      if (t.goal_id) checkedInTodaySet.add(t.goal_id);
+    }
+
+    // 构建 goalDurationMap
+    for (const g of goalsDurationRes.data || []) {
+      goalDurationMap.set(g.id, g.duration_days);
+    }
+  }
+
+  // enrich 树木数据
+  const enrichedTrees = (trees || []).map(tree => {
+    const completedDays = tree.goal_id ? (completedDaysMap.get(tree.goal_id) || 0) : 0;
+    const durationDays = tree.goal_id ? (goalDurationMap.get(tree.goal_id) || 30) : 30;
+    const calculatedProgress = Math.min(100, Math.ceil((completedDays / durationDays) * 100));
+    return {
+      ...tree,
+      progress: calculatedProgress,
+      completed_days: completedDays,
+      checked_in_today: tree.goal_id ? checkedInTodaySet.has(tree.goal_id) : false,
+    };
+  });
+
+  // enrich 目标数据
+  const enrichedGoals = (goals || []).map(goal => {
+    const completedDays = completedDaysMap.get(goal.id) || 0;
+    return {
+      ...goal,
+      completed_days: completedDays,
+      checked_in_today: checkedInTodaySet.has(goal.id),
+      calculated_progress: Math.min(100, Math.ceil((completedDays / (goal.duration_days || 30)) * 100)),
+    };
+  });
+
+  res.json({
+    data: {
+      trees: enrichedTrees,
+      goals: enrichedGoals,
+      stats: {
+        forestHealth: statsRow?.forest_health ?? 0,
+        totalApprovedTasks: statsRow?.approved_tasks ?? 0,
+        activeGoals: statsRow?.active_goals ?? 0,
+        completedTrees: statsRow?.completed_trees ?? 0,
+        fruitsBalance: statsRow?.fruits_balance ?? child.fruits_balance,
+      },
+    },
+  });
+});
 
 // GET /api/v1/children/:childId/trees
 router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {

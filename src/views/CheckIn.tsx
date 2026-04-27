@@ -8,7 +8,8 @@ import {
   treesApi,
   TreeData,
   TaskData,
-  GoalData
+  GoalData,
+  invalidateChildDataCache
 } from '../services/api';
 import CelebrationPopup from '../components/CelebrationPopup';
 import PullToRefresh from '../components/PullToRefresh';
@@ -21,6 +22,7 @@ export default function CheckIn() {
   const [selectedTree, setSelectedTree] = useState<TreeData | null>(null);
   const [goals, setGoals] = useState<GoalData[]>([]);
   const [todayTasks, setTodayTasks] = useState<Record<string, TaskData>>({});
+  const [allTasks, setAllTasks] = useState<TaskData[]>([]);
   const [selectedTreeTasks, setSelectedTreeTasks] = useState<TaskData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isChecking, setIsChecking] = useState(false);
@@ -53,6 +55,8 @@ export default function CheckIn() {
 
       setGrowingTrees(treesRes.data);
       setGoals(goalsRes.data);
+      // 保存全量任务数据，供切换树时复用（避免重复网络请求）
+      setAllTasks(tasksRes.data);
       if (treesRes.data.length > 0) {
         setSelectedTree((prev) => {
           const stillExists = treesRes.data.find((t) => t.id === prev?.id);
@@ -132,6 +136,8 @@ export default function CheckIn() {
       });
       // 打卡成功后弹出庆祝弹窗，传递最新树木进度
       // 从刷新后的数据中获取当前树木的最新状态
+      // 清除缓存以获取最新的树木数据
+      invalidateChildDataCache(currentChild.id);
       const refreshedTreesRes = await treesApi.list(currentChild.id);
       const refreshedTree = refreshedTreesRes.data.find(
         (t) => t.id === selectedTree.id
@@ -173,41 +179,27 @@ export default function CheckIn() {
     });
   }, []);
 
-  // 监听 selectedTree 变化，切换任务时获取该任务的所有打卡记录
+  // 监听 selectedTree 变化，从已加载的全量任务数据中过滤（避免重复网络请求）
   useEffect(() => {
-    const fetchTreeTasks = async () => {
-      if (!currentChild || !selectedTree?.goal_id) {
-        setSelectedTreeTasks([]);
-        return;
-      }
-      try {
-        const res = await tasksApi.list(
-          currentChild.id,
-          undefined,
-          selectedTree.goal_id
-        );
-        setSelectedTreeTasks(res.data);
-        // 打印该任务的所有打卡日期
-        if (res.data.length > 0) {
-          const checkinRecords = res.data.map((task) => ({
-            日期: task.checkin_time.split('T')[0],
-            时间: formatCheckinTime(task.checkin_time),
-            状态:
-              task.status === 'approved'
-                ? '已通过'
-                : task.status === 'rejected'
-                  ? '已拒绝'
-                  : '审核中'
-          }));
-          console.log(`【${selectedTree.name}】打卡记录:`);
-          console.table(checkinRecords);
-        }
-      } catch (err) {
-        console.error('获取任务历史记录失败:', err);
-      }
-    };
-    fetchTreeTasks();
-  }, [selectedTree, currentChild, formatCheckinTime]);
+    if (!selectedTree?.goal_id || !allTasks) {
+      setSelectedTreeTasks([]);
+      return;
+    }
+    // 直接从全量数据中按 goal_id 过滤，不再发起网络请求
+    const treeTasks = allTasks.filter(t => t.goal_id === selectedTree.goal_id);
+    setSelectedTreeTasks(treeTasks);
+    
+    // 打印打卡记录（调试用）
+    if (treeTasks.length > 0) {
+      const checkinRecords = treeTasks.map((task) => ({
+        日期: task.checkin_time.split('T')[0],
+        时间: formatCheckinTime(task.checkin_time),
+        状态: task.status === 'approved' ? '已通过' : task.status === 'rejected' ? '已拒绝' : '审核中'
+      }));
+      console.log(`【${selectedTree.name}】打卡记录:`);
+      console.table(checkinRecords);
+    }
+  }, [selectedTree?.goal_id, allTasks]);
 
   const today = getUTC8Today();
   const isBackfillDate = selectedDate !== today;
@@ -253,10 +245,11 @@ export default function CheckIn() {
   const statusInfo = getStatusText();
   const canCheckin = !hasCheckedInToday || taskStatus === 'rejected';
 
-  // 下拉刷新处理函数
+  // 下拉刷新处理函数（清除缓存后强制刷新）
   const handleRefresh = useCallback(async () => {
+    if (currentChild) invalidateChildDataCache(currentChild.id);
     await fetchData();
-  }, [fetchData]);
+  }, [fetchData, currentChild]);
 
   return (
     <>
