@@ -5,6 +5,50 @@ import './index.css';
 import router from './router';
 
 // ============================================================
+// 移动端调试：URL 包含 ?debug=1 时加载 vConsole
+// 用法：访问 https://xxx.com/?debug=1
+// ============================================================
+const urlParams = new URLSearchParams(window.location.search);
+const isDebug = urlParams.get('debug') === '1' || urlParams.get('debug') === 'true';
+
+if (isDebug) {
+  import('vconsole').then(({ default: VConsole }) => {
+    const vc = new VConsole({
+      target: document.body,
+      theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+    });
+
+    // 调试模式视觉提示
+    const debugBar = document.createElement('div');
+    debugBar.id = '__debug-bar';
+    debugBar.style.cssText = `
+      position: fixed; top: 0; left: 0; right: 0; z-index: 99999;
+      background: linear-gradient(135deg, #e11d48, #f59e0b);
+      color: white; font-family: -apple-system, sans-serif;
+      font-size: 12px; font-weight: 600;
+      text-align: center; padding: 4px 8px;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    `;
+    debugBar.innerHTML = `<span>🔧 DEBUG MODE</span><span style="opacity:0.7;font-weight:400">${window.location.href}</span>`;
+    
+    // 点击关闭
+    debugBar.addEventListener('click', () => {
+      debugBar.style.display = 'none';
+      vc.hide();
+    });
+    
+    document.body.prepend(debugBar);
+
+    // 控制台醒目提示
+    console.log('%c🔧 Debug Mode Active', 'background:#e11d48;color:white;padding:4px 8px;border-radius:4px;font-size:14px;font-weight:bold;');
+    console.log('%c访问地址: %s', 'color:#f59e0b', window.location.href);
+    console.log('%c点击顶部橙色条可隐藏调试面板', 'color:#888');
+  }).catch(() => {
+    console.warn('[Debug] vConsole 加载失败');
+  });
+}
+
+// ============================================================
 // PWA 缓存版本检测：防止移动端因旧缓存导致白屏
 // 每次构建时 Vite 会注入环境变量，版本号随构建变化
 // ============================================================
