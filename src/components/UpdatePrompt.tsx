@@ -16,10 +16,16 @@ export default function UpdatePrompt() {
   const [showUpdate, setShowUpdate] = useState(false);
   const [showInstall, setShowInstall] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  // 防止重复弹出的锁：用户点击"立即更新"后的一段时间内不再提示
+  const [updateLockUntil, setUpdateLockUntil] = useState<number>(0);
 
   useEffect(() => {
     // 监听 SW 更新事件
-    const handleUpdate = () => setShowUpdate(true);
+    const handleUpdate = () => {
+      // 防重复：如果在冷却期内，忽略该事件
+      if (Date.now() < updateLockUntil) return;
+      setShowUpdate(true);
+    };
     window.addEventListener('pwa-update-available', handleUpdate);
 
     // 监听安装提示事件
@@ -43,15 +49,22 @@ export default function UpdatePrompt() {
 
   const handleUpdate = () => {
     setShowUpdate(false);
+    // 设置 10 秒冷却期，防止 reload 后 SW updatefound 事件再次触发弹窗
+    setUpdateLockUntil(Date.now() + 10_000);
+
     // 发送消息给 SW 让其跳过等待
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistration().then((reg) => {
         if (reg?.waiting) {
           reg.waiting.postMessage({ type: 'SKIP_WAITING' });
         }
-      });
+      }).catch(() => {});
     }
-    window.location.reload();
+
+    // 延迟一小段时间确保 SW 消息发送完成后再 reload
+    setTimeout(() => {
+      window.location.reload();
+    }, 200);
   };
 
   const handleInstall = async () => {
