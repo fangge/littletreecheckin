@@ -437,10 +437,15 @@ export const treesApi = {
 // 任务打卡 API
 // ============================================================
 export const tasksApi = {
-  list: (childId: string, status?: string, goalId?: string, limit = 200) =>
-    cachedGet<{ data: TaskData[]; total: number; hasMore: boolean }>(
-      `/api/v1/children/${childId}/tasks${status ? `?status=${status}` : ''}${goalId ? `${status ? '&' : '?'}goal_id=${goalId}` : ''}${`&limit=${limit}`}`
-    ),
+  list: (childId: string, status?: string, goalId?: string, limit = 200) => {
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    if (goalId) params.set('goal_id', goalId);
+    params.set('limit', String(limit));
+    return cachedGet<{ data: TaskData[]; total: number; hasMore: boolean }>(
+      `/api/v1/children/${childId}/tasks?${params.toString()}`
+    );
+  },
 
   checkin: (goalId: string, childId: string, imageUrl?: string, checkinDate?: string) => {
     const now = new Date();
