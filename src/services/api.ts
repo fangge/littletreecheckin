@@ -101,6 +101,19 @@ const request = async <T>(
           return request(endpoint, options, 1);
         }
       }
+    } else {
+      // 非标准 TOKEN_EXPIRED 的 401（如 /api/v1/auth/me 返回的通用 401）
+      // 尝试静默刷新一次再重试，不立即登出
+      if (!isRefreshing && getToken()) {
+        isRefreshing = true;
+        const refreshed = await doRefreshToken();
+        isRefreshing = false;
+
+        if (refreshed) {
+          return request(endpoint, options, 1);
+        }
+        // refresh 也失败才走下面的登出逻辑
+      }
     }
 
     // 无法续签或非 TOKEN_EXPIRED：清除状态并通知登出

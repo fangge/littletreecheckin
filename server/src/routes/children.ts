@@ -256,14 +256,38 @@ router.get('/:childId/checkin-calendar', authMiddleware, async (req: AuthRequest
   // 月份最后一天 23:59:59 UTC+8 = 当天 15:59:59 UTC
   const endUtc = new Date(Date.UTC(yearNum, monthNum, 1) - 8 * 60 * 60 * 1000);
 
-  const { data: tasks, error } = await supabase
-    .from('tasks')
-    .select('id, title, status, checkin_time, goal_id, goals(title)')
-    .eq('child_id', childId)
-    .neq('status', 'rejected')
-    .gte('checkin_time', startUtc.toISOString())
-    .lt('checkin_time', endUtc.toISOString())
-    .order('checkin_time', { ascending: true });
+  let tasks: any[] | null;
+  let error: { message?: string } | null;
+
+  try {
+    const result = await supabase
+      .from('tasks')
+      .select('id, title, status, checkin_time, goal_id, goals(title)')
+      .eq('child_id', childId)
+      .not('status', 'eq', 'rejected')
+      .gte('checkin_time', startUtc.toISOString())
+      .lt('checkin_time', endUtc.toISOString())
+      .order('checkin_time', { ascending: true });
+
+    tasks = result.data;
+    error = result.error;
+  } catch (err: unknown) {
+    // 兼容性降级：Supabase v2.98 部分版本的 PostgREST filter builder 异常
+    console.error('[checkin-calendar] 主查询异常，尝试降级查询:', err);
+    const fallbackResult = await supabase
+      .from('tasks')
+      .select('id, title, status, checkin_time, goal_id, goals(title)')
+      .eq('child_id', childId)
+      .order('checkin_time', { ascending: true });
+    
+    tasks = fallbackResult.data?.filter(
+      (t: { status: string; checkin_time: string }) =>
+        t.status !== 'rejected' &&
+        new Date(t.checkin_time) >= startUtc &&
+        new Date(t.checkin_time) < endUtc
+    ) || [];
+    error = fallbackResult.error;
+  }
 
   if (error) {
     res.status(500).json({ error: '获取打卡日历数据失败' });

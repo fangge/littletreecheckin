@@ -34,10 +34,16 @@ export default defineConfig(({ mode }) => {
   // 检查是否存在本地 HTTPS 证书
   const certPath = path.resolve(__dirname, '.cert/cert.pem');
   const keyPath = path.resolve(__dirname, '.cert/key.pem');
+  
+  // 构建时间戳作为应用版本（每次构建自动递增）
+  const buildVersion = Date.now().toString();
+  
   return {
     plugins: [react(), tailwindcss(), pwaVersionPlugin()],
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+      // 注入构建版本号用于 PWA 缓存失效检测
+      'import.meta.env.VITE_APP_VERSION': JSON.stringify(buildVersion),
     },
     resolve: {
       alias: {

@@ -165,6 +165,9 @@ async function cacheFirst(request, cacheName) {
 /**
  * Stale-While-Revalidate 策略：立即返回缓存，同时后台更新缓存
  * 适用于：同域 JS/CSS/图片等静态资源
+ *
+ * 重要：HTML 导航请求使用 Network-First 策略，
+ *       确保 PWA 用户始终获取最新版本的入口文件（避免白屏）
  */
 async function staleWhileRevalidate(request) {
   const cacheName = CACHE_NAME;
@@ -180,16 +183,22 @@ async function staleWhileRevalidate(request) {
     return networkResponse;
   }).catch(() => null);
 
-  // 导航请求（HTML）：网络失败时尝试缓存，再失败返回离线页面
+  // 导航请求（HTML）：Network-First！确保移动端获取最新版本
   if (request.mode === 'navigate') {
     try {
-      return (await fetchPromise) || cachedResponse || (await caches.match('/')) || createOfflineResponse();
-    } catch {
-      return cachedResponse || createOfflineResponse();
+      const networkResponse = await fetchPromise;
+      if (networkResponse && networkResponse.ok) {
+        return networkResponse;
+      }
+    } catch (e) {
+      console.warn('[SW] Navigation request network failed, falling back to cache');
     }
+    // 网络失败才走缓存
+    return cachedResponse || (await caches.match('/')) || createOfflineResponse();
   }
 
-  // 有缓存立即返回，没有缓存等待网络
+  // JS/CSS 资源：有缓存先返回，后台静默更新
+  // 注意：如果缓存版本与网络版本不一致（hash 变化），下次导航时会加载新版
   return cachedResponse || fetchPromise;
 }
 
