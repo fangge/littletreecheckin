@@ -4,7 +4,7 @@
  */
 
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import Navigation from './components/Navigation';
 import ChildModeBanner from './components/ChildModeBanner';
@@ -29,17 +29,6 @@ export default function App() {
       navigate('/', { replace: true });
     }
   }, [isChildMode, location.pathname, navigate, isAuthenticated]);
-
-  // 初始化时，未登录且不在登录页 → 跳转登录页（作为额外保障）
-  const handleAuthRedirect = useCallback(() => {
-    if (!isAuthenticated && !['/login', '/register', '/forgot-password'].includes(location.pathname)) {
-      navigate('/login', { replace: true });
-    }
-  }, [isAuthenticated, location.pathname, navigate]);
-
-  useEffect(() => {
-    handleAuthRedirect();
-  }, [handleAuthRedirect]);
 
   // 判断是否显示导航栏：排除特定页面 + 需要认证
   const showNav =

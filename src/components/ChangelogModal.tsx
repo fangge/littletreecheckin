@@ -34,12 +34,27 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
               </button>
             </div>
             <div className="overflow-y-auto max-h-[60vh] px-6 py-4 space-y-4">
-              {/* v3.1 */}
+              {/* v3.2 */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v3.1</span>
+                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v3.2</span>
                   <span className="text-sm text-slate-500 dark:text-[var(--text-muted)]">最新</span>
                 </div>
+                <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">家长审核多孩子分类优化</h4>
+                <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
+                  新增家长审核页面的孩子筛选功能，通过二级 Tab 快速切换查看不同孩子的任务，提升多孩子家庭的使用体验。
+                </p>
+                <ul className="text-xs text-slate-500 dark:text-[var(--text-muted)] space-y-1 ml-2">
+                  <li>• 二级 Tab 孩子筛选器（支持"全部"和单个孩子）</li>
+                  <li>• 任务数量实时显示（如"小明 (3)"）</li>
+                  <li>• 已批准任务显示批准时间</li>
+                  <li>• 横向滚动支持，孩子较多时自动适配</li>
+                </ul>
+              </div>
+
+              {/* v3.1 */}
+              <div className="space-y-2 pt-4 border-t border-primary/5 dark:border-[var(--border-color)]">
+                <span className="bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-xs font-bold px-2 py-0.5 rounded">v3.1</span>
                 <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">月度任务打卡总结</h4>
                 <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
                   新增月度任务打卡总结功能，用户可查看本月打卡成就单，直观了解任务完成情况，激励持续打卡。

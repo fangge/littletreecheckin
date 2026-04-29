@@ -31,7 +31,7 @@ router.get('/:childId/tasks', authMiddleware, async (req: AuthRequest, res: Resp
   let query = supabase
     .from('tasks')
     .select(`
-      id, goal_id, title, type, status, checkin_time, image_url, progress, reject_reason, created_at,
+      id, goal_id, title, type, status, checkin_time, image_url, progress, reject_reason, created_at, updated_at,
       goals(title, icon, fruits_per_task),
       trees(name, image)
     `)
@@ -203,7 +203,14 @@ router.put('/:taskId/approve', authMiddleware, async (req: AuthRequest, res: Res
     });
 
   if (error || !result || result.length === 0) {
-    res.status(500).json({ error: '审核失败' });
+    console.error('审核失败 - RPC错误:', error);
+    console.error('任务ID:', taskId, '额外果实:', bonusFruits);
+    res.status(500).json({
+      error: '审核失败',
+      details: error?.message || '未知错误',
+      hint: error?.hint || '',
+      code: error?.code || ''
+    });
     return;
   }
 
@@ -239,11 +246,17 @@ router.put('/:taskId/reject', authMiddleware, async (req: AuthRequest, res: Resp
   const { taskId } = req.params;
   const { reason } = req.body;
 
-  const { data: task } = await supabase
+  const { data: task, error: fetchError } = await supabase
     .from('tasks')
     .select('id, status, child_id')
     .eq('id', taskId)
     .single();
+
+  if (fetchError) {
+    console.error('获取任务失败:', fetchError);
+    res.status(500).json({ error: '获取任务失败', details: fetchError.message });
+    return;
+  }
 
   if (!task) {
     res.status(404).json({ error: '任务不存在' });
@@ -263,7 +276,8 @@ router.put('/:taskId/reject', authMiddleware, async (req: AuthRequest, res: Resp
     .single();
 
   if (error || !updatedTask) {
-    res.status(500).json({ error: '操作失败' });
+    console.error('拒绝任务失败:', error);
+    res.status(500).json({ error: '操作失败', details: error?.message || '未知错误' });
     return;
   }
 

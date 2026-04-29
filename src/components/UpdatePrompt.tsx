@@ -28,24 +28,51 @@ export default function UpdatePrompt() {
     };
     window.addEventListener('pwa-update-available', handleUpdate);
 
-    // 监听安装提示事件
-    const handleBeforeInstall = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setShowInstall(true);
-    };
-    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    // 检查是否已安装 PWA
+    const isInstalled = window.matchMedia('(display-mode: standalone)').matches ||
+                       (window.navigator as any).standalone === true;
 
-    // 检查是否已安装
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setShowInstall(false);
+    // 检查是否在冷却期内（用户最近拒绝过安装）
+    const installDismissedUntil = parseInt(localStorage.getItem('pwa-install-dismissed-until') || '0');
+    const isInCooldown = Date.now() < installDismissedUntil;
+
+    if (!isInstalled && !isInCooldown) {
+      // 监听浏览器原生安装提示事件
+      const handleBeforeInstall = (e: Event) => {
+        e.preventDefault();
+        const promptEvent = e as BeforeInstallPromptEvent;
+        setDeferredPrompt(promptEvent);
+        
+        // 延迟一小段时间后自动触发浏览器原生安装提示
+        // 这样用户体验更好，不会立即弹出
+        setTimeout(() => {
+          promptEvent.prompt().catch(() => {
+            // 如果浏览器原生提示失败，显示自定义弹窗
+            setShowInstall(true);
+          });
+        }, 2000);
+      };
+      window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+
+      // 对于不支持 beforeinstallprompt 的浏览器（如 iOS Safari）
+      // 延迟显示自定义安装指引
+      const timer = setTimeout(() => {
+        if (!deferredPrompt && !isInstalled) {
+          setShowInstall(true);
+        }
+      }, 5000);
+
+      return () => {
+        window.removeEventListener('pwa-update-available', handleUpdate);
+        window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+        clearTimeout(timer);
+      };
     }
 
     return () => {
       window.removeEventListener('pwa-update-available', handleUpdate);
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
     };
-  }, []);
+  }, [deferredPrompt, updateLockUntil]);
 
   const handleUpdate = () => {
     setShowUpdate(false);
@@ -68,13 +95,31 @@ export default function UpdatePrompt() {
   };
 
   const handleInstall = async () => {
-    if (!deferredPrompt) return;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setShowInstall(false);
+    if (deferredPrompt) {
+      // 如果有浏览器原生提示，使用它
+      try {
+        await deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          setShowInstall(false);
+        } else {
+          // 用户拒绝，设置 7 天冷却期
+          const cooldownUntil = Date.now() + 7 * 24 * 60 * 60 * 1000;
+          localStorage.setItem('pwa-install-dismissed-until', cooldownUntil.toString());
+        }
+        setDeferredPrompt(null);
+      } catch (err) {
+        console.error('安装提示失败:', err);
+      }
     }
-    setDeferredPrompt(null);
+    setShowInstall(false);
+  };
+
+  const handleDismissInstall = () => {
+    setShowInstall(false);
+    // 用户点击"暂不安装"，设置 7 天冷却期
+    const cooldownUntil = Date.now() + 7 * 24 * 60 * 60 * 1000;
+    localStorage.setItem('pwa-install-dismissed-until', cooldownUntil.toString());
   };
 
   if (!showUpdate && !showInstall) return null;
@@ -131,7 +176,7 @@ export default function UpdatePrompt() {
             </p>
             <div className="flex gap-3">
               <button
-                onClick={() => setShowInstall(false)}
+                onClick={handleDismissInstall}
                 className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
               >
                 暂不安装

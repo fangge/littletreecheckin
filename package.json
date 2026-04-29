@@ -1,7 +1,7 @@
 {
   "name": "littletreecheckin",
   "private": true,
-  "version": "3.1",
+  "version": "3.2",
   "type": "module",
   "scripts": {
     "start": "concurrently -n \"前端,后端\" -c \"blue,green\" \"pnpm dev\" \"pnpm server:dev\"",

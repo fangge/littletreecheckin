@@ -124,7 +124,26 @@ const request = async <T>(
   }
 
   if (!response.ok && !(response.status === 401 && isLoginEndpoint(endpoint))) {
-    throw new Error(data.error || `请求失败: ${response.status}`);
+    // 构建详细的错误信息
+    let errorMessage = data.error || `请求失败: ${response.status}`;
+    if (data.details) {
+      errorMessage += `\n详情: ${data.details}`;
+    }
+    if (data.hint) {
+      errorMessage += `\n提示: ${data.hint}`;
+    }
+    if (data.code) {
+      errorMessage += `\n错误代码: ${data.code}`;
+    }
+    console.error('API 请求失败:', {
+      endpoint,
+      status: response.status,
+      error: data.error,
+      details: data.details,
+      hint: data.hint,
+      code: data.code,
+    });
+    throw new Error(errorMessage);
   }
 
   return data;
@@ -210,6 +229,8 @@ export interface TaskData {
   fruits_earned?: number;
   bonus_fruits?: number;
   trees?: { name: string; image?: string };
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface MedalData {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { tasksApi, messagesApi, TaskData } from '../services/api';
+import { invalidateCache } from '../utils/requestCache';
 import PullToRefresh from '../components/PullToRefresh';
 
 interface TaskWithChild extends TaskData {
@@ -10,11 +11,166 @@ interface TaskWithChild extends TaskData {
   childId?: string;
 }
 
+// 任务卡片组件
+interface TaskCardProps {
+  task: TaskWithChild;
+  notes: Record<string, string>;
+  bonusFruits: Record<string, number>;
+  processingId: string | null;
+  showChildName: boolean;
+  onQuickNote: (taskId: string, text: string) => void;
+  onApprove: (task: TaskWithChild) => void;
+  onReject: (task: TaskWithChild) => void;
+  onRevoke: (confirm: { show: boolean; task: TaskWithChild | null }) => void;
+  onNotesChange: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  onBonusFruitsChange: React.Dispatch<React.SetStateAction<Record<string, number>>>;
+}
+
+const TaskCard = ({ task, notes, bonusFruits, processingId, showChildName, onQuickNote, onApprove, onReject, onRevoke, onNotesChange, onBonusFruitsChange }: TaskCardProps) => (
+  <div className="bg-white dark:bg-[var(--bg-surface)] rounded-2xl shadow-sm border border-primary/5 dark:border-[var(--border-color)] overflow-hidden transition-colors">
+    <div className="p-4 flex gap-4">
+      <div className="w-20 h-20 rounded-xl bg-primary/5 flex items-center justify-center relative overflow-hidden shrink-0 border border-primary/10">
+        {task.image_url ? (
+          <div className="absolute inset-0 bg-cover bg-center opacity-80" style={{ backgroundImage: `url("${task.image_url}")` }} />
+        ) : (
+          <span className="material-symbols-outlined text-primary text-3xl">task_alt</span>
+        )}
+        <div className="absolute bottom-1 right-1 bg-white/90 dark:bg-[var(--bg-surface)]/90 px-1 rounded text-[10px] font-bold text-primary">{task.progress}%</div>
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex justify-between items-start">
+          <div className="flex items-center gap-1.5">
+            {showChildName && task.childName && (
+              <span className="text-[10px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{task.childName}</span>
+            )}
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-[var(--text-muted)]">{task.type}</p>
+          </div>
+          <span className="text-[10px] text-slate-400 dark:text-[var(--text-muted)] shrink-0 ml-1">
+            {new Date(task.checkin_time).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-[var(--text-primary)] truncate">{task.title}</h3>
+      </div>
+    </div>
+
+    {task.status === 'pending' && (
+      <>
+        <div className="px-4 pb-4 space-y-3">
+          {task.goals?.fruits_per_task != null && task.goals.fruits_per_task > 0 && (
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-[var(--text-muted)]">
+              <span>基础奖励：</span>
+              <span className="font-bold text-primary">{task.goals.fruits_per_task} 🍎</span>
+            </div>
+          )}
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-slate-400 dark:text-[var(--text-muted)] uppercase tracking-wide">给 {task.childName || '孩子'} 留言</label>
+            <div className="relative">
+              <input
+                className="w-full bg-slate-50 dark:bg-[var(--bg-card)] border-none rounded-xl text-sm dark:text-[var(--text-primary)] focus:ring-2 focus:ring-primary/20 placeholder:text-slate-400 pr-24"
+                placeholder="留个便条..."
+                type="text"
+                value={notes[task.id] || ''}
+                onChange={e => onNotesChange(prev => ({ ...prev, [task.id]: e.target.value }))}
+                aria-label="鼓励留言"
+              />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
+                <button className="p-1 hover:bg-primary/10 rounded-full text-lg" onClick={() => onQuickNote(task.id, '❤️ 太棒了！')}>❤️</button>
+                <button className="p-1 hover:bg-primary/10 rounded-full text-lg" onClick={() => onQuickNote(task.id, '⭐ 继续加油！')}>⭐</button>
+                <button className="p-1 hover:bg-primary/10 rounded-full text-lg" onClick={() => onQuickNote(task.id, '👍 为你骄傲！')}>👍</button>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {['太棒了！', '继续加油！', '为你感到骄傲！'].map(text => (
+              <button key={text} className="text-[10px] font-semibold px-2 py-1 rounded-full bg-primary/5 text-primary border border-primary/10 hover:bg-primary hover:text-white transition-colors" onClick={() => onQuickNote(task.id, text)}>
+                {text}
+              </button>
+            ))}
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">额外奖励果实</label>
+            <div className="flex items-center gap-2">
+              <button
+                className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-lg flex items-center justify-center hover:bg-primary hover:text-white transition-colors disabled:opacity-40"
+                onClick={() => onBonusFruitsChange(prev => ({ ...prev, [task.id]: Math.max(0, (prev[task.id] ?? 0) - 1) }))}
+                disabled={(bonusFruits[task.id] ?? 0) <= 0}
+                aria-label="减少额外果实"
+              >−</button>
+              <input
+                className="w-16 text-center bg-slate-50 dark:bg-[var(--bg-card)] border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary/20 dark:text-[var(--text-primary)]"
+                type="number"
+                min={0}
+                step={1}
+                value={bonusFruits[task.id] ?? 0}
+                onChange={e => onBonusFruitsChange(prev => ({ ...prev, [task.id]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                aria-label="额外奖励果实数量"
+              />
+              <button
+                className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-lg flex items-center justify-center hover:bg-primary hover:text-white transition-colors"
+                onClick={() => onBonusFruitsChange(prev => ({ ...prev, [task.id]: (prev[task.id] ?? 0) + 1 }))}
+                aria-label="增加额外果实"
+              >+</button>
+              <span className="text-sm">🍎</span>
+              {(bonusFruits[task.id] ?? 0) > 0 && (
+                <span className="text-xs text-primary font-semibold">
+                  共 {(task.goals?.fruits_per_task ?? 0) + (bonusFruits[task.id] ?? 0)} 🍎
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="flex border-t border-primary/5 dark:border-[var(--border-color)]">
+          <button className="flex-1 py-4 flex items-center justify-center gap-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-colors border-r border-primary/5 dark:border-[var(--border-color)] disabled:opacity-50" onClick={() => onReject(task)} disabled={processingId === task.id} aria-label="拒绝任务">
+            <span className="material-symbols-outlined text-xl">cancel</span>
+            <span className="font-bold text-sm">需改进</span>
+          </button>
+          <button className="flex-1 py-4 flex items-center justify-center gap-2 bg-primary/10 hover:bg-primary text-primary hover:text-white transition-all disabled:opacity-50" onClick={() => onApprove(task)} disabled={processingId === task.id} aria-label="批准任务">
+            <span className="material-symbols-outlined fill-icon text-xl">check_circle</span>
+            <span className="font-bold text-sm">{processingId === task.id ? '处理中...' : '批准并发送'}</span>
+          </button>
+        </div>
+      </>
+    )}
+
+    {task.status === 'approved' && (
+      <div className="px-4 pb-4 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-primary">
+            <span className="material-symbols-outlined fill-icon">check_circle</span>
+            <span className="text-sm font-semibold">已批准</span>
+          </div>
+          <button
+            className="py-2 px-3 flex items-center gap-1 text-xs font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+            onClick={() => onRevoke({ show: true, task })}
+            disabled={processingId === task.id}
+          >
+            <span className="material-symbols-outlined text-sm">undo</span>
+            撤销批准
+          </button>
+        </div>
+        {task.updated_at && (
+          <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-[var(--text-muted)]">
+            <span className="material-symbols-outlined text-sm">schedule</span>
+            <span>批准时间：{new Date(task.updated_at).toLocaleString('zh-CN', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}</span>
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+);
+
 export default function ParentControl() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [tasks, setTasks] = useState<TaskWithChild[]>([]);
   const [activeTab, setActiveTab] = useState<'pending' | 'approved'>('pending');
+  const [selectedChildId, setSelectedChildId] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [bonusFruits, setBonusFruits] = useState<Record<string, number>>({});
@@ -54,9 +210,13 @@ export default function ParentControl() {
       await tasksApi.approve(task.id, bonus > 0 ? bonus : undefined);
       const note = notes[task.id];
       if (note && task.childId) await messagesApi.send(task.childId, note);
+      if (task.childId) {
+        invalidateCache(task.childId);
+      }
       await fetchTasks();
     } catch (err) {
       console.error('审核失败:', err);
+      alert(`审核失败: ${err instanceof Error ? err.message : '未知错误'}`);
     } finally {
       setProcessingId(null);
     }
@@ -66,9 +226,13 @@ export default function ParentControl() {
     setProcessingId(task.id);
     try {
       await tasksApi.reject(task.id, notes[task.id]);
+      if (task.childId) {
+        invalidateCache(task.childId);
+      }
       await fetchTasks();
     } catch (err) {
       console.error('拒绝失败:', err);
+      alert(`拒绝失败: ${err instanceof Error ? err.message : '未知错误'}`);
     } finally {
       setProcessingId(null);
     }
@@ -83,6 +247,9 @@ export default function ParentControl() {
     setProcessingId(revokeConfirm.task.id);
     try {
       await tasksApi.revoke(revokeConfirm.task.id);
+      if (revokeConfirm.task.childId) {
+        invalidateCache(revokeConfirm.task.childId);
+      }
       await fetchTasks();
       setRevokeConfirm({ show: false, task: null });
     } catch (err) {
@@ -94,6 +261,14 @@ export default function ParentControl() {
   };
 
   const pendingCount = tasks.filter(t => t.status === 'pending').length;
+
+  // 是否有多个孩子
+  const hasMultipleChildren = user?.children && user.children.length > 1;
+
+  // 根据选中的孩子过滤任务
+  const filteredTasks = selectedChildId === 'all'
+    ? tasks
+    : tasks.filter(t => t.childId === selectedChildId);
 
   // 下拉刷新处理函数
   const handleRefresh = useCallback(async () => {
@@ -126,7 +301,8 @@ export default function ParentControl() {
         </div>
       </header>
 
-      <div className="px-4 py-4 max-w-md mx-auto w-full lg:max-w-2xl">
+      <div className="px-4 py-4 max-w-md mx-auto w-full lg:max-w-2xl space-y-3">
+        {/* 一级 Tab: 待审核/已批准 */}
         <div className="flex p-1 bg-primary/10 dark:bg-[var(--bg-card)] rounded-xl">
           <button
             className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${activeTab === 'pending' ? 'bg-white dark:bg-[var(--bg-surface)] shadow-sm text-slate-900 dark:text-[var(--text-primary)]' : 'text-slate-500 dark:text-[var(--text-secondary)] hover:text-primary'}`}
@@ -141,145 +317,66 @@ export default function ParentControl() {
             已批准
           </button>
         </div>
+
+        {/* 二级 Tab: 孩子筛选（仅在有多个孩子时显示） */}
+        {hasMultipleChildren && (
+          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+            <button
+              className={`px-4 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap transition-all ${
+                selectedChildId === 'all'
+                  ? 'bg-primary text-white'
+                  : 'bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] hover:bg-slate-200 dark:hover:bg-[var(--bg-surface)]'
+              }`}
+              onClick={() => setSelectedChildId('all')}
+            >
+              全部 ({tasks.length})
+            </button>
+            {user?.children?.map(child => {
+              const childTaskCount = tasks.filter(t => t.childId === child.id).length;
+              return (
+                <button
+                  key={child.id}
+                  className={`px-4 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap transition-all ${
+                    selectedChildId === child.id
+                      ? 'bg-primary text-white'
+                      : 'bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] hover:bg-slate-200 dark:hover:bg-[var(--bg-surface)]'
+                  }`}
+                  onClick={() => setSelectedChildId(child.id)}
+                >
+                  {child.name} ({childTaskCount})
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      <main className="flex-1 px-4 pb-32 overflow-y-auto max-w-md mx-auto w-full space-y-4 lg:max-w-2xl lg:pb-8">
+      <main className="flex-1 px-4 pb-32 overflow-y-auto max-w-md mx-auto w-full space-y-3 lg:max-w-2xl lg:pb-8">
         {isLoading ? (
           <div className="flex justify-center py-12">
             <span className="material-symbols-outlined text-primary text-4xl animate-pulse">hourglass_empty</span>
           </div>
-        ) : tasks.length === 0 ? (
+        ) : filteredTasks.length === 0 ? (
           <div className="text-center py-12 text-slate-400 dark:text-[var(--text-muted)]">
             <span className="material-symbols-outlined text-5xl mb-3 block">task_alt</span>
             <p>{activeTab === 'pending' ? '暂无待审核任务' : '暂无已批准任务'}</p>
           </div>
         ) : (
-          tasks.map((task) => (
-            <div key={task.id} className="bg-white dark:bg-[var(--bg-surface)] rounded-2xl shadow-sm border border-primary/5 dark:border-[var(--border-color)] overflow-hidden transition-colors">
-              <div className="p-4 flex gap-4">
-                <div className="w-20 h-20 rounded-xl bg-primary/5 flex items-center justify-center relative overflow-hidden shrink-0 border border-primary/10">
-                  {task.image_url ? (
-                    <div className="absolute inset-0 bg-cover bg-center opacity-80" style={{ backgroundImage: `url("${task.image_url}")` }} />
-                  ) : (
-                    <span className="material-symbols-outlined text-primary text-3xl">task_alt</span>
-                  )}
-                  <div className="absolute bottom-1 right-1 bg-white/90 dark:bg-[var(--bg-surface)]/90 px-1 rounded text-[10px] font-bold text-primary">{task.progress}%</div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-1.5">
-                      {task.childName && (
-                        <span className="text-[10px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{task.childName}</span>
-                      )}
-                      <p className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-[var(--text-muted)]">{task.type}</p>
-                    </div>
-                    <span className="text-[10px] text-slate-400 dark:text-[var(--text-muted)] shrink-0 ml-1">
-                      {new Date(task.checkin_time).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-[var(--text-primary)] truncate">{task.title}</h3>
-                  {task.trees && <p className="text-sm text-slate-500 dark:text-[var(--text-muted)] mt-1">虚拟树：{task.trees.name}</p>}
-                </div>
-              </div>
-
-              {task.status === 'pending' && (
-                <>
-                  <div className="px-4 pb-4 space-y-3">
-                    {/* 基础果实数展示 */}
-                    {task.goals?.fruits_per_task != null && task.goals.fruits_per_task > 0 && (
-                      <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-[var(--text-muted)]">
-                        <span>基础奖励：</span>
-                        <span className="font-bold text-primary">{task.goals.fruits_per_task} 🍎</span>
-                      </div>
-                    )}
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-400 dark:text-[var(--text-muted)] uppercase tracking-wide">给 {task.childName || '孩子'} 留言</label>
-                      <div className="relative">
-                        <input
-                          className="w-full bg-slate-50 dark:bg-[var(--bg-card)] border-none rounded-xl text-sm dark:text-[var(--text-primary)] focus:ring-2 focus:ring-primary/20 placeholder:text-slate-400 pr-24"
-                          placeholder="留个便条..."
-                          type="text"
-                          value={notes[task.id] || ''}
-                          onChange={e => setNotes(prev => ({ ...prev, [task.id]: e.target.value }))}
-                          aria-label="鼓励留言"
-                        />
-                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
-                          <button className="p-1 hover:bg-primary/10 rounded-full text-lg" onClick={() => handleQuickNote(task.id, '❤️ 太棒了！')}>❤️</button>
-                          <button className="p-1 hover:bg-primary/10 rounded-full text-lg" onClick={() => handleQuickNote(task.id, '⭐ 继续加油！')}>⭐</button>
-                          <button className="p-1 hover:bg-primary/10 rounded-full text-lg" onClick={() => handleQuickNote(task.id, '👍 为你骄傲！')}>👍</button>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {['太棒了！', '继续加油！', '为你感到骄傲！'].map(text => (
-                        <button key={text} className="text-[10px] font-semibold px-2 py-1 rounded-full bg-primary/5 text-primary border border-primary/10 hover:bg-primary hover:text-white transition-colors" onClick={() => handleQuickNote(task.id, text)}>
-                          {text}
-                        </button>
-                      ))}
-                    </div>
-                    {/* 额外奖励果实输入 */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">额外奖励果实</label>
-                      <div className="flex items-center gap-2">
-                        <button
-                          className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-lg flex items-center justify-center hover:bg-primary hover:text-white transition-colors disabled:opacity-40"
-                          onClick={() => setBonusFruits(prev => ({ ...prev, [task.id]: Math.max(0, (prev[task.id] ?? 0) - 1) }))}
-                          disabled={(bonusFruits[task.id] ?? 0) <= 0}
-                          aria-label="减少额外果实"
-                        >−</button>
-                        <input
-                          className="w-16 text-center bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary/20"
-                          type="number"
-                          min={0}
-                          step={1}
-                          value={bonusFruits[task.id] ?? 0}
-                          onChange={e => setBonusFruits(prev => ({ ...prev, [task.id]: Math.max(0, parseInt(e.target.value) || 0) }))}
-                          aria-label="额外奖励果实数量"
-                        />
-                        <button
-                          className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-lg flex items-center justify-center hover:bg-primary hover:text-white transition-colors"
-                          onClick={() => setBonusFruits(prev => ({ ...prev, [task.id]: (prev[task.id] ?? 0) + 1 }))}
-                          aria-label="增加额外果实"
-                        >+</button>
-                        <span className="text-sm">🍎</span>
-                        {(bonusFruits[task.id] ?? 0) > 0 && (
-                          <span className="text-xs text-primary font-semibold">
-                            共 {(task.goals?.fruits_per_task ?? 0) + (bonusFruits[task.id] ?? 0)} 🍎
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex border-t border-primary/5">
-                    <button className="flex-1 py-4 flex items-center justify-center gap-2 hover:bg-red-50 text-red-500 transition-colors border-r border-primary/5 disabled:opacity-50" onClick={() => handleReject(task)} disabled={processingId === task.id} aria-label="拒绝任务">
-                      <span className="material-symbols-outlined text-xl">cancel</span>
-                      <span className="font-bold text-sm">需改进</span>
-                    </button>
-                    <button className="flex-1 py-4 flex items-center justify-center gap-2 bg-primary/10 hover:bg-primary text-primary hover:text-white transition-all disabled:opacity-50" onClick={() => handleApprove(task)} disabled={processingId === task.id} aria-label="批准任务">
-                      <span className="material-symbols-outlined fill-icon text-xl">check_circle</span>
-                      <span className="font-bold text-sm">{processingId === task.id ? '处理中...' : '批准并发送'}</span>
-                    </button>
-                  </div>
-                </>
-              )}
-
-              {task.status === 'approved' && (
-                <div className="px-4 pb-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-primary">
-                    <span className="material-symbols-outlined fill-icon">check_circle</span>
-                    <span className="text-sm font-semibold">已批准</span>
-                  </div>
-                  <button
-                    className="py-2 px-3 flex items-center gap-1 text-xs font-semibold text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    onClick={() => setRevokeConfirm({ show: true, task })}
-                    disabled={processingId === task.id}
-                  >
-                    <span className="material-symbols-outlined text-sm">undo</span>
-                    撤销批准
-                  </button>
-                </div>
-              )}
-            </div>
+          filteredTasks.map((task) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              notes={notes}
+              bonusFruits={bonusFruits}
+              processingId={processingId}
+              onQuickNote={handleQuickNote}
+              onApprove={handleApprove}
+              onReject={handleReject}
+              onRevoke={setRevokeConfirm}
+              onNotesChange={setNotes}
+              onBonusFruitsChange={setBonusFruits}
+              showChildName={hasMultipleChildren && selectedChildId === 'all'}
+            />
           ))
         )}
       </main>
