@@ -283,7 +283,7 @@ export default function Profile() {
                 <p className="text-slate-400 dark:text-[var(--text-muted)] text-xs mt-0.5">成就丛林 HappyGrow</p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="bg-primary/10 text-primary text-sm font-bold px-3 py-1 rounded-full">v3.0</span>
+                <span className="bg-primary/10 text-primary text-sm font-bold px-3 py-1 rounded-full">v3.2</span>
               </div>
             </div>
             <button
