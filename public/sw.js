@@ -19,7 +19,6 @@ const STATIC_ASSETS = [
   '/logo2-180.png',
   '/logo2-192.png',
   '/logo2-512.png',
-  '/logo.png',
 ];
 
 // API 请求前缀 - 这些请求走网络优先策略

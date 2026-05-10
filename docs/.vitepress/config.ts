@@ -10,7 +10,7 @@ export default defineConfig({
   lastUpdated: true,
   ignoreDeadLinks: true,
   themeConfig: {
-    logo: '/logo.png',
+    logo: '/logo2.png',
     siteTitle: '成就丛林',
     nav: [
       {text: '首页', link: '/'},
