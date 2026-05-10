@@ -554,6 +554,9 @@ export const rewardsApi = {
   confirmRedemption: (redemptionId: string) =>
     request<{ message: string }>(`/api/v1/rewards/redemptions/${redemptionId}/complete`, { method: 'PUT' }),
 
+  cancelRedemption: (redemptionId: string) =>
+    request<{ message: string }>(`/api/v1/rewards/redemptions/${redemptionId}/cancel`, { method: 'PUT' }),
+
   listAll: () =>
     request<{ data: (RewardData & { is_active: boolean })[] }>('/api/v1/rewards/all'),
 

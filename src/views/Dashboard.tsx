@@ -164,15 +164,7 @@ export default function Dashboard() {
           <h1 className="text-slate-900 dark:text-[var(--text-primary)] text-xl font-bold leading-tight tracking-tight flex-1 text-center">
             {currentChild ? `${currentChild.name}的森林` : '我的森林'}
           </h1>
-          <div className="flex size-12 items-center justify-end">
-            <button
-              onClick={() => navigate('/store')}
-              className="flex size-10 cursor-pointer items-center justify-center rounded-full bg-primary/20 dark:bg-[var(--bg-card)] text-slate-900 dark:text-[var(--text-primary)]"
-              aria-label="商店"
-            >
-              <span className="material-symbols-outlined text-2xl">storefront</span>
-            </button>
-          </div>
+          <div className="flex size-12 items-center justify-end" />
         </div>
         {/* 多孩子切换器 */}
         {user?.children && user.children.length > 1 && (

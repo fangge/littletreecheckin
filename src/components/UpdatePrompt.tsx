@@ -141,7 +141,7 @@ export default function UpdatePrompt() {
               </div>
             </div>
             <p className="mb-6 text-sm text-gray-600 dark:text-gray-300">
-              应用已更新到最新版本，点击下方按钮刷新即可体验新功能。
+              应用已更新到 v3.3 版本，点击下方按钮刷新即可体验新功能。
             </p>
             <div className="flex gap-3">
               <button

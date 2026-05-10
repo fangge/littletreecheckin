@@ -172,6 +172,67 @@ router.put('/redemptions/:redemptionId/complete', authMiddleware, async (req: Au
   res.json({ message: '已确认奖励发放' });
 });
 
+// PUT /api/v1/rewards/redemptions/:redemptionId/cancel  (家长撤回兑换)
+router.put('/redemptions/:redemptionId/cancel', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { redemptionId } = req.params;
+
+  // 1. 获取兑换记录信息
+  const { data: redemption, error: fetchError } = await supabase
+    .from('reward_redemptions')
+    .select('child_id, rewards(price), status')
+    .eq('id', redemptionId)
+    .single();
+
+  if (fetchError || !redemption) {
+    res.status(404).json({ error: '兑换记录不存在' });
+    return;
+  }
+
+  // 2. 检查状态，只能撤回待发放的记录
+  if (redemption.status !== 'pending') {
+    res.status(400).json({ error: '只能撤回待发放的兑换记录' });
+    return;
+  }
+
+  const price = (redemption.rewards as any)?.price || 0;
+
+  // 3. 获取当前孩子的果实余额
+  const { data: child, error: childError } = await supabase
+    .from('children')
+    .select('fruits_balance')
+    .eq('id', redemption.child_id)
+    .single();
+
+  if (childError || !child) {
+    res.status(404).json({ error: '孩子不存在' });
+    return;
+  }
+
+  // 4. 返还果实给孩子
+  const { error: updateError } = await supabase
+    .from('children')
+    .update({ fruits_balance: child.fruits_balance + price })
+    .eq('id', redemption.child_id);
+
+  if (updateError) {
+    res.status(500).json({ error: '返还果实失败' });
+    return;
+  }
+
+  // 5. 删除兑换记录
+  const { error: deleteError } = await supabase
+    .from('reward_redemptions')
+    .delete()
+    .eq('id', redemptionId);
+
+  if (deleteError) {
+    res.status(500).json({ error: '删除兑换记录失败' });
+    return;
+  }
+
+  res.json({ message: '已撤回兑换，果实已返还' });
+});
+
 // POST /api/v1/rewards  (创建奖品)
 router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { name, price, category } = req.body;

@@ -29,9 +29,11 @@ export default function RewardsManagement() {
   const [formError, setFormError] = useState('');
 
   // 兑换记录
-  const [redemptions, setRedemptions] = useState<(RedemptionData & { childName?: string })[]>([]);
+  const [redemptions, setRedemptions] = useState<(RedemptionData & { childName?: string; childId?: string })[]>([]);
   const [isLoadingRedemptions, setIsLoadingRedemptions] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [cancelingId, setCancelingId] = useState<string | null>(null);
+  const [selectedChildId, setSelectedChildId] = useState<string>('all');
 
   const fetchRewards = useCallback(async () => {
     setIsLoadingRewards(true);
@@ -52,7 +54,7 @@ export default function RewardsManagement() {
       const results = await Promise.all(
         user.children.map(child =>
           rewardsApi.redemptions(child.id).then(res =>
-            res.data.map(r => ({ ...r, childName: child.name }))
+            res.data.map(r => ({ ...r, childName: child.name, childId: child.id }))
           )
         )
       );
@@ -140,11 +142,30 @@ export default function RewardsManagement() {
     }
   };
 
+  const handleCancel = async (redemptionId: string, childName: string, rewardName: string, price: number) => {
+    if (!confirm(`确定要撤回"${childName}"兑换的"${rewardName}"吗？\n撤回后将返还 ${price} 🍎 给孩子。`)) return;
+    setCancelingId(redemptionId);
+    try {
+      await rewardsApi.cancelRedemption(redemptionId);
+      await fetchRedemptions();
+    } catch (err) {
+      console.error('撤回失败:', err);
+      alert(err instanceof Error ? err.message : '撤回失败');
+    } finally {
+      setCancelingId(null);
+    }
+  };
+
   // 下拉刷新处理函数
   const handleRefresh = useCallback(async () => {
     await Promise.all([fetchRewards(), fetchRedemptions()]);
   }, [fetchRewards, fetchRedemptions]);
 
+  // 根据选中的孩子筛选兑换记录
+  const filteredRedemptions = selectedChildId === 'all'
+    ? redemptions
+    : redemptions.filter(r => r.childId === selectedChildId);
+  
   const pendingCount = redemptions.filter(r => r.status === 'pending').length;
 
   return (
@@ -258,27 +279,61 @@ export default function RewardsManagement() {
         {/* 兑换记录 */}
         {activeTab === 'redemptions' && (
           <>
+            {/* 孩子筛选器 */}
+            {user?.children && user.children.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                <button
+                  className={`shrink-0 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                    selectedChildId === 'all'
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'bg-white dark:bg-[var(--bg-surface)] border border-slate-200 dark:border-[var(--border-color)] text-slate-600 dark:text-[var(--text-secondary)] hover:border-primary/40'
+                  }`}
+                  onClick={() => setSelectedChildId('all')}
+                >
+                  全部孩子
+                </button>
+                {user.children.map(child => (
+                  <button
+                    key={child.id}
+                    className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                      selectedChildId === child.id
+                        ? 'bg-primary text-white shadow-sm'
+                        : 'bg-white dark:bg-[var(--bg-surface)] border border-slate-200 dark:border-[var(--border-color)] text-slate-600 dark:text-[var(--text-secondary)] hover:border-primary/40'
+                    }`}
+                    onClick={() => setSelectedChildId(child.id)}
+                  >
+                    <span className="material-symbols-outlined text-base">
+                      {child.gender === 'female' ? 'face_3' : 'face'}
+                    </span>
+                    {child.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {isLoadingRedemptions ? (
               <div className="flex justify-center py-12">
                 <span className="material-symbols-outlined text-primary text-4xl animate-pulse">receipt_long</span>
               </div>
-            ) : redemptions.length === 0 ? (
+            ) : filteredRedemptions.length === 0 ? (
               <div className="text-center py-12 text-slate-400 dark:text-[var(--text-muted)]">
                 <span className="material-symbols-outlined text-5xl mb-3 block">receipt_long</span>
-                <p>暂无兑换记录</p>
+                <p>{selectedChildId === 'all' ? '暂无兑换记录' : '该孩子暂无兑换记录'}</p>
               </div>
             ) : (
-              redemptions.map(r => (
+              filteredRedemptions.map(r => (
                 <div key={r.id} className="bg-white dark:bg-[var(--bg-surface)] rounded-2xl shadow-sm border border-primary/5 dark:border-[var(--border-color)] overflow-hidden transition-colors">
                   <div className="p-4 flex gap-3 items-center">
                     <div className="w-16 h-16 rounded-xl bg-slate-100 dark:bg-[var(--bg-card)] shrink-0 flex items-center justify-center text-slate-300 dark:text-[var(--text-muted)]">
                       <span className="material-symbols-outlined text-3xl">redeem</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-slate-900 dark:text-[var(--text-primary)] truncate">{r.rewards?.name || '未知奖品'}</p>
-                      <p className="text-sm text-slate-500 dark:text-[var(--text-muted)] mt-0.5">
-                        兑换人：<span className="text-primary font-bold">{r.childName || '未知'}</span>
-                      </p>
+                      <div className="flex items-center gap-2">
+                        {selectedChildId === 'all' && r.childName && (
+                          <span className="text-[10px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full shrink-0">{r.childName}</span>
+                        )}
+                        <p className="font-bold text-slate-900 dark:text-[var(--text-primary)] truncate">{r.rewards?.name || '未知奖品'}</p>
+                      </div>
                       <p className="text-xs text-slate-400 dark:text-[var(--text-muted)]">
                         {r.rewards?.price} 🍎 · {new Date(r.redeemed_at).toLocaleDateString('zh-CN')}
                       </p>
@@ -287,14 +342,24 @@ export default function RewardsManagement() {
                       </span>
                     </div>
                     {r.status === 'pending' && (
-                      <button
-                        className="shrink-0 px-3 py-2 bg-primary text-white text-xs font-bold rounded-xl disabled:opacity-50 hover:bg-primary/90 transition-colors"
-                        onClick={() => handleConfirm(r.id)}
-                        disabled={confirmingId === r.id}
-                        aria-label="确认发放"
-                      >
-                        {confirmingId === r.id ? '确认中...' : '确认发放'}
-                      </button>
+                      <div className="shrink-0 flex gap-2">
+                        <button
+                          className="px-3 py-2 bg-primary text-white text-xs font-bold rounded-xl disabled:opacity-50 hover:bg-primary/90 transition-colors"
+                          onClick={() => handleConfirm(r.id)}
+                          disabled={confirmingId === r.id || cancelingId === r.id}
+                          aria-label="确认发放"
+                        >
+                          {confirmingId === r.id ? '确认中...' : '确认发放'}
+                        </button>
+                        <button
+                          className="px-3 py-2 bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-xs font-bold rounded-xl disabled:opacity-50 hover:bg-slate-200 dark:hover:bg-[var(--bg-surface)] transition-colors"
+                          onClick={() => handleCancel(r.id, r.childName || '未知', r.rewards?.name || '未知奖品', r.rewards?.price || 0)}
+                          disabled={confirmingId === r.id || cancelingId === r.id}
+                          aria-label="撤回兑换"
+                        >
+                          {cancelingId === r.id ? '撤回中...' : '撤回'}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>

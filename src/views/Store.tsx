@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { rewardsApi, RewardData, Child } from '../services/api';
 import PullToRefresh from '../components/PullToRefresh';
@@ -21,6 +21,9 @@ export default function Store() {
   const [fruitsBalance, setFruitsBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
+  const [showRedeemModal, setShowRedeemModal] = useState(false);
+  const [selectedReward, setSelectedReward] = useState<RewardData | null>(null);
+  const [isRedeeming, setIsRedeeming] = useState(false);
 
   const handleSelectChild = (child: Child) => {
     setSelectedChild(child);
@@ -53,7 +56,7 @@ export default function Store() {
     await fetchData();
   }, [fetchData]);
 
-  const handleRedeem = async (reward: RewardData) => {
+  const handleOpenRedeemModal = (reward: RewardData) => {
     if (!selectedChild) {
       alert('请先选择要兑换的孩子');
       return;
@@ -62,18 +65,35 @@ export default function Store() {
       alert(`果实余额不足！当前余额：${fruitsBalance}，需要：${reward.price}`);
       return;
     }
+    setSelectedReward(reward);
+    setShowRedeemModal(true);
+  };
 
-    setRedeemingId(reward.id);
+  const handleConfirmRedeem = async () => {
+    if (!selectedReward || !selectedChild) return;
+    
+    setIsRedeeming(true);
     try {
-      const res = await rewardsApi.redeem(reward.id, selectedChild.id);
+      const res = await rewardsApi.redeem(selectedReward.id, selectedChild.id);
       setFruitsBalance(res.data.remaining_balance);
       await refreshUser();
-      alert(res.message || '兑换成功！');
+      setShowRedeemModal(false);
+      setSelectedReward(null);
+      // 显示成功提示
+      setTimeout(() => {
+        alert(res.message || '兑换成功！');
+      }, 100);
     } catch (err) {
       alert(err instanceof Error ? err.message : '兑换失败');
     } finally {
-      setRedeemingId(null);
+      setIsRedeeming(false);
     }
+  };
+
+  const handleCloseRedeemModal = () => {
+    if (isRedeeming) return; // 兑换中不允许关闭
+    setShowRedeemModal(false);
+    setSelectedReward(null);
   };
 
   return (
@@ -180,11 +200,11 @@ export default function Store() {
                   </div>
                   <button
                     className="mt-3 rounded-full bg-primary/20 py-2 text-xs font-bold text-slate-900 transition-colors hover:bg-primary hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                    onClick={() => handleRedeem(reward)}
-                    disabled={redeemingId === reward.id || fruitsBalance < reward.price || !selectedChild}
+                    onClick={() => handleOpenRedeemModal(reward)}
+                    disabled={fruitsBalance < reward.price || !selectedChild}
                     aria-label={`兑换${reward.name}`}
                   >
-                    {redeemingId === reward.id ? '兑换中...' : '兑换'}
+                    兑换
                   </button>
                 </div>
               </div>
@@ -192,6 +212,85 @@ export default function Store() {
           </div>
         )}
       </div>
+
+      {/* 兑换确认弹窗 */}
+      <AnimatePresence>
+        {showRedeemModal && selectedReward && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+            onClick={handleCloseRedeemModal}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white dark:bg-[var(--bg-surface)] rounded-3xl p-6 max-w-sm w-full shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-primary text-5xl">redeem</span>
+                </div>
+                
+                <div className="text-center">
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-[var(--text-primary)] mb-2">
+                    确认兑换
+                  </h3>
+                  <p className="text-sm text-slate-600 dark:text-[var(--text-secondary)] mb-1">
+                    {selectedReward.name}
+                  </p>
+                  <p className="text-lg font-bold text-primary">
+                    {selectedReward.price} 🍎
+                  </p>
+                </div>
+
+                <div className="w-full bg-slate-50 dark:bg-[var(--bg-card)] rounded-xl p-3 text-sm">
+                  <div className="flex justify-between mb-1">
+                    <span className="text-slate-600 dark:text-[var(--text-secondary)]">当前余额</span>
+                    <span className="font-bold text-slate-900 dark:text-[var(--text-primary)]">{fruitsBalance} 🍎</span>
+                  </div>
+                  <div className="flex justify-between mb-1">
+                    <span className="text-slate-600 dark:text-[var(--text-secondary)]">兑换消耗</span>
+                    <span className="font-bold text-red-500">-{selectedReward.price} 🍎</span>
+                  </div>
+                  <div className="border-t border-slate-200 dark:border-[var(--border-color)] my-2"></div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600 dark:text-[var(--text-secondary)]">剩余余额</span>
+                    <span className="font-bold text-primary">{fruitsBalance - selectedReward.price} 🍎</span>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 w-full">
+                  <button
+                    className="flex-1 py-3 bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-sm font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-[var(--bg-surface)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={handleCloseRedeemModal}
+                    disabled={isRedeeming}
+                  >
+                    取消
+                  </button>
+                  <button
+                    className="flex-1 py-3 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    onClick={handleConfirmRedeem}
+                    disabled={isRedeeming}
+                  >
+                    {isRedeeming ? (
+                      <>
+                        <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>
+                        兑换中...
+                      </>
+                    ) : (
+                      '确认兑换'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       </motion.div>
     </PullToRefresh>
   );

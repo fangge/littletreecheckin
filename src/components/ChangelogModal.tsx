@@ -34,12 +34,27 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
               </button>
             </div>
             <div className="overflow-y-auto max-h-[60vh] px-6 py-4 space-y-4">
-              {/* v3.2 */}
+              {/* v3.3 */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v3.2</span>
+                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v3.3</span>
                   <span className="text-sm text-slate-500 dark:text-[var(--text-muted)]">最新</span>
                 </div>
+                <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">奖品兑换优化与商店入口调整</h4>
+                <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
+                  新增奖品撤回功能、兑换加载状态优化、兑换记录孩子筛选，并将商店入口移至全局导航栏，提升奖品管理和兑换体验。
+                </p>
+                <ul className="text-xs text-slate-500 dark:text-[var(--text-muted)] space-y-1 ml-2">
+                  <li>• 待发放兑换记录增加撤回按钮，返还果实</li>
+                  <li>• 兑换弹窗增加加载状态，防止重复点击</li>
+                  <li>• 兑换记录支持按孩子筛选</li>
+                  <li>• 商店入口移至全局导航栏</li>
+                </ul>
+              </div>
+
+              {/* v3.2 */}
+              <div className="space-y-2 pt-4 border-t border-primary/5 dark:border-[var(--border-color)]">
+                <span className="bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-xs font-bold px-2 py-0.5 rounded">v3.2</span>
                 <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">家长审核多孩子分类优化</h4>
                 <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
                   新增家长审核页面的孩子筛选功能，通过二级 Tab 快速切换查看不同孩子的任务，提升多孩子家庭的使用体验。
