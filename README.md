@@ -55,8 +55,7 @@ cp .env.example .env.local
 # supabase/migrations/002_seed_data.sql
 
 # 启动开发服务器
-pnpm dev          # 前端 http://localhost:3000
-pnpm server:dev   # 后端 http://localhost:3001
+pnpm start
 ```
 
 详细步骤请参阅 [快速开始文档](docs/getting-started.md)。
