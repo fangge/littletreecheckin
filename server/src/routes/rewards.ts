@@ -155,6 +155,41 @@ router.get('/children/:childId/redemptions', authMiddleware, async (req: AuthReq
   res.json({ data: data || [] });
 });
 
+// GET /api/v1/rewards/redemptions/batch?child_ids=uuid1,uuid2,uuid3
+// 批量获取多个孩子的兑换记录（性能优化：避免 N+1 查询）
+router.get('/redemptions/batch', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { child_ids } = req.query;
+
+  if (!child_ids || typeof child_ids !== 'string') {
+    res.status(400).json({ error: '缺少 child_ids 参数' });
+    return;
+  }
+
+  const childIdArray = child_ids.split(',').filter(Boolean);
+
+  if (childIdArray.length === 0) {
+    res.json({ data: [] });
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from('reward_redemptions')
+    .select(`
+      id, child_id, redeemed_at, status,
+      rewards(name, price, category),
+      children(name)
+    `)
+    .in('child_id', childIdArray)
+    .order('redeemed_at', { ascending: false });
+
+  if (error) {
+    res.status(500).json({ error: '获取兑换记录失败' });
+    return;
+  }
+
+  res.json({ data: data || [] });
+});
+
 // PUT /api/v1/rewards/redemptions/:redemptionId/complete  (家长确认奖励已发放)
 router.put('/redemptions/:redemptionId/complete', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { redemptionId } = req.params;

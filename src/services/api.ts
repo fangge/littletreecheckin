@@ -262,8 +262,6 @@ export interface RedemptionData {
     name: string;
     price: number;
     category: string;
-    price: number;
-    category: string;
   };
 }
 
@@ -550,6 +548,12 @@ export const rewardsApi = {
 
   redemptions: (childId: string) =>
     request<{ data: RedemptionData[] }>(`/api/v1/rewards/children/${childId}/redemptions`),
+
+  // 批量获取多个孩子的兑换记录（性能优化）
+  redemptionsBatch: (childIds: string) =>
+    request<{ data: (RedemptionData & { child_id: string; children?: { name: string } })[] }>(
+      `/api/v1/rewards/redemptions/batch?child_ids=${childIds}`
+    ),
 
   confirmRedemption: (redemptionId: string) =>
     request<{ message: string }>(`/api/v1/rewards/redemptions/${redemptionId}/complete`, { method: 'PUT' }),

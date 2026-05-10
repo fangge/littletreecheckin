@@ -41,9 +41,9 @@ export default function Dashboard() {
       setIsLoading(true);
       try {
         // 使用聚合接口一次获取树木+目标+统计数据（替代3次独立请求，减少 ~7 次冗余 DB 查询）
+        // 同时获取日历数据，避免重复请求（性能优化）
         const [dashboardRes, calendarRes] = await Promise.all([
           treesApi.dashboardData(currentChild.id, timeFilter),
-          // 日历数据独立请求（按月变化）
           childrenApi.getCheckinCalendar(
             currentChild.id,
             selectedMonth.getFullYear(),
@@ -63,25 +63,7 @@ export default function Dashboard() {
     };
 
     fetchData();
-  }, [currentChild, timeFilter]);
-
-  // 获取日历打卡数据（仅当月份变化时触发，与主数据加载分离以减少不必要的请求）
-  useEffect(() => {
-    if (!currentChild) return;
-
-    const fetchCalendar = async () => {
-      try {
-        const year = selectedMonth.getFullYear();
-        const month = selectedMonth.getMonth() + 1;
-        const res = await childrenApi.getCheckinCalendar(currentChild.id, year, month);
-        setCalendarData(res.data);
-      } catch (err) {
-        console.error('获取日历数据失败:', err);
-      }
-    };
-
-    fetchCalendar();
-  }, [currentChild, selectedMonth]);
+  }, [currentChild, timeFilter, selectedMonth]);
 
   const handleTimeFilterChange = (filter: TimeFilter) => {
     setTimeFilter(filter);

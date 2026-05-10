@@ -51,17 +51,18 @@ export default function RewardsManagement() {
     if (!user?.children || user.children.length === 0) return;
     setIsLoadingRedemptions(true);
     try {
-      const results = await Promise.all(
-        user.children.map(child =>
-          rewardsApi.redemptions(child.id).then(res =>
-            res.data.map(r => ({ ...r, childName: child.name, childId: child.id }))
-          )
-        )
-      );
-      const all = results.flat().sort(
-        (a, b) => new Date(b.redeemed_at).getTime() - new Date(a.redeemed_at).getTime()
-      );
-      setRedemptions(all);
+      // 使用批量接口一次性获取所有孩子的兑换记录（性能优化：避免 N+1 查询）
+      const childIds = user.children.map(c => c.id).join(',');
+      const res = await rewardsApi.redemptionsBatch(childIds);
+      
+      // 从后端返回的数据中提取孩子姓名
+      const enriched = res.data.map(r => ({
+        ...r,
+        childName: r.children?.name || '未知',
+        childId: r.child_id
+      }));
+      
+      setRedemptions(enriched);
     } catch (err) {
       console.error('获取兑换记录失败:', err);
     } finally {

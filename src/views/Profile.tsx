@@ -294,6 +294,14 @@ export default function Profile() {
               <p className="text-slate-600 dark:text-[var(--text-secondary)] text-sm">更新日志</p>
               <span className="material-symbols-outlined text-slate-400">chevron_right</span>
             </button>
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('pwa-install-prompt'))}
+              className="w-full flex items-center justify-between py-2 hover:bg-slate-50 dark:hover:bg-[var(--bg-card)] transition-colors rounded-lg px-2"
+              aria-label="安装应用"
+            >
+              <p className="text-slate-600 dark:text-[var(--text-secondary)] text-sm">安装应用到主屏幕</p>
+              <span className="material-symbols-outlined text-slate-400">download</span>
+            </button>
           </div>
         </div>
 
