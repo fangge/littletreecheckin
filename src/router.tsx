@@ -10,6 +10,7 @@ import Medals from './views/Medals';
 import ParentControl from './views/ParentControl';
 import Store from './views/Store';
 import FruitsHistory from './views/FruitsHistory';
+import RedemptionHistory from './views/RedemptionHistory';
 import GoalSetting from './views/GoalSetting';
 import Register from './views/Register';
 import Login from './views/Login';
@@ -112,6 +113,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <FruitsHistory />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'store/redemption-history',
+        element: (
+          <ProtectedRoute>
+            <RedemptionHistory />
           </ProtectedRoute>
         ),
       },

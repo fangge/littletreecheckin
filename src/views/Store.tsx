@@ -151,14 +151,24 @@ export default function Store() {
                 <span className="text-4xl font-extrabold">{fruitsBalance.toLocaleString()}</span>
                 <span className="mb-1 text-2xl">🍎</span>
               </div>
-              <button
-                onClick={() => navigate('/store/fruits-history')}
-                className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition-colors px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm shrink-0"
-                aria-label="查看果实获取记录"
-              >
-                <span className="material-symbols-outlined text-sm leading-none">history</span>
-                获取记录
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => navigate('/store/fruits-history')}
+                  className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition-colors px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm shrink-0"
+                  aria-label="查看果实获取记录"
+                >
+                  <span className="material-symbols-outlined text-sm leading-none">history</span>
+                  获取记录
+                </button>
+                <button
+                  onClick={() => navigate('/store/redemption-history')}
+                  className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition-colors px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm shrink-0"
+                  aria-label="查看兑换记录"
+                >
+                  <span className="material-symbols-outlined text-sm leading-none">shopping_bag</span>
+                  兑换记录
+                </button>
+              </div>
             </div>
           </div>
           <div className="absolute -right-8 -top-8 size-32 rounded-full bg-white/20 blur-2xl" />
