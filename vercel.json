@@ -46,7 +46,7 @@
       "dest": "/assets/$1"
     },
     {
-      "src": "^/(favicon\\.ico|logo\\.png|logo2\\.png|robots\\.txt)$",
+      "src": "^/(favicon\\.ico|logo\\.png|logo2\\.png|logo2-16\\.png|logo2-32\\.png|logo2-180\\.png|logo2-192\\.png|logo2-512\\.png|robots\\.txt)$",
       "dest": "/$1"
     },
     {
