@@ -20,8 +20,12 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response): Promi
     .eq('is_deleted', false);
 
   if (childrenError) {
-    console.error('[/me] 获取孩子列表失败:', childrenError);
-    console.error('[/me] 诊断 - userId:', userId, '| supabase key type:', process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 20) + '...');
+    const activeKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || '';
+    const keyPreview = activeKey ? activeKey.substring(0, 30) + '...' : '(not set)';
+    console.error('[/me] 获取孩子列表失败:', JSON.stringify(childrenError));
+    console.error('[/me] 诊断 - userId:', userId);
+    console.error('[/me] 诊断 - key source:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SUPABASE_SERVICE_ROLE_KEY' : 'SUPABASE_SERVICE_KEY');
+    console.error('[/me] 诊断 - key preview:', keyPreview);
   } else {
     console.log('[/me] 查询成功 - userId:', userId, '| children count:', children?.length ?? 0);
   }

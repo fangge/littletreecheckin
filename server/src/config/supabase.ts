@@ -21,6 +21,32 @@ if (!supabaseUrl || !supabaseServiceKey) {
   throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_KEY environment variables');
 }
 
+// 诊断：解码 JWT 检查 key 的 role 类型
+function getJwtRole(jwt: string): string {
+  try {
+    const payload = JSON.parse(Buffer.from(jwt.split('.')[1], 'base64').toString('utf-8'));
+    return payload.role || 'unknown';
+  } catch {
+    return 'invalid';
+  }
+}
+
+const keyRole = getJwtRole(supabaseServiceKey);
+const keySource = process.env.SUPABASE_SERVICE_ROLE_KEY
+  ? 'SUPABASE_SERVICE_ROLE_KEY'
+  : process.env.SUPABASE_SERVICE_KEY
+    ? 'SUPABASE_SERVICE_KEY'
+    : 'unknown';
+
+if (keyRole !== 'service_role') {
+  console.error(
+    `[Supabase] ❌ CRITICAL: Key from "${keySource}" has role="${keyRole}", expected "service_role"!` +
+    ` RLS will block all queries. Please set SUPABASE_SERVICE_ROLE_KEY to the service_role key from Supabase dashboard.`
+  );
+} else {
+  console.log(`[Supabase] ✓ Key role: ${keyRole} (source: ${keySource})`);
+}
+
 // 使用 service key 绕过 RLS，后端完全控制数据访问
 export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
