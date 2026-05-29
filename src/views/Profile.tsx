@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { childrenApi, authApi, Child } from '../services/api';
+import { childrenApi, Child } from '../services/api';
+import { supabase } from '../lib/supabase';
 import PasswordConfirmModal from '../components/PasswordConfirmModal';
 import ChangelogModal from '../components/ChangelogModal';
 
@@ -96,11 +97,23 @@ export default function Profile() {
 
     setIsChangingPassword(true);
     try {
-      await authApi.changePassword(
-        passwordForm.currentPassword,
-        passwordForm.newPassword,
-        passwordForm.confirmPassword
-      );
+      // 先用当前密码验证身份（通过 Supabase 重新登录）
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser?.email) {
+        const { error: verifyError } = await supabase.auth.signInWithPassword({
+          email: authUser.email,
+          password: passwordForm.currentPassword,
+        });
+        if (verifyError) {
+          setPasswordErrors({ currentPassword: '当前密码错误' });
+          return;
+        }
+      }
+      // 更新密码
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: passwordForm.newPassword,
+      });
+      if (updateError) throw updateError;
       setPasswordSuccess(true);
       setTimeout(() => {
         setShowPasswordModal(false);
@@ -109,7 +122,7 @@ export default function Profile() {
       }, 2000);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '密码修改失败';
-      if (errorMessage.includes('当前密码错误')) {
+      if (errorMessage.includes('当前密码错误') || errorMessage.includes('Invalid login')) {
         setPasswordErrors({ currentPassword: '当前密码错误' });
       } else if (errorMessage.includes('新密码')) {
         setPasswordErrors({ newPassword: errorMessage });

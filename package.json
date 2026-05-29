@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@dgreenheck/ez-tree": "^1.1.0",
+    "@supabase/supabase-js": "^2.106.2",
     "@tailwindcss/vite": "^4.2.4",
     "@types/react": "^19.2.14",
     "@types/three": "^0.184.0",

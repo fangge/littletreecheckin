@@ -44,6 +44,9 @@ export default defineConfig(({ mode }) => {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
       // 注入构建版本号用于 PWA 缓存失效检测
       'import.meta.env.VITE_APP_VERSION': JSON.stringify(buildVersion),
+      // 支持无 VITE_ 前缀的 Supabase 环境变量（兼容 Vercel 部署）
+      'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(env.SUPABASE_URL || env.VITE_SUPABASE_URL),
+      'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY),
     },
     resolve: {
       alias: {

@@ -44,7 +44,7 @@ export async function cachedRequest<T>(
 
   // 请求去重：如果有相同 URL 的请求正在进行中，复用该 Promise
   if (pendingRequests.has(url)) {
-    return pendingRequests.get(url)() as Promise<T>;
+    return pendingRequests.get(url) as Promise<T>;
   }
 
   // 发起新请求

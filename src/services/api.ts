@@ -1,72 +1,30 @@
 // ============================================================
 // 前端 API 服务层 - 统一封装所有后端 API 调用
-// 支持 Refresh Token 自动续签机制 + 请求缓存
+// 使用 Supabase Auth 管理 session，自动获取最新 access token
 // ============================================================
 
 import { cachedRequest, invalidateChildCache } from '../utils/requestCache';
+import { supabase } from '../lib/supabase';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
-// Token 存储键
-const TOKEN_KEYS = {
-  ACCESS: 'auth_access_token',
-  REFRESH: 'auth_refresh_token',
-  LEGACY: 'auth_token', // 兼容旧版
-};
-
-// 获取当前 access token（优先新 key，兼容旧）
-const getToken = (): string | null =>
-  localStorage.getItem(TOKEN_KEYS.ACCESS) || localStorage.getItem(TOKEN_KEYS.LEGACY);
-
-const setAccessToken = (token: string) => {
-  localStorage.setItem(TOKEN_KEYS.ACCESS, token);
-  localStorage.setItem(TOKEN_KEYS.LEGACY, token); // 兼容
-};
-
-let isRefreshing = false; // 防止并发刷新
-
 /**
- * 使用 refresh token 刷新 access token
- * 返回新的 access token 或 null（表示需要重新登录）
+ * 获取当前 Supabase session 的 access token
+ * Supabase 客户端会自动刷新过期的 token
  */
-const doRefreshToken = async (): Promise<string | null> => {
-  const rt = localStorage.getItem(TOKEN_KEYS.REFRESH);
-  if (!rt) return null;
-
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken: rt }),
-    });
-
-    if (!res.ok) return null;
-
-    const data = await res.json();
-    setAccessToken(data.data.accessToken);
-    localStorage.setItem(TOKEN_KEYS.REFRESH, data.data.refreshToken);
-
-    // 更新用户缓存
-    if (data.data.user) {
-      localStorage.setItem('auth_user', JSON.stringify(data.data.user));
-      window.dispatchEvent(new CustomEvent('auth:refreshed', { detail: data.data.user }));
-    }
-
-    return data.data.accessToken;
-  } catch {
-    return null;
-  }
+const getToken = async (): Promise<string | null> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token ?? null;
 };
 
 // ============================================================
-// HTTP 客户端基础封装（支持自动 token 续签）
+// HTTP 客户端基础封装（token 由 Supabase 自动管理）
 // ============================================================
 const request = async <T>(
   endpoint: string,
   options: RequestInit = {},
-  _retryCount = 0
 ): Promise<T> => {
-  let token = getToken();
+  const token = await getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
@@ -83,58 +41,17 @@ const request = async <T>(
 
   const data = await response.json();
 
-  // 处理 401：Token 过期 → 尝试自动续签并重试一次
-  if (
-    response.status === 401 &&
-    !isLoginEndpoint(endpoint) &&
-    _retryCount === 0
-  ) {
-    // 检查是否是 TOKEN_EXPIRED 类型（可续签）还是其他类型
-    if (data.code === 'TOKEN_EXPIRED') {
-      if (!isRefreshing) {
-        isRefreshing = true;
-        const newToken = await doRefreshToken();
-        isRefreshing = false;
-
-        if (newToken) {
-          // 用新 token 重试原请求
-          return request(endpoint, options, 1);
-        }
-      }
-    } else {
-      // 非标准 TOKEN_EXPIRED 的 401（如 /api/v1/auth/me 返回的通用 401）
-      // 尝试静默刷新一次再重试，不立即登出
-      if (!isRefreshing && getToken()) {
-        isRefreshing = true;
-        const refreshed = await doRefreshToken();
-        isRefreshing = false;
-
-        if (refreshed) {
-          return request(endpoint, options, 1);
-        }
-        // refresh 也失败才走下面的登出逻辑
-      }
-    }
-
-    // 无法续签或非 TOKEN_EXPIRED：清除状态并通知登出
-    Object.values(TOKEN_KEYS).forEach(key => localStorage.removeItem(key));
-    localStorage.removeItem('auth_user');
-    window.dispatchEvent(new CustomEvent('auth:logout'));
+  // 处理 401：Supabase token 无效，触发登出
+  if (response.status === 401) {
+    await supabase.auth.signOut();
     throw new Error('认证已过期，请重新登录');
   }
 
-  if (!response.ok && !(response.status === 401 && isLoginEndpoint(endpoint))) {
-    // 构建详细的错误信息
+  if (!response.ok) {
     let errorMessage = data.error || `请求失败: ${response.status}`;
-    if (data.details) {
-      errorMessage += `\n详情: ${data.details}`;
-    }
-    if (data.hint) {
-      errorMessage += `\n提示: ${data.hint}`;
-    }
-    if (data.code) {
-      errorMessage += `\n错误代码: ${data.code}`;
-    }
+    if (data.details) errorMessage += `\n详情: ${data.details}`;
+    if (data.hint) errorMessage += `\n提示: ${data.hint}`;
+    if (data.code) errorMessage += `\n错误代码: ${data.code}`;
     console.error('API 请求失败:', {
       endpoint,
       status: response.status,
@@ -148,16 +65,6 @@ const request = async <T>(
 
   return data;
 };
-
-function isLoginEndpoint(endpoint: string): boolean {
-  return [
-    '/api/v1/auth/login',
-    '/api/v1/auth/register',
-    '/api/v1/auth/refresh',
-    '/api/v1/auth/forgot-password',
-    '/api/v1/auth/reset-password',
-  ].includes(endpoint);
-}
 
 /**
  * 带缓存的 GET 请求（用于数据读取接口，避免短时间内重复请求）
@@ -304,70 +211,6 @@ export interface FruitsHistoryItem {
   bonus_fruits: number;
   goal_icon?: string | null;
 }
-
-// ============================================================
-// 认证 API（更新为双令牌响应类型）
-// ============================================================
-export const authApi = {
-  register: (data: {
-    username: string;
-    password: string;
-    phone?: string;
-    children: Array<{ name: string; age?: number; gender?: string }>;
-  }) =>
-    request<{ data: { accessToken: string; refreshToken: string; user: User }; message: string }>(
-      '/api/v1/auth/register',
-      { method: 'POST', body: JSON.stringify(data) }
-    ),
-
-  login: (username: string, password: string) =>
-    request<{ data: { accessToken: string; refreshToken: string; user: User }; message: string }>(
-      '/api/v1/auth/login',
-      { method: 'POST', body: JSON.stringify({ username, password }) }
-    ),
-
-  /** 使用 refresh token 获取新的 access token */
-  refreshToken: (refreshToken: string) =>
-    request<{ data: { accessToken: string; refreshToken: string; user: User } }>(
-      '/api/v1/auth/refresh',
-      { method: 'POST', body: JSON.stringify({ refreshToken }) }
-    ),
-
-  me: () => request<{ data: User }>('/api/v1/auth/me'),
-
-  logout: () => request<{ message: string }>('/api/v1/auth/logout', { method: 'POST' }),
-
-  verifyPassword: (password: string) =>
-    request<{ success: boolean }>('/api/v1/auth/verify-password', {
-      method: 'POST',
-      body: JSON.stringify({ password }),
-    }),
-
-  changePassword: (currentPassword: string, newPassword: string, confirmPassword: string) =>
-    request<{ success: boolean; message: string }>('/api/v1/auth/change-password', {
-      method: 'POST',
-      body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
-    }),
-
-  /**
-   * 发起密码重置请求
-   * identifier 可以是用户名或手机号
-   */
-  forgotPassword: (identifier: string) =>
-    request<{ message: string; found: boolean; hasPhone?: boolean }>('/api/v1/auth/forgot-password', {
-      method: 'POST',
-      body: JSON.stringify({ identifier }),
-    }),
-
-  /**
-   * 通过重置 token 设置新密码
-   */
-  resetPassword: (token: string, newPassword: string, confirmPassword: string) =>
-    request<{ success: boolean; message: string }>('/api/v1/auth/reset-password', {
-      method: 'POST',
-      body: JSON.stringify({ token, newPassword, confirmPassword }),
-    }),
-};
 
 // ============================================================
 // 孩子管理 API

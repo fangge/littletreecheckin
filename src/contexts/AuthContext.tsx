@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authApi, User, Child } from '../services/api';
+import { Session } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
+import { User, Child } from '../services/api';
 
 interface AuthContextType {
   user: User | null;
@@ -8,14 +10,15 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   isChildMode: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   register: (data: {
+    email: string;
     username: string;
     password: string;
     phone?: string;
     children: Array<{ name: string; age?: number; gender?: string }>;
   }) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   setCurrentChild: (child: Child) => void;
   refreshUser: () => Promise<void>;
   enableChildMode: (password: string) => Promise<void>;
@@ -25,49 +28,37 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 const STORAGE_KEYS = {
-  ACCESS_TOKEN: 'auth_access_token',     // 新：access token
-  REFRESH_TOKEN: 'auth_refresh_token',   // 新：refresh token
-  TOKEN: 'auth_token',                   // 兼容旧版（逐步废弃）
-  USER: 'auth_user',
   CHILD_ID: 'current_child_id',
   CHILD_MODE: 'child_mode',
 } as const;
 
-const saveUserToCache = (userData: User) => {
-  localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userData));
-};
-
-const loadUserFromCache = (): User | null => {
-  try {
-    const cached = localStorage.getItem(STORAGE_KEYS.USER);
-    return cached ? JSON.parse(cached) : null;
-  } catch {
-    return null;
-  }
-};
-
-// 获取当前 token（优先 access token，兼容旧 token）
-const getToken = (): string | null =>
-  localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN) || localStorage.getItem(STORAGE_KEYS.TOKEN);
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [currentChild, setCurrentChildState] = useState<Child | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false); // 防止并发刷新
   const [isChildMode, setIsChildMode] = useState<boolean>(() => {
     return localStorage.getItem(STORAGE_KEYS.CHILD_MODE) === 'true';
   });
 
-  // 完整登出：清除所有认证状态
-  const handleLogout = useCallback(() => {
-    Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
-    setUser(null);
-    setCurrentChildState(null);
-    setIsChildMode(false);
-    navigate('/login', { replace: true });
-  }, [navigate]);
+  // 从后端获取用户完整信息（包含 children）
+  const fetchUserProfile = useCallback(async (session: Session): Promise<User | null> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data.data as User;
+    } catch {
+      return null;
+    }
+  }, []);
 
   const restoreChild = useCallback((userData: User) => {
     const savedChildId = localStorage.getItem(STORAGE_KEYS.CHILD_ID);
@@ -80,140 +71,117 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, []);
 
-  // 监听 token 过期事件
+  // 监听 Supabase Auth 状态变化
   useEffect(() => {
-    window.addEventListener('auth:logout', handleLogout);
-    return () => window.removeEventListener('auth:logout', handleLogout);
-  }, [handleLogout]);
-
-  /**
-   * 使用 refresh token 刷新 access token
-   * 返回 true 表示成功，false 表示需要重新登录
-   */
-  const refreshToken = useCallback(async (): Promise<boolean> => {
-    if (isRefreshing) return false; // 防止并发
-    setIsRefreshing(true);
-
-    try {
-      const rt = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
-      if (!rt) {
-        handleLogout();
-        return false;
-      }
-
-      const response = await authApi.refreshToken(rt);
-      const { accessToken, refreshToken: newRt, user: userData } = response.data;
-
-      // 更新 tokens 和用户信息
-      localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, accessToken);
-      localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, newRt);
-      // 同步更新到旧的 key 以兼容
-      localStorage.setItem(STORAGE_KEYS.TOKEN, accessToken);
-
-      setUser(userData);
-      saveUserToCache(userData);
-      restoreChild(userData);
-
-      return true;
-    } catch (err) {
-      console.error('[Auth] Token 刷新失败:', err);
-      handleLogout();
-      return false;
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [isRefreshing, handleLogout, restoreChild]);
-
-  // 初始化：优先从缓存恢复，再验证
-  useEffect(() => {
-    const initAuth = async () => {
-      const token = getToken();
-      if (!token) {
-        setIsLoading(false);
-        return;
-      }
-
-      // 第一步：立即从缓存恢复 UI
-      const cachedUser = loadUserFromCache();
-      if (cachedUser) {
-        setUser(cachedUser);
-        restoreChild(cachedUser);
-      }
-
-      // 第二步：后台静默验证
-      try {
-        const response = await authApi.me();
-        const userData = response.data;
-        setUser(userData);
-        saveUserToCache(userData);
-        restoreChild(userData);
-      } catch (err) {
-        // 如果是 token 过期错误，尝试用 refresh token 续签
-        if (
-          err instanceof Error &&
-          (err.message.includes('已过期') || err.message.includes('TOKEN_EXPIRED'))
-        ) {
-          const refreshed = await refreshToken();
-          if (!refreshed) {
-            // 刷新失败，如果有缓存用户则保留，否则登出
-            if (!cachedUser) {
-              handleLogout();
-            }
-          }
-        } else if (err instanceof Error && err.message.includes('认证已过期')) {
-          handleLogout();
+    // 初始化时获取当前 session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        const userData = await fetchUserProfile(session);
+        if (userData) {
+          setUser(userData);
+          restoreChild(userData);
         }
-        // 网络错误保留缓存
-      } finally {
-        setIsLoading(false);
       }
-    };
+      setIsLoading(false);
+    });
 
-    initAuth();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- 仅在挂载时执行一次
+    // 监听 auth 状态变化（登录/登出/token 刷新）
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          const userData = await fetchUserProfile(session);
+          if (userData) {
+            setUser(userData);
+            restoreChild(userData);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setCurrentChildState(null);
+          setIsChildMode(false);
+          localStorage.removeItem(STORAGE_KEYS.CHILD_ID);
+          localStorage.removeItem(STORAGE_KEYS.CHILD_MODE);
+          navigate('/login', { replace: true });
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          // Token 自动刷新，无需额外操作
+        }
+      }
+    );
 
-  const handleLogin = async (username: string, password: string) => {
-    const response = await authApi.login(username, password);
-    const { accessToken, refreshToken: rt, user: userData } = response.data;
+    return () => subscription.unsubscribe();
+  }, [fetchUserProfile, restoreChild, navigate]);
 
-    // 存储双令牌
-    localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, accessToken);
-    localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, rt);
-    localStorage.setItem(STORAGE_KEYS.TOKEN, accessToken); // 兼容
-
-    saveUserToCache(userData);
-    setUser(userData);
-
-    if (userData.children.length > 0) {
-      setCurrentChildState(userData.children[0]);
-      localStorage.setItem(STORAGE_KEYS.CHILD_ID, userData.children[0].id);
+  const handleLogin = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      if (error.message.includes('Invalid login credentials')) {
+        throw new Error('用户名或密码错误');
+      }
+      throw new Error(error.message || '登录失败，请重试');
     }
-
+    // onAuthStateChange 会处理后续的用户数据加载和导航
     navigate('/', { replace: true });
   };
 
   const handleRegister = async (data: {
+    email: string;
     username: string;
     password: string;
     phone?: string;
     children: Array<{ name: string; age?: number; gender?: string }>;
   }) => {
-    const response = await authApi.register(data);
-    const { accessToken, refreshToken: rt, user: userData } = response.data;
+    // 1. 在 Supabase Auth 创建用户
+    const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      email: data.email,
+      password: data.password,
+      options: {
+        data: { username: data.username },
+      },
+    });
 
-    localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, accessToken);
-    localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, rt);
-    localStorage.setItem(STORAGE_KEYS.TOKEN, accessToken);
+    if (signUpError) {
+      if (signUpError.message.includes('already registered')) {
+        throw new Error('用户名已存在');
+      }
+      throw new Error(signUpError.message || '注册失败，请重试');
+    }
 
-    saveUserToCache(userData);
-    setUser(userData);
+    if (!authData.session) {
+      throw new Error('注册成功，请检查邮箱验证（如已启用）');
+    }
 
-    if (userData.children.length > 0) {
-      setCurrentChildState(userData.children[0]);
-      localStorage.setItem(STORAGE_KEYS.CHILD_ID, userData.children[0].id);
+    // 2. 通过后端 API 创建孩子记录（后端使用 service role 操作数据库）
+    const response = await fetch(`${API_BASE_URL}/api/v1/auth/register-children`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authData.session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        phone: data.phone,
+        children: data.children,
+      }),
+    });
+
+    if (!response.ok) {
+      const errData = await response.json();
+      // 注册失败时删除已创建的 auth 用户
+      await supabase.auth.admin?.deleteUser(authData.user!.id).catch(() => {});
+      throw new Error(errData.error || '创建孩子信息失败');
+    }
+
+    const result = await response.json();
+    setUser(result.data);
+    if (result.data.children?.length > 0) {
+      setCurrentChildState(result.data.children[0]);
+      localStorage.setItem(STORAGE_KEYS.CHILD_ID, result.data.children[0].id);
     }
 
     navigate('/', { replace: true });
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    // onAuthStateChange 会处理清理和导航
   };
 
   const handleSetCurrentChild = (child: Child) => {
@@ -223,13 +191,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const refreshUser = async () => {
     try {
-      const response = await authApi.me();
-      const userData = response.data;
-      setUser(userData);
-      saveUserToCache(userData);
-      if (currentChild) {
-        const updated = userData.children.find((c: Child) => c.id === currentChild.id);
-        if (updated) setCurrentChildState(updated);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const userData = await fetchUserProfile(session);
+      if (userData) {
+        setUser(userData);
+        if (currentChild) {
+          const updated = userData.children.find((c: Child) => c.id === currentChild.id);
+          if (updated) setCurrentChildState(updated);
+        }
       }
     } catch {
       // 忽略刷新错误
@@ -237,15 +207,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const enableChildMode = async (password: string) => {
-    const result = await authApi.verifyPassword(password);
-    if (!result.success) throw new Error('密码错误，请重试');
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) throw new Error('未登录');
+
+    // 通过重新登录验证密码
+    const { error } = await supabase.auth.signInWithPassword({
+      email: authUser.email!,
+      password,
+    });
+    if (error) throw new Error('密码错误，请重试');
+
     localStorage.setItem(STORAGE_KEYS.CHILD_MODE, 'true');
     setIsChildMode(true);
   };
 
   const disableChildMode = async (password: string) => {
-    const result = await authApi.verifyPassword(password);
-    if (!result.success) throw new Error('密码错误，请重试');
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) throw new Error('未登录');
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: authUser.email!,
+      password,
+    });
+    if (error) throw new Error('密码错误，请重试');
+
     localStorage.removeItem(STORAGE_KEYS.CHILD_MODE);
     setIsChildMode(false);
   };

@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 const REMEMBER_KEY = 'login_remember_credentials';
 
 interface SavedCredentials {
-  username: string;
+  email: string;
   password: string;
 }
 
@@ -19,8 +19,8 @@ const loadSavedCredentials = (): SavedCredentials | null => {
   }
 };
 
-const saveCredentials = (username: string, password: string) => {
-  localStorage.setItem(REMEMBER_KEY, JSON.stringify({ username, password }));
+const saveCredentials = (email: string, password: string) => {
+  localStorage.setItem(REMEMBER_KEY, JSON.stringify({ email, password }));
 };
 
 const clearSavedCredentials = () => {
@@ -30,7 +30,7 @@ const clearSavedCredentials = () => {
 export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -40,12 +40,12 @@ export default function Login() {
   // 初始化：如果有记住的登录信息，自动填充并尝试自动登录
   useEffect(() => {
     const saved = loadSavedCredentials();
-    if (saved && saved.username && saved.password) {
-      setUsername(saved.username);
+    if (saved && saved.email && saved.password) {
+      setEmail(saved.email);
       setPassword(saved.password);
       setRememberMe(true);
       // 自动触发登录（静默）
-      doAutoLogin(saved.username, saved.password);
+      doAutoLogin(saved.email, saved.password);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -64,8 +64,8 @@ export default function Login() {
   };
 
   const handleLogin = async () => {
-    if (!username.trim() || !password.trim()) {
-      setError('请输入用户名和密码');
+    if (!email.trim() || !password.trim()) {
+      setError('请输入邮箱和密码');
       return;
     }
 
@@ -73,10 +73,10 @@ export default function Login() {
     setError('');
 
     try {
-      await login(username.trim(), password);
+      await login(email.trim(), password);
       // 登录成功后根据是否勾选"记住我"来决定是否保存凭据
       if (rememberMe) {
-        saveCredentials(username.trim(), password);
+        saveCredentials(email.trim(), password);
       } else {
         clearSavedCredentials();
       }
@@ -129,16 +129,16 @@ export default function Login() {
       {/* Login Form */}
       <div className="space-y-5 px-6 py-2">
         <div className="flex flex-col">
-          <p className="text-slate-800 text-sm font-semibold pb-2 px-1">用户名/手机号</p>
+          <p className="text-slate-800 text-sm font-semibold pb-2 px-1">邮箱</p>
           <div className="relative">
             <input
               className="form-input flex w-full rounded-xl border border-slate-200 bg-white text-slate-900 h-14 placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary transition-all px-4"
-              placeholder="请输入您的用户名或手机号"
-              type="text"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
+              placeholder="请输入您的邮箱地址"
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
               onKeyDown={handleKeyDown}
-              aria-label="用户名或手机号"
+              aria-label="邮箱"
             />
           </div>
         </div>

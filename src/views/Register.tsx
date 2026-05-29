@@ -13,6 +13,7 @@ export default function Register() {
   const navigate = useNavigate();
   const { register } = useAuth();
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -38,8 +39,14 @@ export default function Register() {
   };
 
   const handleRegister = async () => {
-    if (!username.trim() || !password.trim()) {
-      setError('请输入用户名和密码');
+    if (!username.trim() || !email.trim() || !password.trim()) {
+      setError('请输入用户名、邮箱和密码');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setError('请输入有效的邮箱地址');
       return;
     }
 
@@ -65,6 +72,7 @@ export default function Register() {
     try {
       await register({
         username: username.trim(),
+        email: email.trim(),
         password,
         children: validChildren.map(c => ({
           name: c.name.trim(),
@@ -117,11 +125,22 @@ export default function Register() {
           <p className="text-slate-800 text-sm font-semibold pb-2 px-1">用户名</p>
           <input
             className="form-input flex w-full rounded-xl border-slate-200 bg-white text-slate-900 h-14 placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary transition-all px-4"
-            placeholder="请输入您的用户名"
+            placeholder="请输入您的用户名（显示名）"
             type="text"
             value={username}
             onChange={e => setUsername(e.target.value)}
             aria-label="用户名"
+          />
+        </div>
+        <div className="flex flex-col">
+          <p className="text-slate-800 text-sm font-semibold pb-2 px-1">邮箱</p>
+          <input
+            className="form-input flex w-full rounded-xl border-slate-200 bg-white text-slate-900 h-14 placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary transition-all px-4"
+            placeholder="请输入您的邮箱地址"
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            aria-label="邮箱"
           />
         </div>
         <div className="flex flex-col">

@@ -26,23 +26,24 @@ router.get('/:childId/medals', authMiddleware, async (req: AuthRequest, res: Res
   await checkAndUnlockMedals(childId);
 
   // 获取所有勋章定义
+  interface MedalRow { id: string; name: string; icon: string; color: string; description: string; unlock_condition: unknown }
   const { data: allMedals, error } = await supabase
     .from('medals')
     .select('id, name, icon, color, description, unlock_condition')
     .order('created_at', { ascending: true });
 
-  // 将 unlock_condition 字符串转换为对象
-  const medalsWithCondition = allMedals.map((medal: { unlock_condition: string }) => ({
-    ...medal,
-    unlock_condition: typeof medal.unlock_condition === 'string' 
-      ? JSON.parse(medal.unlock_condition) 
-      : medal.unlock_condition,
-  }));
-
   if (error || !allMedals) {
     res.status(500).json({ error: '获取勋章列表失败' });
     return;
   }
+
+  // 将 unlock_condition 字符串转换为对象
+  const medalsWithCondition = (allMedals as MedalRow[]).map((medal) => ({
+    ...medal,
+    unlock_condition: typeof medal.unlock_condition === 'string'
+      ? JSON.parse(medal.unlock_condition)
+      : medal.unlock_condition,
+  }));
 
   // 获取已解锁的勋章
   const { data: unlockedMedals } = await supabase
@@ -55,8 +56,7 @@ router.get('/:childId/medals', authMiddleware, async (req: AuthRequest, res: Res
   );
 
   // 合并数据
-  interface MedalRow { id: string; name: string; icon: string; color: string; description: string; unlock_condition: unknown }
-  const medals = medalsWithCondition.map((medal: MedalRow) => ({
+  const medals = medalsWithCondition.map((medal) => ({
     ...medal,
     unlocked: unlockedMap.has(medal.id),
     unlocked_at: unlockedMap.get(medal.id) || null,
