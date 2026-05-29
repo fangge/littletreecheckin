@@ -21,6 +21,9 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response): Promi
 
   if (childrenError) {
     console.error('[/me] 获取孩子列表失败:', childrenError);
+    console.error('[/me] 诊断 - userId:', userId, '| supabase key type:', process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 20) + '...');
+  } else {
+    console.log('[/me] 查询成功 - userId:', userId, '| children count:', children?.length ?? 0);
   }
 
   // 尝试从 profiles 表获取 phone（如果存在）
