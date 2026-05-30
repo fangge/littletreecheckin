@@ -127,7 +127,7 @@ export default function FruitsHistory() {
                     {/* 目标图标 */}
                     <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${getIconColor(index)}`}>
                       <span className="material-symbols-outlined text-xl leading-none">
-                        {item.goal_icon || 'task_alt'}
+                        {item.goal_icon || 'check_circle'}
                       </span>
                     </div>
                     {/* 任务信息 */}

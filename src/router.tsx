@@ -72,15 +72,15 @@ const router = createBrowserRouter([
         index: true,
         element: (
           <ProtectedRoute>
-            <Dashboard />
+            <CheckIn />
           </ProtectedRoute>
         ),
       },
       {
-        path: 'tasks',
+        path: 'forest',
         element: (
           <ProtectedRoute>
-            <CheckIn />
+            <Dashboard />
           </ProtectedRoute>
         ),
       },

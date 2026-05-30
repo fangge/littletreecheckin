@@ -265,82 +265,60 @@ export default function Dashboard() {
           <span className="material-symbols-outlined text-primary text-4xl animate-pulse">forest</span>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4 lg:max-w-4xl lg:mx-auto">
+        <div className="flex flex-col gap-3 px-4 lg:max-w-4xl lg:mx-auto">
           {trees.map((tree) => {
             const goal = getGoalForTree(tree);
-            // 构建目标详情标签（已完成天数/总天数 / 每日时长 / 每日次数）
-            const goalTags: string[] = [];
-            if (goal) {
-              const completedDays = tree.completed_days ?? 0;
-              goalTags.push(`${completedDays}/${goal.duration_days}天`);
-              if (goal.duration_minutes && goal.duration_minutes > 0) {
-                goalTags.push(
-                  goal.duration_minutes >= 60
-                    ? `${Math.round(goal.duration_minutes / 60)}h/天`
-                    : `${goal.duration_minutes}min/天`
-                );
-              }
-              if (goal.daily_count && goal.daily_count > 0) {
-                goalTags.push(`${goal.daily_count}次/天`);
-              }
-              if (goal.fruits_per_task && goal.fruits_per_task > 0) {
-                goalTags.push(`🍎 ${goal.fruits_per_task}/次`);
-              }
-            }
             const checkedInToday = tree.checked_in_today ?? false;
+            const isDone = tree.status === 'completed' || checkedInToday;
+            // 根据 goal icon 映射分类标签
+            const categoryMap: Record<string, { text: string; className: string }> = {
+              auto_stories: { text: '学习', className: 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400' },
+              fitness_center: { text: '运动', className: 'bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-400' },
+              brush: { text: '艺术', className: 'bg-pink-100 text-pink-600 dark:bg-pink-900/40 dark:text-pink-400' },
+              piano: { text: '音乐', className: 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400' },
+              pets: { text: '生活', className: 'bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-400' },
+              rocket_launch: { text: '探索', className: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400' },
+              psychology: { text: '思维', className: 'bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400' },
+              sports_soccer: { text: '运动', className: 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400' },
+            };
+            const category = goal?.icon ? (categoryMap[goal.icon] ?? { text: '生活', className: 'bg-slate-100 text-slate-500 dark:bg-[var(--bg-card)] dark:text-[var(--text-muted)]' }) : null;
+
             return (
-              <div key={tree.id} className="relative group">
-                {/* 编辑按钮：儿童模式下隐藏 */}
-                {goal && !isChildMode && (
-                  <button
-                    className="absolute top-2 right-2 z-10 bg-white/90 dark:bg-[var(--bg-surface)]/90 backdrop-blur-sm rounded-lg p-1.5 shadow-sm hover:bg-white dark:hover:bg-[var(--bg-surface)] active:scale-90 transition-all w-8 h-8 flex items-center justify-center"
-                    onClick={e => { e.stopPropagation(); handleEditTree(tree); }}
-                    aria-label={`编辑${tree.name}目标`}
-                  >
-                    <span className="material-symbols-outlined text-slate-700 dark:text-[var(--text-primary)] text-base leading-none">edit</span>
-                  </button>
-                )}
-                <div className="absolute top-2 left-2 flex items-center gap-1.5">
-                  {tree.status === 'completed' ? (
-                    <span className="material-symbols-outlined text-primary text-sm font-bold fill-icon">check_circle</span>
-                  ) : checkedInToday ? (
-                    <div className="bg-primary/90 px-2 py-0.5 rounded-full backdrop-blur-sm flex items-center gap-1">
-                      <span className="material-symbols-outlined text-white text-[10px] leading-none">check</span>
-                      <span className="text-[10px] text-white font-bold">今日已打卡</span>
-                    </div>
-                  ) : null}
-                </div>
-                <div
-                  className="bg-cover bg-center flex flex-col gap-2 rounded-xl justify-end p-4 aspect-square overflow-hidden shadow-lg shadow-primary/5"
-                  style={{
-                    backgroundImage: tree.image
-                      ? `linear-gradient(0deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0) 65%), url("${tree.image}")`
-                      : 'linear-gradient(135deg, #4ade80 0%, #16a34a 100%)',
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-white text-base font-bold leading-tight">{tree.name}</p>
-                  </div>
-                  {/* 目标详情标签 */}
-                  {goalTags.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {goalTags.map(tag => (
-                        <span
-                          key={tag}
-                          className="text-[10px] text-white/80 bg-black/20 backdrop-blur-sm px-1.5 py-0.5 rounded-full font-medium"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
+              <div
+                key={tree.id}
+                className="bg-white dark:bg-[var(--bg-surface)] rounded-2xl px-4 py-4 shadow-sm border border-slate-100 dark:border-[var(--border-color)] flex items-center justify-between gap-3 transition-colors"
+              >
+                {/* 左侧：分类标签 + 树木名称 */}
+                <div className="flex flex-col gap-1.5 min-w-0">
+                  {category && (
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full w-fit ${category.className}`}>
+                      {category.text}
+                    </span>
                   )}
-                  {tree.status === 'growing' && (
-                    <div className="w-full bg-white/20 rounded-full h-1.5">
-                      <div
-                        className="bg-primary h-1.5 rounded-full transition-all"
-                        style={{ width: `${tree.progress}%` }}
-                      />
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl shrink-0">🍎</span>
+                    <p className="text-slate-900 dark:text-[var(--text-primary)] text-lg font-bold leading-tight truncate">{tree.name}</p>
+                  </div>
+                </div>
+
+                {/* 右侧：果实数 + 状态 + 编辑 */}
+                <div className="flex items-center gap-2 shrink-0">
+                  {goal?.fruits_per_task && goal.fruits_per_task > 0 && (
+                    <span className="bg-primary/10 text-primary text-sm font-bold px-3 py-1 rounded-full whitespace-nowrap">
+                      +{goal.fruits_per_task} 果实
+                    </span>
+                  )}
+                  {isDone && (
+                    <span className="material-symbols-outlined text-primary text-2xl fill-icon">check_circle</span>
+                  )}
+                  {goal && !isChildMode && (
+                    <button
+                      className="text-slate-300 dark:text-[var(--text-muted)] hover:text-slate-500 dark:hover:text-[var(--text-secondary)] active:scale-90 transition-all"
+                      onClick={e => { e.stopPropagation(); handleEditTree(tree); }}
+                      aria-label={`编辑${tree.name}目标`}
+                    >
+                      <span className="material-symbols-outlined text-xl">edit</span>
+                    </button>
                   )}
                 </div>
               </div>
@@ -351,11 +329,11 @@ export default function Dashboard() {
           {!isChildMode && (
             <button
               onClick={() => navigate('/add-goal')}
-              className="relative flex flex-col items-center justify-center gap-3 rounded-xl aspect-square border-2 border-dashed border-primary/30 dark:border-[var(--border-color)] bg-primary/5 dark:bg-[var(--bg-card)] hover:bg-primary/10 transition-colors group"
+              className="flex items-center gap-3 bg-white dark:bg-[var(--bg-surface)] rounded-2xl px-4 py-4 border-2 border-dashed border-primary/30 dark:border-[var(--border-color)] hover:bg-primary/5 transition-colors"
               aria-label="添加新目标"
             >
-              <div className="size-12 rounded-full bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                <span className="material-symbols-outlined text-3xl">add</span>
+              <div className="size-9 rounded-full bg-primary/15 flex items-center justify-center text-primary shrink-0">
+                <span className="material-symbols-outlined text-xl">add</span>
               </div>
               <p className="text-primary font-bold text-sm">添加新目标</p>
             </button>

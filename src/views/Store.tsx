@@ -142,33 +142,31 @@ export default function Store() {
       <div className="px-6 lg:max-w-2xl lg:mx-auto">
         {/* 果实余额卡片 */}
         <div className="relative mt-2 overflow-hidden rounded-xl bg-gradient-to-br from-primary to-green-500 p-6 text-white shadow-lg shadow-primary/20">
-          <div className="relative z-10 flex flex-col gap-1">
+          <div className="relative z-10 flex flex-col gap-2">
             <p className="text-sm font-semibold uppercase tracking-wider opacity-90">
               {selectedChild ? `${selectedChild.name}的果实余额` : '我的果实余额'}
             </p>
-            <div className="flex items-end justify-between gap-2">
-              <div className="flex items-end gap-2">
-                <span className="text-4xl font-extrabold">{fruitsBalance.toLocaleString()}</span>
-                <span className="mb-1 text-2xl">🍎</span>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => navigate('/store/fruits-history')}
-                  className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition-colors px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm shrink-0"
-                  aria-label="查看果实获取记录"
-                >
-                  <span className="material-symbols-outlined text-sm leading-none">history</span>
-                  获取记录
-                </button>
-                <button
-                  onClick={() => navigate('/store/redemption-history')}
-                  className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition-colors px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm shrink-0"
-                  aria-label="查看兑换记录"
-                >
-                  <span className="material-symbols-outlined text-sm leading-none">shopping_bag</span>
-                  兑换记录
-                </button>
-              </div>
+            <div className="flex items-end gap-2">
+              <span className="text-4xl font-extrabold">{fruitsBalance.toLocaleString()}</span>
+              <span className="mb-1 text-2xl">🍎</span>
+            </div>
+            <div className="flex gap-2 mt-1">
+              <button
+                onClick={() => navigate('/store/fruits-history')}
+                className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition-colors px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm shrink-0"
+                aria-label="查看果实获取记录"
+              >
+                <span className="material-symbols-outlined text-sm leading-none">history</span>
+                获取记录
+              </button>
+              <button
+                onClick={() => navigate('/store/redemption-history')}
+                className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition-colors px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm shrink-0"
+                aria-label="查看兑换记录"
+              >
+                <span className="material-symbols-outlined text-sm leading-none">shopping_bag</span>
+                兑换记录
+              </button>
             </div>
           </div>
           <div className="absolute -right-8 -top-8 size-32 rounded-full bg-white/20 blur-2xl" />

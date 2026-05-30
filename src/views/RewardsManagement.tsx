@@ -248,9 +248,6 @@ export default function RewardsManagement() {
               rewards.map(reward => (
                 <div key={reward.id} className={`bg-white dark:bg-[var(--bg-surface)] rounded-2xl shadow-sm border overflow-hidden ${!reward.is_active ? 'opacity-60 border-slate-200 dark:border-[var(--border-color)]' : 'border-primary/5 dark:border-[var(--border-color)]'} transition-colors`}>
                   <div className="p-4 flex gap-3 items-center">
-                    <div className="w-16 h-16 rounded-xl bg-slate-100 dark:bg-[var(--bg-card)] shrink-0 flex items-center justify-center text-slate-300 dark:text-[var(--text-muted)]">
-                      <span className="material-symbols-outlined text-3xl">redeem</span>
-                    </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="font-bold text-slate-900 dark:text-[var(--text-primary)] truncate">{reward.name}</p>

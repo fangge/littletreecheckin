@@ -623,7 +623,7 @@ export default function CheckIn() {
                   aria-label={isBackfillDate ? '补打卡' : '立即打卡'}
                 >
                   <span className="material-symbols-outlined text-3xl">
-                    task_alt
+                    check_circle
                   </span>
                   {isChecking
                     ? '打卡中...'

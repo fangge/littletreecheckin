@@ -3,16 +3,16 @@ import { useAuth } from '../contexts/AuthContext';
 
 // 路径到导航项的映射
 const pathNavMap: Record<string, string> = {
-  '/': 'forest',
-  '/tasks': 'tasks',
+  '/': 'tasks',
+  '/forest': 'forest',
   '/medals': 'medals',
   '/store': 'store',
   '/profile': 'parent',
 };
 
 const allNavItems = [
-  { id: 'forest', label: '成长树', icon: 'park', path: '/' },
-  { id: 'tasks', label: '任务', icon: 'task_alt', path: '/tasks' },
+  { id: 'tasks', label: '任务', icon: 'check_circle', path: '/' },
+  { id: 'forest', label: '成长树', icon: 'park', path: '/forest' },
   { id: 'medals', label: '勋章', icon: 'workspace_premium', path: '/medals' },
   { id: 'store', label: '商店', icon: 'storefront', path: '/store' },
   { id: 'parent', label: '家长中心', icon: 'family_restroom', parentOnly: true, path: '/profile' },

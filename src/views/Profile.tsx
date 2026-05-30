@@ -7,6 +7,7 @@ import { childrenApi, Child } from '../services/api';
 import { supabase } from '../lib/supabase';
 import PasswordConfirmModal from '../components/PasswordConfirmModal';
 import ChangelogModal from '../components/ChangelogModal';
+import { APP_VERSION } from '../version';
 
 interface AddChildForm {
   name: string;
@@ -296,7 +297,7 @@ export default function Profile() {
                 <p className="text-slate-400 dark:text-[var(--text-muted)] text-xs mt-0.5">成就丛林 HappyGrow</p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="bg-primary/10 text-primary text-sm font-bold px-3 py-1 rounded-full">v3.3</span>
+                <span className="bg-primary/10 text-primary text-sm font-bold px-3 py-1 rounded-full">v{APP_VERSION}</span>
               </div>
             </div>
             <button

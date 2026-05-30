@@ -151,7 +151,7 @@ export default function GoalSetting() {
           setCurrentChild(selectedChild);
         }
       }
-      navigate('/');
+      navigate('/forest');
     } catch (err) {
       setError(err instanceof Error ? err.message : `${isEditMode ? '更新' : '创建'}目标失败，请重试`);
     } finally {
@@ -166,7 +166,7 @@ export default function GoalSetting() {
     setIsDeleting(true);
     try {
       await treesApi.deleteGoal(editGoal.id);
-      navigate('/');
+      navigate('/forest');
     } catch (err) {
       setError(err instanceof Error ? err.message : '删除失败，请重试');
     } finally {
@@ -186,7 +186,7 @@ export default function GoalSetting() {
     >
       <div className="flex items-center p-6 pb-2 justify-between lg:max-w-xl lg:mx-auto lg:w-full">
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/forest')}
           className="text-slate-900 dark:text-[var(--text-primary)] flex size-10 shrink-0 items-center justify-center rounded-full bg-white dark:bg-[var(--bg-card)] shadow-sm"
           aria-label="返回"
         >
@@ -520,18 +520,26 @@ export default function GoalSetting() {
       <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background-light via-background-light to-transparent z-10 space-y-3 lg:sticky lg:bottom-0 lg:bg-none lg:pt-4 lg:pb-8">
         <div className="lg:max-w-xl lg:mx-auto space-y-3">
         <button
-          className="w-full bg-primary hover:bg-primary/90 text-slate-900 text-lg font-extrabold py-5 rounded-2xl shadow-xl shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+          className="w-full bg-primary hover:bg-primary/90 text-slate-900 text-lg font-extrabold py-5 rounded-2xl shadow-xl shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
           onClick={handleSubmit}
           disabled={isLoading}
           aria-label={isEditMode ? '保存修改' : '创建目标'}
         >
-          {isLoading
-            ? (isEditMode ? '保存中...' : '创建中...')
-            : (isEditMode ? '保存修改' : '种下这棵树')}
-          {!isLoading && (
-            <span className="material-symbols-outlined">
-              {isEditMode ? 'save' : 'park'}
-            </span>
+          {isLoading ? (
+            <>
+              <svg className="animate-spin h-5 w-5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              {isEditMode ? '保存中...' : '创建中...'}
+            </>
+          ) : (
+            <>
+              {isEditMode ? '保存修改' : '种下这棵树'}
+              <span className="material-symbols-outlined">
+                {isEditMode ? 'save' : 'park'}
+              </span>
+            </>
           )}
         </button>
         {/* 编辑模式下底部也显示删除按钮，更加明显 */}

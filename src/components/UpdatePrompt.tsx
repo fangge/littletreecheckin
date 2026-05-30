@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import ChangelogModal from './ChangelogModal';
-
-// 当前应用版本号，每次发版时更新此常量
-const APP_VERSION = '3.4';
+import { APP_VERSION } from '../version';
 const VERSION_STORAGE_KEY = 'app_last_seen_version';
 
 interface BeforeInstallPromptEvent extends Event {

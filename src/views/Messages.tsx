@@ -81,11 +81,11 @@ export default function Messages() {
       <header className="flex items-center bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md p-4 shrink-0 z-10 justify-between border-b border-primary/10 dark:border-[var(--border-color)] transition-colors">
         <div className="text-slate-900 dark:text-[var(--text-primary)] flex size-12 shrink-0 items-center justify-start">
           <span
-            onClick={() => navigate('/tasks')}
+            onClick={() => navigate('/')}
             className="material-symbols-outlined cursor-pointer"
             role="button"
             tabIndex={0}
-            onKeyDown={e => e.key === 'Enter' && navigate('/tasks')}
+            onKeyDown={e => e.key === 'Enter' && navigate('/')}
             aria-label="返回"
           >
             arrow_back_ios

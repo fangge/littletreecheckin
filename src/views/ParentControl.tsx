@@ -33,7 +33,7 @@ const TaskCard = ({ task, notes, bonusFruits, processingId, showChildName, onQui
         {task.image_url ? (
           <div className="absolute inset-0 bg-cover bg-center opacity-80" style={{ backgroundImage: `url("${task.image_url}")` }} />
         ) : (
-          <span className="material-symbols-outlined text-primary text-3xl">task_alt</span>
+          <span className="material-symbols-outlined text-primary text-3xl">check_circle</span>
         )}
         <div className="absolute bottom-1 right-1 bg-white/90 dark:bg-[var(--bg-surface)]/90 px-1 rounded text-[10px] font-bold text-primary">{task.progress}%</div>
       </div>
@@ -358,7 +358,7 @@ export default function ParentControl() {
           </div>
         ) : filteredTasks.length === 0 ? (
           <div className="text-center py-12 text-slate-400 dark:text-[var(--text-muted)]">
-            <span className="material-symbols-outlined text-5xl mb-3 block">task_alt</span>
+            <span className="material-symbols-outlined text-5xl mb-3 block">check_circle</span>
             <p>{activeTab === 'pending' ? '暂无待审核任务' : '暂无已批准任务'}</p>
           </div>
         ) : (
