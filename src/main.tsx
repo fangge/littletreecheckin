@@ -67,8 +67,10 @@ if (STORED_VERSION && STORED_VERSION !== APP_VERSION) {
           !key.startsWith('auth_') &&
           key !== 'theme' &&
           key !== 'selected_child_id' &&
+          key !== 'current_child_id' &&
           key !== 'child_mode' &&
-          key !== 'app_version') {
+          key !== 'app_version' &&
+          key !== 'login_remember_credentials') {
         keysToRemove.push(key);
       }
     }

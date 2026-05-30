@@ -56,10 +56,9 @@ self.addEventListener('install', (event) => {
           cache.add(url).catch((err) => console.warn(`[SW] 预缓存失败: ${url}`, err))
         )
       );
-    }).then(() => {
-      // 立即激活，不等待旧 SW 关闭
-      return self.skipWaiting();
     })
+    // 不自动调用 skipWaiting()，等待用户在更新提示弹窗中点击"立即更新"后
+    // 由客户端发送 SKIP_WAITING 消息触发，避免页面在用户未确认时自动刷新
   );
 });
 

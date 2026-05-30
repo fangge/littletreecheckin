@@ -2,6 +2,34 @@
 
 ## 版本历史
 
+### v3.4 — 认证系统全面升级（Supabase Auth）
+
+将自定义 JWT 认证体系全面迁移至 Supabase Auth 原生方案，提升安全性、简化架构，并支持邮箱登录与密码找回。
+
+- ✅ **新增** `supabase/migrations/010_migrate_to_supabase_auth.sql`：完整数据库迁移脚本，创建 `profiles` 表、RLS 策略、自动同步 trigger，并清理旧认证表（`users`、`password_resets`、`login_attempts`）
+- ✅ **新增** `src/lib/supabase.ts`：前端 Supabase 客户端，支持 `VITE_` 前缀和无前缀两种环境变量格式（兼容 Vercel 部署）
+- ✅ **重写** `src/contexts/AuthContext.tsx`：使用 `supabase.auth.onAuthStateChange` 监听会话状态，`signInWithPassword` / `signUp` 替代旧接口
+- ✅ **重写** `src/views/Login.tsx`：改为邮箱 + 密码登录，移除用户名登录逻辑
+- ✅ **重写** `src/views/Register.tsx`：新增邮箱输入字段，注册后调用后端 `/register-children` 创建孩子记录
+- ✅ **重写** `src/views/ForgotPassword.tsx`：使用 `supabase.auth.resetPasswordForEmail` 发送重置邮件
+- ✅ **修改** `src/views/Profile.tsx`：密码修改改用 `supabase.auth.updateUser`
+- ✅ **重写** `server/src/middleware/auth.ts`：使用 `supabase.auth.getUser(token)` 验证 Supabase JWT，替代旧的 `jwt.verify`
+- ✅ **简化** `server/src/routes/auth.ts`：仅保留 `/me`（获取用户信息）和 `/register-children`（注册后创建孩子）两个接口，删除旧的登录/注册/刷新 Token 接口
+- ✅ **修改** `server/src/config/supabase.ts`：后端 Supabase 客户端同时支持 `SUPABASE_SERVICE_ROLE_KEY` 和 `SUPABASE_SERVICE_KEY` 两种变量名
+- ✅ **修复** `src/utils/requestCache.ts`：修复 Promise 被错误调用的 TypeScript 编译错误
+- ✅ **修复** `server/src/services/medalService.ts`：修复 null 检查顺序和类型断言问题
+
+**功能特性**：
+- 登录/注册均使用真实邮箱，不再生成虚构邮箱
+- 会话状态由 Supabase Auth 自动管理，无需手动维护 Token
+- 密码找回通过邮件链接完成，安全可靠
+- 后端使用 `service_role` 密钥，可绕过 RLS 直接访问数据
+- 前后端均通过 TypeScript 编译检查
+
+**数据库迁移**：执行 `supabase/migrations/010_migrate_to_supabase_auth.sql`
+
+---
+
 ### v3.3 — 奖品兑换优化与商店入口调整
 
 新增奖品撤回功能、兑换加载状态优化、兑换记录孩子筛选，并将商店入口移至全局导航栏，提升奖品管理和兑换体验。
