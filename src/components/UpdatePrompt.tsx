@@ -1,33 +1,32 @@
 import { useState, useEffect } from 'react';
+import ChangelogModal from './ChangelogModal';
+
+// 当前应用版本号，每次发版时更新此常量
+const APP_VERSION = '3.4';
+const VERSION_STORAGE_KEY = 'app_last_seen_version';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-// 全局事件：SW 更新可用
 declare global {
   interface WindowEventMap {
-    'pwa-update-available': CustomEvent;
     'pwa-install-prompt': CustomEvent;
   }
 }
 
 export default function UpdatePrompt() {
-  const [showUpdate, setShowUpdate] = useState(false);
+  const [showChangelog, setShowChangelog] = useState(false);
   const [showInstall, setShowInstall] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  // 防止重复弹出的锁：用户点击"立即更新"后的一段时间内不再提示
-  const [updateLockUntil, setUpdateLockUntil] = useState<number>(0);
 
   useEffect(() => {
-    // 监听 SW 更新事件（仅监听，不自动弹出）
-    const handleUpdate = () => {
-      // 防重复：如果在冷却期内，忽略该事件
-      if (Date.now() < updateLockUntil) return;
-      setShowUpdate(true);
-    };
-    window.addEventListener('pwa-update-available', handleUpdate);
+    // 检测版本号：如果本地存储的版本与当前版本不同，则弹出更新日志
+    const lastSeenVersion = localStorage.getItem(VERSION_STORAGE_KEY);
+    if (lastSeenVersion !== APP_VERSION) {
+      setShowChangelog(true);
+    }
 
     // 监听手动触发的安装提示事件
     const handleInstallPrompt = () => {
@@ -44,35 +43,19 @@ export default function UpdatePrompt() {
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
 
     return () => {
-      window.removeEventListener('pwa-update-available', handleUpdate);
       window.removeEventListener('pwa-install-prompt', handleInstallPrompt);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
     };
-  }, [updateLockUntil]);
+  }, []);
 
-  const handleUpdate = () => {
-    setShowUpdate(false);
-    // 设置 10 秒冷却期，防止 reload 后 SW updatefound 事件再次触发弹窗
-    setUpdateLockUntil(Date.now() + 10_000);
-
-    // 发送消息给 SW 让其跳过等待
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistration().then((reg) => {
-        if (reg?.waiting) {
-          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-        }
-      }).catch(() => {});
-    }
-
-    // 延迟一小段时间确保 SW 消息发送完成后再 reload
-    setTimeout(() => {
-      window.location.reload();
-    }, 200);
+  const handleChangelogClose = () => {
+    // 关闭更新日志时，将当前版本号保存到本地存储
+    localStorage.setItem(VERSION_STORAGE_KEY, APP_VERSION);
+    setShowChangelog(false);
   };
 
   const handleInstall = async () => {
     if (deferredPrompt) {
-      // 如果有浏览器原生提示，使用它
       try {
         await deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
@@ -87,44 +70,15 @@ export default function UpdatePrompt() {
     setShowInstall(false);
   };
 
-  if (!showUpdate && !showInstall) return null;
-
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-800">
-        {showUpdate ? (
-          <>
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
-                <svg className="h-6 w-6 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">发现新版本</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">已有更新可用</p>
-              </div>
-            </div>
-            <p className="mb-6 text-sm text-gray-600 dark:text-gray-300">
-              应用已更新到 v3.4 版本，点击下方按钮刷新即可体验新功能。
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowUpdate(false)}
-                className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-              >
-                稍后再说
-              </button>
-              <button
-                onClick={handleUpdate}
-                className="flex-1 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700"
-              >
-                立即更新
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
+    <>
+      {/* 版本更新日志弹层 */}
+      <ChangelogModal isOpen={showChangelog} onClose={handleChangelogClose} />
+
+      {/* PWA 安装提示弹层 */}
+      {showInstall && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-800">
             <div className="mb-4 flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
                 <svg className="h-6 w-6 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -153,9 +107,9 @@ export default function UpdatePrompt() {
                 安装
               </button>
             </div>
-          </>
-        )}
-      </div>
-    </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
