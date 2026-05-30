@@ -5,25 +5,23 @@ import { useAuth } from '../contexts/AuthContext';
 
 const REMEMBER_KEY = 'login_remember_credentials';
 
-interface SavedCredentials {
-  email: string;
-  password: string;
-}
-
-const loadSavedCredentials = (): SavedCredentials | null => {
+const loadSavedEmail = (): string => {
   try {
     const raw = localStorage.getItem(REMEMBER_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return '';
+    const parsed = JSON.parse(raw);
+    // 兼容旧格式（含 password 字段）和新格式（只含 email）
+    return parsed?.email || '';
   } catch {
-    return null;
+    return '';
   }
 };
 
-const saveCredentials = (email: string, password: string) => {
-  localStorage.setItem(REMEMBER_KEY, JSON.stringify({ email, password }));
+const saveEmail = (email: string) => {
+  localStorage.setItem(REMEMBER_KEY, JSON.stringify({ email }));
 };
 
-const clearSavedCredentials = () => {
+const clearSavedEmail = () => {
   localStorage.removeItem(REMEMBER_KEY);
 };
 
@@ -37,31 +35,14 @@ export default function Login() {
   const [error, setError] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
 
-  // 初始化：如果有记住的登录信息，自动填充并尝试自动登录
+  // 初始化：如果有记住的邮箱，自动填充
   useEffect(() => {
-    const saved = loadSavedCredentials();
-    if (saved && saved.email && saved.password) {
-      setEmail(saved.email);
-      setPassword(saved.password);
+    const savedEmail = loadSavedEmail();
+    if (savedEmail) {
+      setEmail(savedEmail);
       setRememberMe(true);
-      // 自动触发登录（静默）
-      doAutoLogin(saved.email, saved.password);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const doAutoLogin = async (autoUser: string, autoPass: string) => {
-    setIsLoading(true);
-    setError('');
-    try {
-      await login(autoUser.trim(), autoPass);
-    } catch (err) {
-      // 自动登录失败不显示错误，让用户手动操作
-      clearSavedCredentials();
-      setRememberMe(false);
-      setIsLoading(false);
-    }
-  };
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -74,11 +55,11 @@ export default function Login() {
 
     try {
       await login(email.trim(), password);
-      // 登录成功后根据是否勾选"记住我"来决定是否保存凭据
+      // 登录成功后根据是否勾选"记住我"来决定是否保存邮箱
       if (rememberMe) {
-        saveCredentials(email.trim(), password);
+        saveEmail(email.trim());
       } else {
-        clearSavedCredentials();
+        clearSavedEmail();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '登录失败，请重试');
@@ -177,7 +158,7 @@ export default function Login() {
               onChange={e => setRememberMe(e.target.checked)}
               className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary accent-primary cursor-pointer"
             />
-            <span className="text-sm text-slate-600">记住登录信息</span>
+            <span className="text-sm text-slate-600">记住邮箱</span>
           </label>
         </div>
 
@@ -207,27 +188,6 @@ export default function Login() {
             <button onClick={() => navigate('/register')} className="text-primary font-bold">新用户注册</button>
           </p>
         </div>
-
-        {/* Third Party Login */}
-        {/* <div className="relative py-4">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-slate-200"></div>
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white px-4 text-slate-400">第三方登录</span>
-          </div>
-        </div>
-
-        <div className="flex justify-center gap-6">
-          <button className="w-12 h-12 flex items-center justify-center rounded-full bg-emerald-50 text-emerald-600 transition-transform active:scale-90" aria-label="微信登录">
-            <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
-              <path d="M8.22,12.18c0,0,0,0,0,0c-0.21,0-0.42-0.01-0.63-0.03C7.02,12,6.5,11.75,6.1,11.33c-0.41-0.44-0.61-1-0.61-1.6 c0-0.63,0.22-1.2,0.66-1.63c0.44-0.44,1-0.66,1.64-0.66c0.63,0,1.2,0.22,1.63,0.65c0.44,0.44,0.66,1.01,0.66,1.64 c0,0.63-0.22,1.2-0.66,1.63C9.4,12.01,8.83,12.18,8.22,12.18z M15.78,12.18c-0.63,0-1.2-0.22-1.63-0.65 c-0.44-0.44-0.66-1.01-0.66-1.64c0-0.63,0.22-1.2,0.66-1.63s1.01-0.65,1.63-0.65s1.2,0.22,1.64,0.66c0.44,0.44,0.66,1,0.66,1.63 c0,0.6-0.2,1.16-0.61,1.6c-0.4,0.42-0.92,0.67-1.49,0.82C15.9,12.17,15.84,12.18,15.78,12.18z M12,2C6.48,2,2,5.58,2,10 c0,2.4,1.31,4.52,3.35,5.92c-0.1,0.36-0.38,1.3-0.38,1.3l-0.11,0.42c-0.02,0.11,0,0.2,0.06,0.26s0.14,0.1,0.24,0.08 c0.1-0.02,1.16-0.34,2.37-1.1c0.82,0.23,1.68,0.35,2.58,0.35c0.35,0,0.7-0.02,1.04-0.05c-0.13-0.34-0.21-0.7-0.21-1.07 c0-1.66,1.35-3,3-3c0.64,0,1.22,0.2,1.72,0.54C16.59,10.66,17.92,10,19.33,10c0.38,0,0.74,0.05,1.08,0.15C20.3,5.64,16.58,2,12,2z M21.5,14c-1.38,0-2.5,1.12-2.5,2.5s1.12,2.5,2.5,2.5s2.5-1.12,2.5-2.5S22.88,14,21.5,14z"></path>
-            </svg>
-          </button>
-          <button className="w-12 h-12 flex items-center justify-center rounded-full bg-slate-50 text-slate-800 transition-transform active:scale-90" aria-label="手机号登录">
-            <span className="material-symbols-outlined text-2xl">smartphone</span>
-          </button>
-        </div> */}
       </div>
 
       {/* Background Decoration */}

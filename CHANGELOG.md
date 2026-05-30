@@ -2,6 +2,31 @@
 
 ## 版本历史
 
+### v3.5 — UI 优化、导航重构与安全增强
+
+本次更新对应用的导航结构、多个页面 UI、以及账户安全性进行了全面优化。
+
+- ✅ **新增** `src/version.ts`：集中管理应用版本号，所有组件统一从此文件读取，告别硬编码
+- ✅ **重构** `src/components/UpdatePrompt.tsx`：移除旧的 Service Worker 强制刷新弹层，改为在应用启动时检测 `localStorage` 中的版本号，版本不匹配时自动弹出更新日志弹窗（`ChangelogModal`），关闭后写入新版本号
+- ✅ **重构** `src/components/Navigation.tsx` + `src/router.tsx`：**任务打卡页**（`CheckIn`）升级为应用首页（路径 `/`），**成长树页**（`Dashboard`）移至第二个 Tab（路径 `/forest`），任务 Tab 图标从 `task_alt` 更换为更圆润的 `check_circle`
+- ✅ **重构** `src/views/Dashboard.tsx`：果园花园模块从图片网格卡片重构为垂直文字列表，每项包含分类标签、任务名称、果实奖励和完成状态，界面更简洁清晰
+- ✅ **修复** `src/views/GoalSetting.tsx`：为保存/删除目标按钮添加加载状态（`isSaving`），防止重复提交；同步修复路由跳转至新路径 `/forest`
+- ✅ **修复** `src/views/Messages.tsx`：修复路由调整后"返回"按钮跳转路径，确保正确导航
+- ✅ **修复** `src/views/Store.tsx`：修复移动端余额卡片上操作按钮被遮挡的布局问题
+- ✅ **优化** `src/views/RewardsManagement.tsx`：移除奖品列表中的图片占位符，列表更紧凑易读
+- ✅ **优化** `src/views/Profile.tsx`：版本号改为从 `src/version.ts` 动态读取，不再硬编码
+- ✅ **安全** `src/views/Login.tsx`：移除将用户密码**明文存储于 `localStorage`** 的逻辑，消除 XSS 攻击风险；"记住我"功能仅保留邮箱记忆，登录持久化完全依赖 Supabase Auth 内置的 Session（含 Refresh Token）机制
+
+**功能特性**：
+- 任务打卡作为首页，用户打开应用即可直接打卡，减少操作层级
+- 版本更新时自动弹出更新日志，用户无需手动查看
+- 密码不再落地存储，账户安全性显著提升
+- 多处 UI 细节优化，整体体验更流畅
+
+**无需数据库迁移**：纯前端优化
+
+---
+
 ### v3.4 — 认证系统全面升级（Supabase Auth）
 
 将自定义 JWT 认证体系全面迁移至 Supabase Auth 原生方案，提升安全性、简化架构，并支持邮箱登录与密码找回。

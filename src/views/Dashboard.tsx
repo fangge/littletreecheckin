@@ -342,7 +342,7 @@ export default function Dashboard() {
       )}
 
       <div className="px-4 pb-8 text-center lg:max-w-4xl lg:mx-auto">
-        <p className="text-slate-500 dark:text-[var(--text-muted)] text-sm">继续完成任务，解锁更多珍稀树木！</p>
+        <p className="text-slate-500 dark:text-[var(--text-muted)] text-sm">继续完成任务，解锁更多果实！</p>
       </div>
 
       {/* 打卡详情浮层 */}

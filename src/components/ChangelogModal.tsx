@@ -34,11 +34,29 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
               </button>
             </div>
             <div className="overflow-y-auto max-h-[60vh] px-6 py-4 space-y-4">
-              {/* v3.4 */}
+              {/* v3.5 */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v3.4</span>
+                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v3.5</span>
                   <span className="text-sm text-slate-500 dark:text-[var(--text-muted)]">最新</span>
+                </div>
+                <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">UI 优化、导航重构与安全增强</h4>
+                <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
+                  对导航结构、多个页面 UI 及账户安全性进行全面优化，任务打卡页升级为首页，密码不再本地存储。
+                </p>
+                <ul className="text-xs text-slate-500 dark:text-[var(--text-muted)] space-y-1 ml-2">
+                  <li>• 任务打卡页升级为首页，减少操作层级</li>
+                  <li>• 果园花园改为文字列表，界面更简洁清晰</li>
+                  <li>• 版本更新时自动弹出更新日志</li>
+                  <li>• 移除密码明文存储，账户安全性显著提升</li>
+                  <li>• 修复商店移动端按钮遮挡、目标保存加载状态等细节</li>
+                </ul>
+              </div>
+
+              {/* v3.4 */}
+              <div className="space-y-2 pt-4 border-t border-primary/5 dark:border-[var(--border-color)]">
+                <div className="flex items-center gap-2">
+                  <span className="bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-xs font-bold px-2 py-0.5 rounded">v3.4</span>
                 </div>
                 <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">认证系统全面升级（Supabase Auth）</h4>
                 <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
