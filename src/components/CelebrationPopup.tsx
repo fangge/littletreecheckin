@@ -3,13 +3,32 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { lazy, Suspense, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { shareContent, getCheckinShareText, canNativeShare } from '../utils/share';
 
-// bundle-dynamic-imports: Three.js 3D 动画是重量级依赖（~600KB），
-// 使用 lazy + Suspense 按需加载，仅在弹窗打开时才加载
-const TreeGrowAnimation = lazy(() => import('./TreeGrowAnimation'));
+// GIF 资源地址（男孩/女孩种树成功动画）
+export const BOY_TREE_GIF = 'https://diy-assets.msstatic.com/mrfangge/boytree.gif';
+export const GIRL_TREE_GIF = 'https://diy-assets.msstatic.com/mrfangge/girltree.gif';
+
+// 音效资源地址
+export const BOY_TREE_MP3 = 'https://diy-assets.msstatic.com/mrfangge/boytree.mp3';
+export const GIRL_TREE_MP3 = 'https://diy-assets.msstatic.com/mrfangge/girltree.mp3';
+
+/** 预加载 GIF 和音频到浏览器缓存，供外部页面在合适时机调用 */
+export function preloadTreeGifs(): void {
+  [BOY_TREE_GIF, GIRL_TREE_GIF].forEach(src => {
+    const img = new Image();
+    img.src = src;
+  });
+  [BOY_TREE_MP3, GIRL_TREE_MP3].forEach(src => {
+    const audio = new Audio();
+    audio.preload = 'auto';
+    audio.src = src;
+  });
+}
+
+// GIF/音效时长（毫秒）
+const GIF_DURATION_MS = 10_000;
 
 interface CelebrationPopupProps {
   isOpen: boolean;
@@ -17,38 +36,36 @@ interface CelebrationPopupProps {
   treeProgress?: number;
   treeName?: string;
   isTreeCompleted?: boolean;
+  /** 孩子性别：'male' 显示男孩动画，'female' 或未传则显示女孩动画 */
+  childGender?: string;
 }
 
-const getContent = (
-  progress: number,
-  treeName: string,
-  isCompleted: boolean
-) => {
+const getContent = (progress: number, treeName: string, isCompleted: boolean) => {
   if (isCompleted) {
     return {
       title: '太厉害了！',
       subtitle: `${treeName}果实成熟啦！🍎`,
-      footer: `${treeName}已经长成参天大树！🌳`
+      footer: `${treeName}已经长成参天大树！🌳`,
     };
   }
   if (progress >= 80) {
     return {
       title: '坚持住！',
       subtitle: '马上就要结果啦！',
-      footer: `${treeName}快长成了！再加把劲！🌿`
+      footer: `${treeName}快长成了！再加把劲！🌿`,
     };
   }
   if (progress >= 50) {
     return {
       title: '真棒！',
       subtitle: '小树越来越壮了！',
-      footer: `${treeName}正在茁壮成长！🌱`
+      footer: `${treeName}正在茁壮成长！🌱`,
     };
   }
   return {
     title: '打卡成功！',
     subtitle: '继续坚持，小树在成长！',
-    footer: `${treeName}又长高了一点！🌱`
+    footer: `${treeName}又长高了一点！🌱`,
   };
 };
 
@@ -57,9 +74,48 @@ export default function CelebrationPopup({
   onClose,
   treeProgress = 0,
   treeName = '小树',
-  isTreeCompleted = false
+  isTreeCompleted = false,
+  childGender,
 }: CelebrationPopupProps) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  // 用 ref 保存最新值，避免 useEffect 因引用变化而重复触发
+  const onCloseRef = useRef(onClose);
+  const mp3UrlRef = useRef('');
+  onCloseRef.current = onClose;
+
   const content = getContent(treeProgress, treeName, isTreeCompleted);
+  // 'male' → 男孩动画/音效，其他（'female' 或未传）→ 女孩动画/音效
+  const gifUrl = childGender === 'male' ? BOY_TREE_GIF : GIRL_TREE_GIF;
+  mp3UrlRef.current = childGender === 'male' ? BOY_TREE_MP3 : GIRL_TREE_MP3;
+
+  // 只依赖 isOpen，避免 onClose/mp3Url 引用变化导致重复触发
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // 播放对应音效
+    const audio = new Audio(mp3UrlRef.current);
+    audioRef.current = audio;
+    audio.play().catch(() => {
+      // 浏览器自动播放策略限制时静默失败
+    });
+
+    // 10s 后自动关闭
+    timerRef.current = setTimeout(() => {
+      onCloseRef.current();
+    }, GIF_DURATION_MS);
+
+    return () => {
+      // 清理：停止音效、清除计时器
+      audio.pause();
+      audio.src = '';
+      audioRef.current = null;
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [isOpen]);
 
   return (
     <AnimatePresence>
@@ -77,23 +133,21 @@ export default function CelebrationPopup({
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             className="flex flex-col items-stretch bg-white dark:bg-[var(--bg-surface)] rounded-t-[40px] shadow-2xl overflow-hidden max-w-md mx-auto w-full transition-colors"
           >
+            {/* 顶部拖拽指示条 */}
             <div className="flex h-6 w-full items-center justify-center pt-3">
               <div className="h-1.5 w-12 rounded-full bg-slate-200 dark:bg-[var(--bg-card)]" />
             </div>
 
             <div className="px-6 pb-12 pt-4 text-center">
-              {/* 3D 树木成长动画区域 */}
-              <div className="relative py-4 flex justify-center">
-                {/* Three.js 3D 动画 */}
-                <div className="relative flex items-center justify-center w-[280px] h-[280px]">
-                  <Suspense fallback={
-                    <div className="flex items-center justify-center w-full h-full">
-                      <span className="material-symbols-outlined text-primary text-6xl animate-pulse">park</span>
-                    </div>
-                  }>
-                    <TreeGrowAnimation isActive={isOpen} />
-                  </Suspense>
-                </div>
+              {/* GIF 动画区域 */}
+              <div className="flex justify-center py-4">
+                <img
+                  src={gifUrl}
+                  alt="树木成长动画"
+                  width={300}
+                  height={300}
+                  className="object-contain"
+                />
               </div>
 
               {/* 文案 */}
@@ -110,23 +164,12 @@ export default function CelebrationPopup({
                 {content.footer}
               </p>
 
-              <div className="mt-10 px-2 space-y-3">
+              <div className="mt-10 px-2">
                 <button
                   onClick={onClose}
                   className="w-full bg-primary hover:bg-primary/90 text-slate-900 font-black text-2xl py-6 rounded-3xl shadow-[0_10px_0_rgb(11,180,51)] transition-all active:translate-y-1 active:shadow-none"
                 >
                   太棒了！
-                </button>
-                {/* 分享按钮 */}
-                <button
-                  onClick={async () => {
-                    const shareData = getCheckinShareText(treeName, treeProgress);
-                    await shareContent(shareData);
-                  }}
-                  className="w-full flex items-center justify-center gap-2 py-3 text-primary font-bold text-sm rounded-2xl bg-primary/10 hover:bg-primary/20 transition-all"
-                >
-                  <span className="material-symbols-outlined text-lg">share</span>
-                  {canNativeShare() ? '分享给朋友' : '复制分享文案'}
                 </button>
               </div>
             </div>

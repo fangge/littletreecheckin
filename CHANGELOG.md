@@ -2,6 +2,31 @@
 
 ## 版本历史
 
+### v3.6 — SEO 优化、打卡动画升级与性能提升
+
+全面优化 SEO 收录、打卡成功弹窗升级为男女孩专属 GIF 动画配音效、路由级代码分割提升首屏速度，并对多处 UI 进行紧凑化调整。
+
+- ✅ **新增** `public/sitemap.xml`：站点地图，提升搜索引擎收录效率
+- ✅ **新增** `public/robots.txt`：配置爬虫规则，保护私有页面（`/api/`、`/profile` 等）
+- ✅ **新增** `index.html` JSON-LD 结构化数据：符合 Schema.org `SoftwareApplication` 规范，支持 Google 富摘要展示
+- ✅ **重构** `src/components/CelebrationPopup.tsx`：移除 Three.js 3D 动画，改为男女孩专属 GIF 动画（`boytree.gif` / `girltree.gif`），根据孩子性别（`male`/`female`）自动切换；弹窗打开时同步播放对应音效（`boytree.mp3` / `girltree.mp3`），10 秒后自动关闭
+- ✅ **优化** `src/views/CheckIn.tsx`：页面加载时预加载两个 GIF 和 MP3 到浏览器缓存，避免弹窗打开时才开始下载；传入 `childGender` prop 给弹窗
+- ✅ **优化** `public/manifest.json`：新增应用截图（`/screenshots/checkin.png`、`/screenshots/forest.png`）、新增"我的森林"PWA 快捷方式、修复打卡快捷方式路径为 `/`、新增 Edge 侧边栏支持
+- ✅ **优化** `src/router.tsx`：所有路由页面改为 `lazy` + `Suspense` 按需加载，新增 `SuspenseWrapper` 组件，首屏只加载当前路由代码
+- ✅ **优化** `src/components/CheckinCalendar.tsx`：减小内边距、字体、按钮尺寸，日历整体更紧凑
+- ✅ **优化** `src/views/Dashboard.tsx`：统计卡片内边距和字体缩小，将 `CATEGORY_MAP` 提取到模块级别避免每次渲染重建
+- ✅ **优化** `src/views/CheckIn.tsx`：树木容器高度从 `h-52` 调整为 `h-40`，页面空间利用更合理
+
+**功能特性**：
+- 打卡成功弹窗根据孩子性别显示专属 GIF 动画，并同步播放音效，10 秒后自动关闭
+- GIF 和 MP3 在页面加载时后台预加载，弹窗打开即可流畅播放
+- 路由级代码分割后，首屏加载体积显著减小
+- SEO 优化后，搜索引擎可正确识别应用类型、功能特性和评分信息
+
+**无需数据库迁移**：纯前端优化
+
+---
+
 ### v3.5 — UI 优化、导航重构与安全增强
 
 本次更新对应用的导航结构、多个页面 UI、以及账户安全性进行了全面优化。

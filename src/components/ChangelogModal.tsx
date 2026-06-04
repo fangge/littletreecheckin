@@ -34,11 +34,29 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
               </button>
             </div>
             <div className="overflow-y-auto max-h-[60vh] px-6 py-4 space-y-4">
-              {/* v3.5 */}
+              {/* v3.6 */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v3.5</span>
+                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v3.6</span>
                   <span className="text-sm text-slate-500 dark:text-[var(--text-muted)]">最新</span>
+                </div>
+                <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">SEO 优化、打卡动画升级与性能提升</h4>
+                <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
+                  全面优化 SEO 收录、打卡成功弹窗升级为男女孩专属 GIF 动画配音效、路由级代码分割提升首屏速度，并对多处 UI 进行紧凑化调整。
+                </p>
+                <ul className="text-xs text-slate-500 dark:text-[var(--text-muted)] space-y-1 ml-2">
+                  <li>• 新增 JSON-LD 结构化数据、sitemap.xml 和 robots.txt，提升搜索引擎收录</li>
+                  <li>• PWA manifest 新增应用截图与"我的森林"快捷方式</li>
+                  <li>• 打卡成功弹窗升级为男女孩专属 GIF 动画，并配有对应音效</li>
+                  <li>• 路由页面全部改为 lazy 按需加载，首屏加载更快</li>
+                  <li>• 打卡日历、统计卡片 UI 紧凑化，页面空间利用更合理</li>
+                </ul>
+              </div>
+
+              {/* v3.5 */}
+              <div className="space-y-2 pt-4 border-t border-primary/5 dark:border-[var(--border-color)]">
+                <div className="flex items-center gap-2">
+                  <span className="bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-xs font-bold px-2 py-0.5 rounded">v3.5</span>
                 </div>
                 <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">UI 优化、导航重构与安全增强</h4>
                 <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">

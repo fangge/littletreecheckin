@@ -11,7 +11,7 @@ import {
   GoalData,
   invalidateChildDataCache
 } from '../services/api';
-import CelebrationPopup from '../components/CelebrationPopup';
+import CelebrationPopup, { preloadTreeGifs } from '../components/CelebrationPopup';
 import PullToRefresh from '../components/PullToRefresh';
 
 export default function CheckIn() {
@@ -94,6 +94,11 @@ export default function CheckIn() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // 页面加载时预加载两个 GIF 到浏览器缓存，避免弹窗打开时才开始下载
+  useEffect(() => {
+    preloadTreeGifs();
+  }, []);
 
   // 获取当前选中树木在指定日期的打卡状态
   const getTaskForTreeOnDate = (
@@ -259,6 +264,7 @@ export default function CheckIn() {
         treeProgress={celebrationData.treeProgress}
         treeName={celebrationData.treeName}
         isTreeCompleted={celebrationData.isTreeCompleted}
+        childGender={currentChild?.gender}
       />
       <PullToRefresh onRefresh={handleRefresh}>
         <motion.div
