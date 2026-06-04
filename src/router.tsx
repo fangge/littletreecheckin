@@ -1,22 +1,26 @@
+import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import App from './App';
-import Dashboard from './views/Dashboard';
-import CheckIn from './views/CheckIn';
-import Messages from './views/Messages';
-import Medals from './views/Medals';
-import ParentControl from './views/ParentControl';
-import Store from './views/Store';
-import FruitsHistory from './views/FruitsHistory';
-import RedemptionHistory from './views/RedemptionHistory';
-import GoalSetting from './views/GoalSetting';
-import Register from './views/Register';
-import Login from './views/Login';
-import Profile from './views/Profile';
-import RewardsManagement from './views/RewardsManagement';
-import ForgotPassword from './views/ForgotPassword';
+
+// bundle-dynamic-imports: 路由级代码分割
+// 每个页面组件按需加载，首屏只加载当前路由所需的代码
+const Dashboard = lazy(() => import('./views/Dashboard'));
+const CheckIn = lazy(() => import('./views/CheckIn'));
+const Messages = lazy(() => import('./views/Messages'));
+const Medals = lazy(() => import('./views/Medals'));
+const ParentControl = lazy(() => import('./views/ParentControl'));
+const Store = lazy(() => import('./views/Store'));
+const FruitsHistory = lazy(() => import('./views/FruitsHistory'));
+const RedemptionHistory = lazy(() => import('./views/RedemptionHistory'));
+const GoalSetting = lazy(() => import('./views/GoalSetting'));
+const Register = lazy(() => import('./views/Register'));
+const Login = lazy(() => import('./views/Login'));
+const Profile = lazy(() => import('./views/Profile'));
+const RewardsManagement = lazy(() => import('./views/RewardsManagement'));
+const ForgotPassword = lazy(() => import('./views/ForgotPassword'));
 
 // 加载中的占位组件
 function LoadingScreen() {
@@ -30,13 +34,18 @@ function LoadingScreen() {
   );
 }
 
+// 路由级 Suspense 包装器
+function SuspenseWrapper({ children }: { children: React.ReactNode }) {
+  return <Suspense fallback={<LoadingScreen />}>{children}</Suspense>;
+}
+
 // 受保护的路由包装器：未登录时重定向到 /login
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) return <LoadingScreen />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return <>{children}</>;
+  return <SuspenseWrapper>{children}</SuspenseWrapper>;
 }
 
 // 公共路由：已登录时重定向到 /
@@ -44,7 +53,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
   if (isLoading) return <LoadingScreen />;
   if (isAuthenticated) return <Navigate to="/" replace />;
-  return <>{children}</>;
+  return <SuspenseWrapper>{children}</SuspenseWrapper>;
 }
 
 // 根布局：提供 Auth + Theme 上下文，确保 useNavigate 可用

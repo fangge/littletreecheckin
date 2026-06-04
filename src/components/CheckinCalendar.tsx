@@ -61,14 +61,14 @@ export default function CheckinCalendar({
   };
 
   return (
-    <div className="bg-white dark:bg-[var(--bg-surface)] rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-[var(--border-color)] transition-colors">
+    <div className="bg-white dark:bg-[var(--bg-surface)] rounded-2xl p-2.5 shadow-sm border border-slate-100 dark:border-[var(--border-color)] transition-colors">
       {/* 标题行 */}
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-slate-900 font-extrabold text-base">我的成长足迹</h3>
+      <div className="flex items-center justify-between mb-1.5">
+        <h3 className="text-slate-900 font-extrabold text-sm">我的成长足迹</h3>
         <div className="flex items-center gap-1">
           <button
             onClick={handlePrevMonth}
-            className="flex size-7 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-[var(--bg-card)] transition-colors text-slate-500 dark:text-[var(--text-secondary)]"
+            className="flex size-6 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-[var(--bg-card)] transition-colors text-slate-500 dark:text-[var(--text-secondary)]"
             aria-label="上一月"
             tabIndex={0}
             onKeyDown={e => e.key === 'Enter' && handlePrevMonth()}
@@ -80,7 +80,7 @@ export default function CheckinCalendar({
           </span>
           <button
             onClick={handleNextMonth}
-            className="flex size-7 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-[var(--bg-card)] transition-colors text-slate-500 dark:text-[var(--text-secondary)]"
+            className="flex size-6 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-[var(--bg-card)] transition-colors text-slate-500 dark:text-[var(--text-secondary)]"
             aria-label="下一月"
             tabIndex={0}
             onKeyDown={e => e.key === 'Enter' && handleNextMonth()}
@@ -91,16 +91,16 @@ export default function CheckinCalendar({
       </div>
 
       {/* 星期行 */}
-      <div className="grid grid-cols-7 mb-1">
+      <div className="grid grid-cols-7 mb-0.5">
         {WEEK_DAYS.map(day => (
-          <div key={day} className="text-center text-[11px] text-slate-400 dark:text-[var(--text-muted)] font-medium py-1">
+          <div key={day} className="text-center text-[11px] text-slate-400 dark:text-[var(--text-muted)] font-medium">
             {day}
           </div>
         ))}
       </div>
 
       {/* 日期格子 */}
-      <div className="grid grid-cols-7 gap-y-1">
+      <div className="grid grid-cols-7 gap-y-0.5">
         {cells.map((cell, idx) => {
           if (!cell.day || !cell.dateStr) {
             return <div key={`empty-${idx}`} />;
@@ -117,12 +117,12 @@ export default function CheckinCalendar({
               disabled={!isClickable}
               tabIndex={isClickable ? 0 : -1}
               aria-label={isCheckin ? `${month}月${cell.day}日，已打卡，点击查看详情` : `${month}月${cell.day}日`}
-              className={`flex flex-col items-center justify-center py-1 rounded-lg transition-colors ${
+              className={`flex flex-col items-center justify-center rounded-lg transition-colors ${
                 isClickable ? 'cursor-pointer hover:bg-primary/10 active:bg-primary/20' : 'cursor-default'
               }`}
             >
               <span
-                className={`text-xs font-semibold w-7 h-7 flex items-center justify-center rounded-full ${
+                className={`text-[11px] font-semibold w-6 h-6 flex items-center justify-center rounded-full ${
                   isToday
                     ? 'bg-primary text-white'
                     : isCheckin
@@ -133,11 +133,11 @@ export default function CheckinCalendar({
                 {cell.day}
               </span>
               {isCheckin ? (
-                <span className="material-symbols-outlined text-primary text-[12px] leading-none mt-0.5 fill-icon">
+                <span className="material-symbols-outlined text-primary text-[10px] leading-none mt-px fill-icon">
                   eco
                 </span>
               ) : (
-                <span className="h-[14px] mt-0.5" />
+                <span className="h-[10px] mt-px" />
               )}
             </button>
           );

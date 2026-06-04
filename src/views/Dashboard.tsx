@@ -16,6 +16,20 @@ const TIME_FILTER_LABELS: Record<TimeFilter, string> = {
   year: '过去一年',
 };
 
+// rendering-hoist-jsx: 将静态映射表提取到模块级别，避免每次渲染重建
+const CATEGORY_MAP: Record<string, { text: string; className: string }> = {
+  auto_stories: { text: '学习', className: 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400' },
+  fitness_center: { text: '运动', className: 'bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-400' },
+  brush: { text: '艺术', className: 'bg-pink-100 text-pink-600 dark:bg-pink-900/40 dark:text-pink-400' },
+  piano: { text: '音乐', className: 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400' },
+  pets: { text: '生活', className: 'bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-400' },
+  rocket_launch: { text: '探索', className: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400' },
+  psychology: { text: '思维', className: 'bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400' },
+  sports_soccer: { text: '运动', className: 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400' },
+};
+
+const DEFAULT_CATEGORY = { text: '生活', className: 'bg-slate-100 text-slate-500 dark:bg-[var(--bg-card)] dark:text-[var(--text-muted)]' };
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user, currentChild, setCurrentChild, isChildMode } = useAuth();
@@ -173,7 +187,7 @@ export default function Dashboard() {
       </header>
 
       {/* 打卡日历 */}
-      <div className="px-4 pt-4 pb-2 lg:max-w-4xl lg:mx-auto">
+      <div className="px-4 pt-3 pb-1 lg:max-w-4xl lg:mx-auto">
         <CheckinCalendar
           checkinDates={calendarData?.checkin_dates ?? []}
           selectedMonth={selectedMonth}
@@ -211,26 +225,26 @@ export default function Dashboard() {
         </button>
       </div>
 
-      <div className="px-4 py-2 lg:max-w-4xl lg:mx-auto">
-        <div className="bg-primary/5 dark:bg-[var(--bg-card)] rounded-xl p-5 border border-primary/20 dark:border-[var(--border-color)]">
-          <div className="flex justify-between items-center mb-4">
-            <p className="text-slate-600 dark:text-[var(--text-secondary)] font-bold uppercase text-xs tracking-widest">森林健康度</p>
-            <span className="text-primary font-bold text-sm">
+      <div className="px-4 py-1 lg:max-w-4xl lg:mx-auto">
+        <div className="bg-primary/5 dark:bg-[var(--bg-card)] rounded-xl p-3.5 border border-primary/20 dark:border-[var(--border-color)]">
+          <div className="flex justify-between items-center mb-2.5">
+            <p className="text-slate-600 dark:text-[var(--text-secondary)] font-bold uppercase text-[11px] tracking-widest">森林健康度</p>
+            <span className="text-primary font-bold text-xs">
               {stats ? `${stats.forestHealth}% 生长中` : '加载中...'}
             </span>
           </div>
-          <div className="flex gap-4">
+          <div className="flex gap-3">
             <div className="flex-1">
-              <p className="text-2xl font-extrabold dark:text-[var(--text-primary)]">{stats?.completedTrees ?? '--'}</p>
-              <p className="text-slate-500 dark:text-[var(--text-muted)] text-[10px] sm:text-xs">已长成树木</p>
+              <p className="text-xl font-extrabold dark:text-[var(--text-primary)] leading-tight">{stats?.completedTrees ?? '--'}</p>
+              <p className="text-slate-500 dark:text-[var(--text-muted)] text-[10px]">已长成树木</p>
             </div>
-            <div className="flex-1 border-x border-primary/20 dark:border-[var(--border-color)] px-4">
-              <p className="text-2xl font-extrabold text-primary">{stats?.totalApprovedTasks ?? '--'}</p>
-              <p className="text-slate-500 dark:text-[var(--text-muted)] text-[10px] sm:text-xs">累计任务</p>
+            <div className="flex-1 border-x border-primary/20 dark:border-[var(--border-color)] px-3">
+              <p className="text-xl font-extrabold text-primary leading-tight">{stats?.totalApprovedTasks ?? '--'}</p>
+              <p className="text-slate-500 dark:text-[var(--text-muted)] text-[10px]">累计任务</p>
             </div>
             <div className="flex-1 text-right">
-              <p className="text-2xl font-extrabold dark:text-[var(--text-primary)]">{stats?.activeGoals ?? '--'}</p>
-              <p className="text-slate-500 dark:text-[var(--text-muted)] text-[10px] sm:text-xs">新种子</p>
+              <p className="text-xl font-extrabold dark:text-[var(--text-primary)] leading-tight">{stats?.activeGoals ?? '--'}</p>
+              <p className="text-slate-500 dark:text-[var(--text-muted)] text-[10px]">新种子</p>
             </div>
           </div>
         </div>
@@ -270,18 +284,7 @@ export default function Dashboard() {
             const goal = getGoalForTree(tree);
             const checkedInToday = tree.checked_in_today ?? false;
             const isDone = tree.status === 'completed' || checkedInToday;
-            // 根据 goal icon 映射分类标签
-            const categoryMap: Record<string, { text: string; className: string }> = {
-              auto_stories: { text: '学习', className: 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400' },
-              fitness_center: { text: '运动', className: 'bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-400' },
-              brush: { text: '艺术', className: 'bg-pink-100 text-pink-600 dark:bg-pink-900/40 dark:text-pink-400' },
-              piano: { text: '音乐', className: 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400' },
-              pets: { text: '生活', className: 'bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-400' },
-              rocket_launch: { text: '探索', className: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400' },
-              psychology: { text: '思维', className: 'bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400' },
-              sports_soccer: { text: '运动', className: 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400' },
-            };
-            const category = goal?.icon ? (categoryMap[goal.icon] ?? { text: '生活', className: 'bg-slate-100 text-slate-500 dark:bg-[var(--bg-card)] dark:text-[var(--text-muted)]' }) : null;
+            const category = goal?.icon ? (CATEGORY_MAP[goal.icon] ?? DEFAULT_CATEGORY) : null;
 
             return (
               <div

@@ -393,7 +393,7 @@ export default function CheckIn() {
                 </div>
               )}
 
-              <div className="relative w-full max-w-sm mx-auto h-52 bg-gradient-to-b from-blue-100 dark:from-[#1a3d3a] to-primary/5 dark:to-[var(--bg-surface)] rounded-3xl overflow-hidden shadow-inner flex flex-col items-center justify-center border-4 border-white dark:border-[var(--bg-card)] transition-colors">
+              <div className="relative w-full max-w-sm mx-auto h-40 bg-gradient-to-b from-blue-100 dark:from-[#1a3d3a] to-primary/5 dark:to-[var(--bg-surface)] rounded-3xl overflow-hidden shadow-inner flex flex-col items-center justify-center border-4 border-white dark:border-[var(--bg-card)] transition-colors">
                 <div className="absolute top-8 left-8 text-yellow-400">
                   <span className="material-symbols-outlined text-6xl fill-icon">
                     light_mode

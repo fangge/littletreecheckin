@@ -3,9 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import TreeGrowAnimation from './TreeGrowAnimation';
+import { shareContent, getCheckinShareText, canNativeShare } from '../utils/share';
+
+// bundle-dynamic-imports: Three.js 3D 动画是重量级依赖（~600KB），
+// 使用 lazy + Suspense 按需加载，仅在弹窗打开时才加载
+const TreeGrowAnimation = lazy(() => import('./TreeGrowAnimation'));
 
 interface CelebrationPopupProps {
   isOpen: boolean;
@@ -82,7 +86,13 @@ export default function CelebrationPopup({
               <div className="relative py-4 flex justify-center">
                 {/* Three.js 3D 动画 */}
                 <div className="relative flex items-center justify-center w-[280px] h-[280px]">
-                  <TreeGrowAnimation isActive={isOpen} />
+                  <Suspense fallback={
+                    <div className="flex items-center justify-center w-full h-full">
+                      <span className="material-symbols-outlined text-primary text-6xl animate-pulse">park</span>
+                    </div>
+                  }>
+                    <TreeGrowAnimation isActive={isOpen} />
+                  </Suspense>
                 </div>
               </div>
 
@@ -100,12 +110,23 @@ export default function CelebrationPopup({
                 {content.footer}
               </p>
 
-              <div className="mt-10 px-2">
+              <div className="mt-10 px-2 space-y-3">
                 <button
                   onClick={onClose}
                   className="w-full bg-primary hover:bg-primary/90 text-slate-900 font-black text-2xl py-6 rounded-3xl shadow-[0_10px_0_rgb(11,180,51)] transition-all active:translate-y-1 active:shadow-none"
                 >
                   太棒了！
+                </button>
+                {/* 分享按钮 */}
+                <button
+                  onClick={async () => {
+                    const shareData = getCheckinShareText(treeName, treeProgress);
+                    await shareContent(shareData);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3 text-primary font-bold text-sm rounded-2xl bg-primary/10 hover:bg-primary/20 transition-all"
+                >
+                  <span className="material-symbols-outlined text-lg">share</span>
+                  {canNativeShare() ? '分享给朋友' : '复制分享文案'}
                 </button>
               </div>
             </div>

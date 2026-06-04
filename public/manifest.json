@@ -41,13 +41,40 @@
     "education",
     "productivity"
   ],
-  "screenshots": [],
+  "screenshots": [
+    {
+      "src": "/screenshots/checkin.png",
+      "sizes": "776x1702",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "每日打卡页面 - 孩子完成任务后树木成长"
+    },
+    {
+      "src": "/screenshots/forest.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "森林主页 - 查看所有成长中的树木"
+    }
+  ],
   "shortcuts": [
     {
       "name": "立即打卡",
       "short_name": "打卡",
       "description": "快速进入今日打卡页面",
-      "url": "/checkin",
+      "url": "/",
+      "icons": [
+        {
+          "src": "/logo2.png",
+          "sizes": "140x140"
+        }
+      ]
+    },
+    {
+      "name": "我的森林",
+      "short_name": "森林",
+      "description": "查看森林成长进度",
+      "url": "/forest",
       "icons": [
         {
           "src": "/logo2.png",
@@ -55,5 +82,9 @@
         }
       ]
     }
-  ]
+  ],
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"]
 }

@@ -1,0 +1,11 @@
+# 成就丛林 - robots.txt
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /parent-control
+Disallow: /rewards-management
+Disallow: /profile
+Disallow: /messages
+
+# Sitemap
+Sitemap: https://littletreecheckin.mrfangge.com/sitemap.xml
