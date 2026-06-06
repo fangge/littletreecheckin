@@ -34,11 +34,30 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
               </button>
             </div>
             <div className="overflow-y-auto max-h-[60vh] px-6 py-4 space-y-4">
-              {/* v3.6 */}
+              {/* v3.7 */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v3.6</span>
+                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v3.7</span>
                   <span className="text-sm text-slate-500 dark:text-[var(--text-muted)]">最新</span>
+                </div>
+                <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">共享任务功能</h4>
+                <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
+                  多个孩子可以共同参与同一个任务的竞争，先完成者获得奖励，支持进度排名、日历高亮和任务标识。
+                </p>
+                <ul className="text-xs text-slate-500 dark:text-[var(--text-muted)] space-y-1 ml-2">
+                  <li>• 新增共享任务类型，多孩子共同参与同一任务</li>
+                  <li>• 新增共享任务总结页，实时展示所有参与者进度排名</li>
+                  <li>• 打卡成功后自动跳转总结页，直观查看竞争态势</li>
+                  <li>• 日历中共享任务打卡日期叶子变金色，与普通任务区分</li>
+                  <li>• 任务列表中共享标识可点击跳转总结页</li>
+                  <li>• 目标设置支持选择参与孩子，完成条件支持总天数/总次数</li>
+                </ul>
+              </div>
+
+              {/* v3.6 */}
+              <div className="space-y-2 pt-4 border-t border-primary/5 dark:border-[var(--border-color)]">
+                <div className="flex items-center gap-2">
+                  <span className="bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-xs font-bold px-2 py-0.5 rounded">v3.6</span>
                 </div>
                 <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">SEO 优化、打卡动画升级与性能提升</h4>
                 <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">

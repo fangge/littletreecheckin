@@ -190,6 +190,7 @@ export default function Dashboard() {
       <div className="px-4 pt-3 pb-1 lg:max-w-4xl lg:mx-auto">
         <CheckinCalendar
           checkinDates={calendarData?.checkin_dates ?? []}
+          sharedCompletedDates={calendarData?.shared_completed_dates ?? []}
           selectedMonth={selectedMonth}
           onMonthChange={handleMonthChange}
           onDateClick={handleCalendarDateClick}
@@ -301,6 +302,16 @@ export default function Dashboard() {
                   <div className="flex items-center gap-2">
                     <span className="text-xl shrink-0">🍎</span>
                     <p className="text-slate-900 dark:text-[var(--text-primary)] text-lg font-bold leading-tight truncate">{tree.name}</p>
+                    {goal?.is_shared && (
+                      <button
+                        onClick={e => { e.stopPropagation(); navigate(`/shared-task/${goal.id}`); }}
+                        className="shrink-0 flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400 whitespace-nowrap active:scale-95 transition-transform"
+                        aria-label="查看共享任务详情"
+                      >
+                        <span className="material-symbols-outlined text-[10px]">group</span>
+                        共享
+                      </button>
+                    )}
                   </div>
                 </div>
 

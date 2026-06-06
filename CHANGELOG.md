@@ -2,6 +2,44 @@
 
 ## 版本历史
 
+### v3.7 — 共享任务功能
+
+多个孩子可以共同参与同一个任务的竞争，先完成者获得奖励。新增共享任务总结页、打卡后自动跳转、日历金色叶子高亮、任务共享标识等完整功能链路。
+
+- ✅ **新增** `supabase/migrations/011_add_shared_goals.sql`：在 `goals` 表中添加 `is_shared`（布尔）和 `shared_child_ids`（UUID 数组）字段，并建立索引
+- ✅ **新增** `src/views/SharedTaskSummary.tsx`：共享任务总结页，展示任务信息、所有参与孩子的进度排名和进度条，支持获胜者高亮
+- ✅ **新增** 后端接口 `GET /api/v1/goals/:goalId/shared-progress`：汇总所有参与孩子的完成天数、进度、获胜者信息
+- ✅ **修改** `server/src/routes/trees.ts`：
+  - 目标创建接口支持 `is_shared` 和 `shared_child_ids`，为每个参与孩子创建独立树木
+  - 目标更新接口支持修改参与孩子列表（新增孩子创建树木，退出孩子在满足条件时移除树木）
+  - 目标列表接口同时返回孩子参与的共享任务
+  - 新增 `shared-progress` 路由，返回 `winner_child_id`、`is_completed`、各孩子进度等完整数据
+- ✅ **修改** `server/src/routes/children.ts`：日历数据接口新增 `shared_completed_dates` 字段，支持共享任务打卡日期查询
+- ✅ **修改** `server/src/app.ts`：将 `treesRouter` 额外挂载到 `/api/v1`，修复 `/goals/:goalId/shared-progress` 路由无法匹配的问题
+- ✅ **修改** `src/services/api.ts`：扩展 `GoalData`、`SharedTaskProgress`、`SharedTaskSummaryData`、`CalendarData` 接口；新增 `getSharedTaskProgress` 方法；`updateGoal` 支持 `shared_child_ids`
+- ✅ **修改** `src/views/GoalSetting.tsx`：
+  - 新增"独立任务"与"共享任务"类型选择器
+  - 共享任务模式下默认选中所有孩子，支持取消（少于 2 人时提示切换为独立任务）
+  - 编辑共享任务时支持修改参与孩子列表
+  - 共享任务完成条件改为"总天数"或"总次数"二选一
+- ✅ **修改** `src/views/CheckIn.tsx`：任务列表中共享任务名称旁显示可点击"共享"标识；打卡庆祝弹窗关闭后自动跳转到共享任务总结页
+- ✅ **修改** `src/views/Dashboard.tsx`：果园花园任务列表中共享任务显示可点击"共享"标识；将 `shared_completed_dates` 传递给日历组件
+- ✅ **修改** `src/components/CheckinCalendar.tsx`：支持 `sharedCompletedDates` prop，共享任务打卡日期的叶子图标显示为金色
+- ✅ **修改** `src/router.tsx`：新增 `/shared-task/:goalId` 路由，懒加载 `SharedTaskSummary` 页面
+
+**功能特性**：
+- 多孩子共同参与同一任务，先完成者获得水果奖励
+- 每次打卡仍需家长审核才能生效
+- 完成条件支持"总天数"或"总次数"二选一
+- 共享任务总结页实时展示所有参与者进度排名
+- 打卡成功后自动跳转总结页，直观查看竞争态势
+- 日历中共享任务打卡日期叶子变金色，与普通任务区分
+- 任务列表中共享标识可点击跳转总结页
+
+**数据库迁移**：执行 `supabase/migrations/011_add_shared_goals.sql`
+
+---
+
 ### v3.6 — SEO 优化、打卡动画升级与性能提升
 
 全面优化 SEO 收录、打卡成功弹窗升级为男女孩专属 GIF 动画配音效、路由级代码分割提升首屏速度，并对多处 UI 进行紧凑化调整。

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
@@ -33,6 +33,8 @@ export default function CheckIn() {
     treeName: string;
     isTreeCompleted: boolean;
   }>({ treeProgress: 0, treeName: '小树', isTreeCompleted: false });
+  // 记录当前打卡的目标是否为共享任务，以及对应的 goalId
+  const sharedGoalIdRef = useRef<string | null>(null);
 
   // 获取 UTC+8 今天的日期字符串 YYYY-MM-DD
   const getUTC8Today = (): string => {
@@ -118,6 +120,11 @@ export default function CheckIn() {
     setIsChecking(true);
     setError('');
     setIsCelebrationOpen(true);
+
+    // 检查当前目标是否为共享任务，记录 goalId 供弹窗关闭后跳转
+    const currentGoalData = goals.find(g => g.id === selectedTree.goal_id);
+    sharedGoalIdRef.current = currentGoalData?.is_shared ? selectedTree.goal_id : null;
+
     try {
       const isBackfill = selectedDate !== getUTC8Today();
       const res = await tasksApi.checkin(
@@ -260,7 +267,14 @@ export default function CheckIn() {
     <>
       <CelebrationPopup
         isOpen={isCelebrationOpen}
-        onClose={() => setIsCelebrationOpen(false)}
+        onClose={() => {
+          setIsCelebrationOpen(false);
+          // 如果是共享任务，弹窗关闭后跳转到共享任务总结页
+          if (sharedGoalIdRef.current) {
+            navigate(`/shared-task/${sharedGoalIdRef.current}`);
+            sharedGoalIdRef.current = null;
+          }
+        }}
         treeProgress={celebrationData.treeProgress}
         treeName={celebrationData.treeName}
         isTreeCompleted={celebrationData.isTreeCompleted}
@@ -348,8 +362,18 @@ export default function CheckIn() {
                     <span className="text-slate-600 dark:text-[var(--text-secondary)] text-sm font-medium">
                       当前目标：
                     </span>
-                    <span className="text-primary font-bold text-sm flex-1">
+                    <span className="text-primary font-bold text-sm flex-1 flex items-center gap-1.5">
                       {selectedTree?.name || '选择目标'}
+                      {currentGoal?.is_shared && (
+                        <button
+                          onClick={e => { e.stopPropagation(); navigate(`/shared-task/${currentGoal.id}`); }}
+                          className="flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400 whitespace-nowrap active:scale-95 transition-transform"
+                          aria-label="查看共享任务详情"
+                        >
+                          <span className="material-symbols-outlined text-[10px]">group</span>
+                          共享
+                        </button>
+                      )}
                     </span>
                     {(() => {
                       const treeTask = getTaskForTreeOnDate(
@@ -469,10 +493,20 @@ export default function CheckIn() {
                   })()}
                 </div>
 
-                <div className="absolute bottom-0 w-full h-12 bg-primary/20 flex items-center justify-center">
+                <div className="absolute bottom-0 w-full h-12 bg-primary/20 flex items-center justify-center gap-2">
                   <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary/80">
                     {currentTree ? currentTree.name : '幼苗阶段'}
                   </p>
+                  {currentGoal?.is_shared && (
+                    <button
+                      onClick={() => navigate(`/shared-task/${currentGoal.id}`)}
+                      className="flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-400/30 text-amber-700 dark:text-amber-400 whitespace-nowrap active:scale-95 transition-transform"
+                      aria-label="查看共享任务详情"
+                    >
+                      <span className="material-symbols-outlined text-[10px]">group</span>
+                      共享
+                    </button>
+                  )}
                 </div>
               </div>
 

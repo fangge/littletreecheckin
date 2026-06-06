@@ -325,9 +325,48 @@ router.get('/:childId/checkin-calendar', authMiddleware, async (req: AuthRequest
 
   const checkinDates = Object.keys(tasksByDate).sort();
 
+  // 查询该孩子参与的共享任务，找出当月已完成（approved）的日期
+  // 共享任务完成日期：该孩子在共享任务中有 approved 状态的打卡记录
+  let sharedCompletedDates: string[] = [];
+  try {
+    // 先获取该孩子参与的共享目标 ID
+    const { data: sharedGoals } = await supabase
+      .from('goals')
+      .select('id')
+      .contains('shared_child_ids', [childId])
+      .eq('is_shared', true);
+
+    if (sharedGoals && sharedGoals.length > 0) {
+      const sharedGoalIds = sharedGoals.map((g: { id: string }) => g.id);
+      // 查询这些共享目标中，该孩子已 approved 的打卡记录
+      const { data: sharedTasks } = await supabase
+        .from('tasks')
+        .select('checkin_time, goal_id')
+        .eq('child_id', childId)
+        .eq('status', 'approved')
+        .in('goal_id', sharedGoalIds)
+        .gte('checkin_time', startUtc.toISOString())
+        .lt('checkin_time', endUtc.toISOString());
+
+      // 统计每个共享目标的已完成天数，判断是否达到目标天数
+      // 这里简化处理：只要当天有 approved 的共享任务打卡，就标记为金色
+      const sharedDateSet = new Set<string>();
+      for (const task of sharedTasks || []) {
+        const utcDate = new Date(task.checkin_time);
+        const utc8Date = new Date(utcDate.getTime() + 8 * 60 * 60 * 1000);
+        const dateStr = utc8Date.toISOString().slice(0, 10);
+        sharedDateSet.add(dateStr);
+      }
+      sharedCompletedDates = Array.from(sharedDateSet).sort();
+    }
+  } catch (sharedErr) {
+    console.error('[checkin-calendar] 查询共享任务完成日期失败:', sharedErr);
+  }
+
   res.json({
     data: {
       checkin_dates: checkinDates,
+      shared_completed_dates: sharedCompletedDates,
       tasks_by_date: tasksByDate,
     },
   });

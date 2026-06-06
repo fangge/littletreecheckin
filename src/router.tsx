@@ -16,6 +16,7 @@ const Store = lazy(() => import('./views/Store'));
 const FruitsHistory = lazy(() => import('./views/FruitsHistory'));
 const RedemptionHistory = lazy(() => import('./views/RedemptionHistory'));
 const GoalSetting = lazy(() => import('./views/GoalSetting'));
+const SharedTaskSummary = lazy(() => import('./views/SharedTaskSummary'));
 const Register = lazy(() => import('./views/Register'));
 const Login = lazy(() => import('./views/Login'));
 const Profile = lazy(() => import('./views/Profile'));
@@ -162,6 +163,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <GoalSetting />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'shared-task/:goalId',
+        element: (
+          <ProtectedRoute>
+            <SharedTaskSummary />
           </ProtectedRoute>
         ),
       },

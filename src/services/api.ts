@@ -120,6 +120,29 @@ export interface GoalData {
   reward_tree_name?: string;
   is_active: boolean;
   fruits_per_task?: number;
+  is_shared?: boolean;
+  shared_child_ids?: string[];
+}
+
+export interface SharedTaskProgress {
+  child_id: string;
+  child_name: string;
+  child_gender?: string | null;
+  child_avatar?: string | null;
+  completed_days: number;
+  progress: number;
+  tree_status?: string;
+  is_completed: boolean;
+  completion_date?: string | null;
+  is_winner: boolean;
+}
+
+export interface SharedTaskSummaryData {
+  goal: GoalData;
+  progress: SharedTaskProgress[];
+  winner_child_id: string | null;
+  is_completed: boolean;
+  earliest_completion_date?: string | null;
 }
 
 export interface TaskData {
@@ -200,6 +223,7 @@ export interface CalendarTask {
 
 export interface CalendarData {
   checkin_dates: string[];
+  shared_completed_dates: string[];
   tasks_by_date: Record<string, CalendarTask[]>;
 }
 
@@ -275,10 +299,17 @@ export const treesApi = {
     daily_count?: number | null;
     reward_tree_name?: string;
     fruits_per_task?: number;
+    is_shared?: boolean;
+    shared_child_ids?: string[];
   }) =>
     request<{ data: { goal: GoalData; tree: TreeData } }>(
       `/api/v1/children/${childId}/goals`,
       { method: 'POST', body: JSON.stringify(goal) }
+    ),
+
+  getSharedTaskProgress: (goalId: string) =>
+    request<{ data: SharedTaskSummaryData }>(
+      `/api/v1/goals/${goalId}/shared-progress`
     ),
 
   listGoals: (childId: string, activeOnly = false) =>
@@ -295,6 +326,7 @@ export const treesApi = {
     reward_tree_name?: string;
     child_id?: string;
     fruits_per_task?: number;
+    shared_child_ids?: string[];
   }) =>
     request<{ data: GoalData }>(
       `/api/v1/goals/${goalId}`,

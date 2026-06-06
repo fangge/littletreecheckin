@@ -95,15 +95,22 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
     return;
   }
 
-  // 验证目标存在且属于该孩子
+  // 验证目标存在且属于该孩子（支持共享任务：child_id 匹配或在 shared_child_ids 中）
   const { data: goal } = await supabase
     .from('goals')
-    .select('id, title, is_active, child_id')
+    .select('id, title, is_active, child_id, is_shared, shared_child_ids')
     .eq('id', goal_id)
-    .eq('child_id', child_id)
     .single();
 
   if (!goal) {
+    res.status(404).json({ error: '目标不存在' });
+    return;
+  }
+
+  // 验证孩子有权限打卡该目标
+  const isOwner = goal.child_id === child_id;
+  const isSharedParticipant = goal.is_shared && Array.isArray(goal.shared_child_ids) && goal.shared_child_ids.includes(child_id);
+  if (!isOwner && !isSharedParticipant) {
     res.status(404).json({ error: '目标不存在' });
     return;
   }
@@ -151,11 +158,12 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
     return;
   }
 
-  // 获取关联树木
+  // 获取关联树木（共享任务需要按 child_id 过滤，找到该孩子的树木）
   const { data: tree } = await supabase
     .from('trees')
     .select('id, progress')
     .eq('goal_id', goal_id)
+    .eq('child_id', child_id)
     .single();
 
   const childName = childInfo?.name || '孩子';

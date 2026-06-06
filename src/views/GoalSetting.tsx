@@ -4,6 +4,8 @@ import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { treesApi, Child, GoalData } from '../services/api';
 
+type TaskType = 'independent' | 'shared';
+
 const ICONS = [
   'auto_stories', 'fitness_center', 'brush', 'piano',
   'pets', 'rocket_launch', 'psychology', 'sports_soccer',
@@ -56,6 +58,17 @@ export default function GoalSetting() {
     : currentChild;
 
   const [selectedChild, setSelectedChild] = useState<Child | null>(initialChild);
+  // 任务类型：独立任务 or 共享任务（编辑模式下根据 editGoal.is_shared 初始化）
+  const [taskType, setTaskType] = useState<TaskType>(
+    isEditMode && editGoal?.is_shared ? 'shared' : 'independent'
+  );
+  // 共享任务参与孩子（编辑模式下预填充已有参与孩子，新建模式默认全选）
+  const allChildren = user?.children ?? [];
+  const [sharedChildIds, setSharedChildIds] = useState<string[]>(
+    isEditMode && editGoal?.is_shared && editGoal?.shared_child_ids?.length
+      ? editGoal.shared_child_ids
+      : allChildren.map(c => c.id)
+  );
   const [title, setTitle] = useState(editGoal?.title || '');
   const [selectedIcon, setSelectedIcon] = useState(editGoal?.icon || 'auto_stories');
   const [rewardTreeName, setRewardTreeName] = useState(editGoal?.reward_tree_name || '');
@@ -91,6 +104,31 @@ export default function GoalSetting() {
     setDurationUnit('days');
   };
 
+  // 切换共享任务参与孩子
+  const handleToggleSharedChild = (childId: string) => {
+    setSharedChildIds(prev => {
+      const isSelected = prev.includes(childId);
+      if (isSelected) {
+        const next = prev.filter(id => id !== childId);
+        // 如果取消后只剩一个孩子，提示是否切换为独立任务
+        if (next.length === 1) {
+          const remainingChild = allChildren.find(c => c.id === next[0]);
+          const confirmed = confirm(
+            `取消后只剩下 ${remainingChild?.name || '一个孩子'}，是否切换为独立任务？`
+          );
+          if (confirmed) {
+            setTaskType('independent');
+            setSelectedChild(remainingChild || null);
+            return prev; // 不更新 sharedChildIds，因为已切换为独立任务
+          }
+        }
+        return next;
+      } else {
+        return [...prev, childId];
+      }
+    });
+  };
+
   const handleSubmit = async () => {
     if (!title.trim()) {
       setError('请输入目标名称');
@@ -103,14 +141,30 @@ export default function GoalSetting() {
       return;
     }
 
-    if (!selectedChild) {
+    // 共享任务：至少需要2个孩子，且完成条件必须填写
+    const isSharedMode = taskType === 'shared' || (isEditMode && editGoal?.is_shared);
+    if (isSharedMode) {
+      if (sharedChildIds.length < 2) {
+        setError('共享任务至少需要选择2个孩子');
+        return;
+      }
+      // 总次数模式：dailyCountValue 有值；总天数模式：durationValue 有值
+      if (!dailyCountValue && (!durationValue || isNaN(parseFloat(durationValue)) || parseFloat(durationValue) <= 0)) {
+        setError('请填写完成条件：总天数或总次数');
+        return;
+      }
+    } else if (!selectedChild) {
       setError('请先选择孩子');
       return;
     }
 
-    const durationDays = toDays(numDuration, durationUnit);
+    // 共享任务"总次数"模式：duration_days 设为 365，daily_count 存储总次数
+    // 共享任务"总天数"模式：duration_days 为填写的天数，daily_count 为 null
+    const durationDays = isSharedMode && dailyCountValue
+      ? 365
+      : toDays(numDuration, durationUnit);
     const numDaily = dailyValue ? parseFloat(dailyValue) : 0;
-    const durationMinutes = dailyValue && !isNaN(numDaily) ? toMinutes(numDaily, dailyUnit) : 0;
+    const durationMinutes = (!isSharedMode && dailyValue && !isNaN(numDaily)) ? toMinutes(numDaily, dailyUnit) : 0;
     const numDailyCount = dailyCountValue ? parseInt(dailyCountValue, 10) : null;
     const dailyCount = dailyCountValue && !isNaN(numDailyCount!) && numDailyCount! > 0 ? numDailyCount : null;
     const numFruitsPerTask = fruitsPerTaskValue ? parseInt(fruitsPerTaskValue, 10) : 10;
@@ -121,7 +175,7 @@ export default function GoalSetting() {
 
     try {
       if (isEditMode && editGoal) {
-        // 编辑模式：更新目标（包含可能变更的归属孩子）
+        // 编辑模式：更新目标（包含可能变更的归属孩子或共享孩子列表）
         await treesApi.updateGoal(editGoal.id, {
           title: title.trim(),
           icon: selectedIcon,
@@ -129,15 +183,35 @@ export default function GoalSetting() {
           duration_minutes: durationMinutes,
           daily_count: dailyCount,
           reward_tree_name: rewardTreeName.trim() || title.trim(),
-          child_id: selectedChild.id !== editGoal.childId ? selectedChild.id : undefined,
+          child_id: !editGoal.is_shared && selectedChild && selectedChild.id !== editGoal.childId ? selectedChild.id : undefined,
           fruits_per_task: fruitsPerTask,
+          shared_child_ids: editGoal.is_shared ? sharedChildIds : undefined,
         });
         // 如果修改了归属孩子，自动切换 currentChild 到新孩子
-        if (selectedChild.id !== editGoal.childId) {
+        if (!editGoal.is_shared && selectedChild && selectedChild.id !== editGoal.childId) {
           setCurrentChild(selectedChild);
         }
+      } else if (taskType === 'shared') {
+        // 共享任务：使用第一个孩子的 ID 作为创建者，传入所有参与孩子
+        const creatorChildId = sharedChildIds[0];
+        await treesApi.createGoal(creatorChildId, {
+          title: title.trim(),
+          icon: selectedIcon,
+          duration_days: durationDays,
+          duration_minutes: durationMinutes,
+          daily_count: dailyCount,
+          reward_tree_name: rewardTreeName.trim() || title.trim(),
+          fruits_per_task: fruitsPerTask,
+          is_shared: true,
+          shared_child_ids: sharedChildIds,
+        });
+        // 切换到第一个参与孩子
+        const firstChild = allChildren.find(c => c.id === sharedChildIds[0]);
+        if (firstChild && firstChild.id !== currentChild?.id) {
+          setCurrentChild(firstChild);
+        }
       } else {
-        // 创建模式：新建目标，切换 currentChild 到所选孩子
+        // 独立任务：新建目标，切换 currentChild 到所选孩子
         await treesApi.createGoal(selectedChild!.id, {
           title: title.trim(),
           icon: selectedIcon,
@@ -147,8 +221,8 @@ export default function GoalSetting() {
           reward_tree_name: rewardTreeName.trim() || title.trim(),
           fruits_per_task: fruitsPerTask,
         });
-        if (selectedChild.id !== currentChild?.id) {
-          setCurrentChild(selectedChild);
+        if (selectedChild!.id !== currentChild?.id) {
+          setCurrentChild(selectedChild!);
         }
       }
       navigate('/forest');
@@ -232,8 +306,43 @@ export default function GoalSetting() {
           <span className="text-primary">{isEditMode ? '成长之树' : '成长之树？'}</span>
         </h3>
 
-        {/* 孩子选择（多孩子时显示，新建和编辑模式均支持） */}
-        {user?.children && user.children.length > 1 && (
+        {/* 任务类型选择（仅新建模式且有多个孩子时显示） */}
+        {!isEditMode && allChildren.length > 1 && (
+          <div className="mb-6">
+            <p className="text-slate-700 dark:text-[var(--text-primary)] text-base font-bold ml-1 mb-3">
+              任务类型 <span className="text-red-400">*</span>
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${
+                  taskType === 'independent'
+                    ? 'bg-primary/10 border-primary text-primary'
+                    : 'bg-white dark:bg-[var(--bg-card)] border-slate-200 dark:border-[var(--border-color)] text-slate-600 dark:text-[var(--text-secondary)] hover:border-primary/40'
+                }`}
+                onClick={() => setTaskType('independent')}
+              >
+                <span className="material-symbols-outlined text-2xl">person</span>
+                <span className="text-sm font-bold">独立任务</span>
+                <span className="text-xs opacity-70 text-center">单个孩子完成</span>
+              </button>
+              <button
+                className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${
+                  taskType === 'shared'
+                    ? 'bg-primary/10 border-primary text-primary'
+                    : 'bg-white dark:bg-[var(--bg-card)] border-slate-200 dark:border-[var(--border-color)] text-slate-600 dark:text-[var(--text-secondary)] hover:border-primary/40'
+                }`}
+                onClick={() => setTaskType('shared')}
+              >
+                <span className="material-symbols-outlined text-2xl">group</span>
+                <span className="text-sm font-bold">共享任务</span>
+                <span className="text-xs opacity-70 text-center">多孩子竞争完成</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 独立任务：孩子选择（多孩子时显示，新建独立任务和编辑独立任务模式均支持，编辑共享任务时不显示） */}
+        {(taskType === 'independent' || (isEditMode && !editGoal?.is_shared)) && user?.children && user.children.length > 1 && (
           <div className="mb-6">
             <p className="text-slate-700 text-base font-bold ml-1 mb-3">
               为哪个孩子设置目标 <span className="text-red-400">*</span>
@@ -263,6 +372,51 @@ export default function GoalSetting() {
             {selectedChild && (
               <p className="text-xs text-slate-400 mt-2 ml-1">
                 将为 <span className="text-primary font-bold">{selectedChild.name}</span> 种下这棵树
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* 共享任务：多孩子选择（新建模式 + 编辑共享任务模式） */}
+        {((isEditMode && editGoal?.is_shared) || (!isEditMode && taskType === 'shared')) && allChildren.length > 1 && (
+          <div className="mb-6">
+            <p className="text-slate-700 dark:text-[var(--text-primary)] text-base font-bold ml-1 mb-1">
+              参与孩子 <span className="text-red-400">*</span>
+            </p>
+            <p className="text-xs text-slate-400 ml-1 mb-3">默认全选，先完成的孩子获得奖励</p>
+            <div className="flex gap-2 flex-wrap">
+              {allChildren.map(child => {
+                const isSelected = sharedChildIds.includes(child.id);
+                return (
+                  <button
+                    key={child.id}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${
+                      isSelected
+                        ? 'bg-primary/10 border-primary text-primary'
+                        : 'bg-white dark:bg-[var(--bg-card)] border-slate-200 dark:border-[var(--border-color)] text-slate-400 dark:text-[var(--text-muted)] hover:border-primary/40'
+                    }`}
+                    onClick={() => handleToggleSharedChild(child.id)}
+                    aria-label={`${isSelected ? '取消选择' : '选择'}${child.name}`}
+                  >
+                    <span className="material-symbols-outlined text-base">
+                      {child.gender === 'female' ? 'face_3' : 'face'}
+                    </span>
+                    {child.name}
+                    {isSelected && (
+                      <span className="material-symbols-outlined text-sm">check_circle</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            {sharedChildIds.length >= 2 && (
+              <p className="text-xs text-slate-400 mt-2 ml-1">
+                已选择 <span className="text-primary font-bold">{sharedChildIds.length}</span> 个孩子参与共同挑战
+              </p>
+            )}
+            {sharedChildIds.length < 2 && (
+              <p className="text-xs text-red-400 mt-2 ml-1">
+                共享任务至少需要选择 2 个孩子
               </p>
             )}
           </div>
@@ -308,7 +462,106 @@ export default function GoalSetting() {
           </div>
         </div>
 
-        {/* 目标时长 */}
+        {/* 共享任务：完成条件二选一（总天数 or 总次数） */}
+        {(taskType === 'shared' || (isEditMode && editGoal?.is_shared)) ? (
+          <div className="mb-6">
+            <h3 className="text-slate-700 dark:text-[var(--text-primary)] text-base font-bold ml-1 pb-3">
+              完成条件 <span className="text-red-400">*</span>
+            </h3>
+            {/* 二选一 Tab */}
+            <div className="flex bg-slate-100 dark:bg-[var(--bg-card)] rounded-xl p-1 mb-4">
+              <button
+                className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
+                  !dailyCountValue
+                    ? 'bg-white dark:bg-[var(--bg-surface)] text-primary shadow-sm'
+                    : 'text-slate-500 dark:text-[var(--text-muted)] hover:text-slate-700'
+                }`}
+                onClick={() => { setDailyCountValue(''); }}
+                aria-label="按总天数完成"
+              >
+                <span className="material-symbols-outlined text-sm align-middle mr-1">calendar_month</span>
+                总天数
+              </button>
+              <button
+                className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
+                  dailyCountValue
+                    ? 'bg-white dark:bg-[var(--bg-surface)] text-primary shadow-sm'
+                    : 'text-slate-500 dark:text-[var(--text-muted)] hover:text-slate-700'
+                }`}
+                onClick={() => { if (!dailyCountValue) setDailyCountValue('1'); }}
+                aria-label="按总次数完成"
+              >
+                <span className="material-symbols-outlined text-sm align-middle mr-1">repeat</span>
+                总次数
+              </button>
+            </div>
+
+            {/* 总天数模式 */}
+            {!dailyCountValue && (
+              <>
+                <div className="flex gap-2 mb-3">
+                  {QUICK_DAYS.map(days => (
+                    <button
+                      key={days}
+                      className={`flex-1 py-2 rounded-xl text-sm font-bold border-2 transition-all ${
+                        durationValue === String(days) && durationUnit === 'days'
+                          ? 'bg-primary/20 border-primary text-primary'
+                          : 'bg-white dark:bg-[var(--bg-card)] border-slate-200 dark:border-[var(--border-color)] text-slate-500 dark:text-[var(--text-secondary)] hover:border-primary/40'
+                      }`}
+                      onClick={() => handleDurationQuickSelect(days)}
+                      aria-label={`${days}天`}
+                    >
+                      {days}天
+                    </button>
+                  ))}
+                </div>
+                <div className="relative">
+                  <input
+                    className="form-input w-full rounded-xl border-2 border-primary/20 bg-white dark:bg-[var(--bg-card)] text-slate-900 dark:text-[var(--text-primary)] h-12 placeholder:text-slate-400 px-4 text-lg font-bold focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all pr-16"
+                    type="number"
+                    min="1"
+                    placeholder="自定义天数"
+                    value={durationValue}
+                    onChange={e => setDurationValue(e.target.value)}
+                    aria-label="总天数"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">天</span>
+                </div>
+                {durationValue && !isNaN(parseFloat(durationValue)) && (
+                  <p className="text-xs text-slate-400 mt-2 ml-1">
+                    累计打卡 <span className="text-primary font-bold">{Math.max(1, Math.min(365, Math.round(parseFloat(durationValue))))}</span> 天即完成
+                  </p>
+                )}
+              </>
+            )}
+
+            {/* 总次数模式 */}
+            {dailyCountValue && (
+              <>
+                <div className="relative">
+                  <input
+                    className="form-input w-full rounded-xl border-2 border-primary/20 bg-white dark:bg-[var(--bg-card)] text-slate-900 dark:text-[var(--text-primary)] h-12 placeholder:text-slate-400 px-4 text-lg font-bold focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all pr-16"
+                    type="number"
+                    min="1"
+                    max="9999"
+                    placeholder="输入总次数"
+                    value={dailyCountValue}
+                    onChange={e => setDailyCountValue(e.target.value)}
+                    aria-label="总次数"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">次</span>
+                </div>
+                {dailyCountValue && !isNaN(parseInt(dailyCountValue, 10)) && parseInt(dailyCountValue, 10) > 0 && (
+                  <p className="text-xs text-slate-400 mt-2 ml-1">
+                    累计打卡 <span className="text-primary font-bold">{dailyCountValue}</span> 次即完成
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        ) : (
+          <>
+        {/* 独立任务：目标时长 */}
         <div className="mb-6">
           <h3 className="text-slate-700 text-base font-bold ml-1 pb-3">
             目标时长 <span className="text-red-400">*</span>
@@ -457,6 +710,8 @@ export default function GoalSetting() {
             </p>
           )}
         </div>
+          </>
+        )}
 
         {/* 每次获得果实数 */}
         <div className="mb-6">

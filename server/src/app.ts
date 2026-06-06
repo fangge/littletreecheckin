@@ -50,6 +50,8 @@ app.use('/api/v1/trees', treesRouter);
 app.use('/api/v1/tasks', tasksRouter);
 app.use('/api/v1/messages', messagesRouter);
 app.use('/api/v1/goals', goalsRouter);
+// 将 treesRouter 也挂载到 /api/v1，使 /goals/:goalId/shared-progress 等路由可被正确访问
+app.use('/api/v1', treesRouter);
 
 // ============================================================
 // 错误处理

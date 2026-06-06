@@ -1,6 +1,7 @@
 
 interface CheckinCalendarProps {
   checkinDates: string[];
+  sharedCompletedDates?: string[];
   selectedMonth: Date;
   onMonthChange: (date: Date) => void;
   onDateClick: (date: string) => void;
@@ -21,6 +22,7 @@ const getTodayStr = (): string => {
 
 export default function CheckinCalendar({
   checkinDates,
+  sharedCompletedDates = [],
   selectedMonth,
   onMonthChange,
   onDateClick,
@@ -30,6 +32,7 @@ export default function CheckinCalendar({
   const todayStr = getTodayStr();
 
   const checkinSet = new Set(checkinDates);
+  const sharedCompletedSet = new Set(sharedCompletedDates);
 
   // 当月第一天是星期几（0=周日）
   const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
@@ -108,6 +111,7 @@ export default function CheckinCalendar({
 
           const isToday = cell.dateStr === todayStr;
           const isCheckin = checkinSet.has(cell.dateStr);
+          const isSharedCompleted = sharedCompletedSet.has(cell.dateStr);
           const isClickable = isCheckin;
 
           return (
@@ -132,7 +136,11 @@ export default function CheckinCalendar({
               >
                 {cell.day}
               </span>
-              {isCheckin ? (
+              {isSharedCompleted ? (
+                <span className="material-symbols-outlined text-amber-400 text-[10px] leading-none mt-px fill-icon">
+                  eco
+                </span>
+              ) : isCheckin ? (
                 <span className="material-symbols-outlined text-primary text-[10px] leading-none mt-px fill-icon">
                   eco
                 </span>
