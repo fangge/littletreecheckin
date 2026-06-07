@@ -47,10 +47,6 @@ export default function SharedTaskSummary() {
     return child?.gender === 'female' ? 'face_3' : 'face';
   };
 
-  // 判断是否是当前孩子
-  const isCurrentChild = (childId: string): boolean => {
-    return currentChild?.id === childId;
-  };
 
   // 根据进度百分比返回绿色深浅（进度越高越深）
   const getProgressColor = (percent: number): string => {
@@ -189,7 +185,6 @@ export default function SharedTaskSummary() {
               const maxDays = sorted.length > 0 ? sorted[0].completed_days : 0;
               const minDays = sorted.length > 0 ? sorted[sorted.length - 1].completed_days : 0;
               return sorted.map((item, index) => {
-                const isCurrent = isCurrentChild(item.child_id);
                 const progressPercent = goal
                   ? Math.min(100, Math.round((item.completed_days / goal.duration_days) * 100))
                   : 0;
@@ -233,11 +228,6 @@ export default function SharedTaskSummary() {
                          <div className="flex items-center justify-between mb-1.5">
                            <span className="text-slate-900 dark:text-[var(--text-primary)] font-bold text-sm">
                              {item.child_name}
-                             {isCurrent && (
-                               <span className="ml-1.5 text-slate-400 dark:text-[var(--text-muted)] font-normal text-xs">
-                                 (你)
-                               </span>
-                             )}
                              {item.is_winner && (
                                <span className="ml-1.5 text-amber-500 text-xs">🏆</span>
                              )}
