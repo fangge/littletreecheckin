@@ -144,6 +144,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
     .from('tasks')
     .select('id, status')
     .eq('goal_id', goal_id)
+    .eq('child_id', child_id)
     .neq('status', 'rejected')
     .gte('checkin_time', `${checkDate}T00:00:00+08:00`)
     .lte('checkin_time', `${checkDate}T23:59:59.999+08:00`)

@@ -52,6 +52,13 @@ export default function SharedTaskSummary() {
     return currentChild?.id === childId;
   };
 
+  // 根据进度百分比返回绿色深浅（进度越高越深）
+  const getProgressColor = (percent: number): string => {
+    // lightness 从 72%（浅绿）线性过渡到 32%（深绿）
+    const lightness = Math.round(72 - (percent / 100) * 40);
+    return `hsl(142, 65%, ${lightness}%)`;
+  };
+
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center bg-background-light">
@@ -177,92 +184,85 @@ export default function SharedTaskSummary() {
           </h2>
 
           <div className="flex flex-col gap-3">
-            {progressList
-              .sort((a, b) => b.completed_days - a.completed_days)
-              .map((item, index) => {
+            {(() => {
+              const sorted = [...progressList].sort((a, b) => b.completed_days - a.completed_days);
+              const maxDays = sorted.length > 0 ? sorted[0].completed_days : 0;
+              const minDays = sorted.length > 0 ? sorted[sorted.length - 1].completed_days : 0;
+              return sorted.map((item, index) => {
                 const isCurrent = isCurrentChild(item.child_id);
                 const progressPercent = goal
                   ? Math.min(100, Math.round((item.completed_days / goal.duration_days) * 100))
                   : 0;
+                // 相对进度：进度相同则颜色相同；所有人进度相同时都用深绿（100）
+                const relativePercent = maxDays === minDays
+                  ? 100
+                  : Math.round(((item.completed_days - minDays) / (maxDays - minDays)) * 100);
 
+                const progressColor = item.is_winner ? '#f59e0b' : getProgressColor(relativePercent);
                 return (
-                  <motion.div
-                    key={item.child_id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 + index * 0.08 }}
-                    className={`bg-white dark:bg-[var(--bg-surface)] rounded-2xl p-4 shadow-sm border transition-colors ${
-                      item.is_winner
-                        ? 'border-amber-300 dark:border-amber-500/50'
-                        : isCurrent
-                        ? 'border-primary/40 dark:border-primary/30'
-                        : 'border-slate-100 dark:border-[var(--border-color)]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      {/* 排名徽章 */}
-                      <div className="relative shrink-0">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                          item.is_winner
-                            ? 'bg-amber-100 dark:bg-amber-900/30'
-                            : 'bg-slate-100 dark:bg-[var(--bg-card)]'
-                        }`}>
-                          <span className={`material-symbols-outlined text-2xl ${
-                            item.is_winner ? 'text-amber-500' : 'text-slate-400'
-                          }`}>
-                            {getChildGenderIcon(item.child_id)}
-                          </span>
-                        </div>
-                        <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
-                          index === 0
-                            ? 'bg-primary text-white'
-                            : 'bg-slate-200 dark:bg-[var(--bg-card)] text-slate-500 dark:text-[var(--text-secondary)]'
-                        }`}>
-                          {index + 1}
-                        </div>
-                      </div>
+                   <motion.div
+                     key={item.child_id}
+                     initial={{ opacity: 0, x: -10 }}
+                     animate={{ opacity: 1, x: 0 }}
+                     transition={{ delay: 0.2 + index * 0.08 }}
+                     className={`bg-white dark:bg-[var(--bg-surface)] rounded-2xl p-4 shadow-sm border transition-colors ${
+                       item.is_winner
+                         ? 'border-amber-300 dark:border-amber-500/50'
+                         : 'border-slate-100 dark:border-[var(--border-color)]'
+                     }`}
+                   >
+                     <div className="flex items-center gap-3">
+                       {/* 排名徽章 */}
+                       <div className="relative shrink-0">
+                         <div
+                           className="w-12 h-12 rounded-full flex items-center justify-center"
+                           style={{ backgroundColor: item.is_winner ? '#fef3c7' : `${progressColor}22` }}
+                         >
+                           <span
+                             className="material-symbols-outlined text-2xl"
+                             style={{ color: item.is_winner ? '#f59e0b' : progressColor }}
+                           >
+                             {getChildGenderIcon(item.child_id)}
+                           </span>
+                         </div>
+                         
+                       </div>
 
-                      {/* 孩子信息 */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-slate-900 dark:text-[var(--text-primary)] font-bold text-sm">
-                            {item.child_name}
-                            {isCurrent && (
-                              <span className="ml-1.5 text-slate-400 dark:text-[var(--text-muted)] font-normal text-xs">
-                                (你)
-                              </span>
-                            )}
-                            {item.is_winner && (
-                              <span className="ml-1.5 text-amber-500 text-xs">🏆</span>
-                            )}
-                          </span>
-                          <span className={`text-sm font-bold ${
-                            index === 0 ? 'text-primary' : 'text-slate-500 dark:text-[var(--text-secondary)]'
-                          }`}>
-                            {item.completed_days}/{goal?.duration_days} {goal?.daily_count ? '次' : '天'}
-                          </span>
-                        </div>
+                       {/* 孩子信息 */}
+                       <div className="flex-1 min-w-0">
+                         <div className="flex items-center justify-between mb-1.5">
+                           <span className="text-slate-900 dark:text-[var(--text-primary)] font-bold text-sm">
+                             {item.child_name}
+                             {isCurrent && (
+                               <span className="ml-1.5 text-slate-400 dark:text-[var(--text-muted)] font-normal text-xs">
+                                 (你)
+                               </span>
+                             )}
+                             {item.is_winner && (
+                               <span className="ml-1.5 text-amber-500 text-xs">🏆</span>
+                             )}
+                           </span>
+                           <span className="text-sm font-bold" style={{ color: progressColor }}>
+                             {item.completed_days}/{goal?.duration_days} {goal?.daily_count ? '次' : '天'}
+                           </span>
+                         </div>
 
-                        {/* 进度条 */}
-                        <div className="h-2 bg-slate-100 dark:bg-[var(--bg-card)] rounded-full overflow-hidden">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${progressPercent}%` }}
-                            transition={{ duration: 0.6, delay: 0.3 + index * 0.1, ease: 'easeOut' }}
-                            className={`h-full rounded-full ${
-                              item.is_winner
-                                ? 'bg-amber-400'
-                                : index === 0
-                                ? 'bg-primary'
-                                : 'bg-slate-300 dark:bg-slate-600'
-                            }`}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
+                         {/* 进度条 */}
+                         <div className="h-2 bg-slate-100 dark:bg-[var(--bg-card)] rounded-full overflow-hidden">
+                           <motion.div
+                             initial={{ width: 0 }}
+                             animate={{ width: `${progressPercent}%` }}
+                             transition={{ duration: 0.6, delay: 0.3 + index * 0.1, ease: 'easeOut' }}
+                             className="h-full rounded-full"
+                             style={{ backgroundColor: progressColor }}
+                           />
+                         </div>
+                       </div>
+                     </div>
+                   </motion.div>
+                 );
+              });
+            })()}
           </div>
         </motion.div>
 
