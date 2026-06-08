@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { usePendingTasks } from '../contexts/PendingTasksContext';
 import {
   tasksApi,
   treesApi,
@@ -18,6 +19,7 @@ export default function CheckIn() {
   const navigate = useNavigate();
   const { user, currentChild, setCurrentChild } = useAuth();
   const { isDark } = useTheme();
+  const { refreshPendingCount } = usePendingTasks();
   const [growingTrees, setGrowingTrees] = useState<TreeData[]>([]);
   const [selectedTree, setSelectedTree] = useState<TreeData | null>(null);
   const [goals, setGoals] = useState<GoalData[]>([]);
@@ -162,6 +164,8 @@ export default function CheckIn() {
 
       // 刷新树木数据
       await fetchData();
+      // 立即刷新导航角标待审核数量
+      await refreshPendingCount();
     } catch (err) {
       setError(err instanceof Error ? err.message : '打卡失败，请重试');
     } finally {
@@ -279,6 +283,7 @@ export default function CheckIn() {
         treeName={celebrationData.treeName}
         isTreeCompleted={celebrationData.isTreeCompleted}
         childGender={currentChild?.gender}
+        isSharedTask={!!sharedGoalIdRef.current}
       />
       <PullToRefresh onRefresh={handleRefresh}>
         <motion.div

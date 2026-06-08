@@ -178,9 +178,10 @@ const PullToRefresh = ({
             // 刷新中状态
             <>
               <motion.div
-                animate={{ rotate: 360 }}
+                animate={{ rotate: -360 }}
                 transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                className="text-2xl"
+                className="text-2xl flex items-center justify-center"
+                style={{ transformOrigin: 'center' }}
               >
                 <span className="material-symbols-outlined text-primary">
                   sync

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { usePendingTasksCount } from '../hooks/usePendingTasksCount';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -18,6 +19,7 @@ interface AddChildForm {
 export default function Profile() {
   const navigate = useNavigate();
   const { user, currentChild, setCurrentChild, logout, isChildMode, enableChildMode, disableChildMode } = useAuth();
+  const pendingCount = usePendingTasksCount();
   const { theme, setTheme, isDark } = useTheme();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -240,10 +242,22 @@ export default function Profile() {
             <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-base font-bold leading-tight mb-4 flex items-center gap-2">
               <span className="material-symbols-outlined text-primary text-sm">shield_person</span>
               家长审核
+              {pendingCount > 0 && (
+                <span className="ml-1 min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+                  {pendingCount > 99 ? '99+' : pendingCount}
+                </span>
+              )}
             </h3>
             <button onClick={() => navigate('/parent-control')} className="w-full flex items-center justify-between py-2 hover:bg-slate-50 dark:hover:bg-[var(--bg-card)] transition-colors rounded-lg px-2" aria-label="进入待审核任务">
               <p className="text-slate-600 dark:text-[var(--text-secondary)] text-sm">进入待审核任务</p>
-              <span className="material-symbols-outlined text-slate-400">chevron_right</span>
+              <div className="flex items-center gap-2">
+                {pendingCount > 0 && (
+                  <span className="min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+                    {pendingCount > 99 ? '99+' : pendingCount}
+                  </span>
+                )}
+                <span className="material-symbols-outlined text-slate-400">chevron_right</span>
+              </div>
             </button>
           </div>
         )}

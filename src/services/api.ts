@@ -354,6 +354,13 @@ export const tasksApi = {
     );
   },
 
+  /** 直接请求待审核任务（不走缓存），用于实时刷新角标数量 */
+  listPending: (childId: string) =>
+    request<{ data: TaskData[]; total: number; hasMore: boolean }>(
+      `/api/v1/children/${childId}/tasks?status=pending&limit=200`
+    ),
+
+
   checkin: (goalId: string, childId: string, imageUrl?: string, checkinDate?: string) => {
     const now = new Date();
     const offsetMinutes = -now.getTimezoneOffset();

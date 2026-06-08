@@ -2,6 +2,33 @@
 
 ## 版本历史
 
+### v3.8 — 待审核角标、分类优化与图标标签
+
+为家长端新增待审核任务实时角标提示，优化任务分类图标，并在目标设置图标选择器中显示类别名称，提升家长审核效率与任务配置体验。
+
+- ✅ **新增** `src/contexts/PendingTasksContext.tsx`：全局待审核任务数 Context，使用 `PendingTasksProvider` 包裹应用，提供 `pendingCount` 和 `refreshPendingCount`
+- ✅ **新增** `src/hooks/usePendingTasksCount.ts`：封装 `usePendingTasks` 的便捷 Hook，供 Navigation 等组件使用
+- ✅ **新增** `src/services/api.ts`：`tasksApi.listPending(childId)` 方法，直接请求不走缓存，确保角标数量实时准确
+- ✅ **修改** `src/components/Navigation.tsx`：家长中心导航项新增红色数字角标，实时显示待审核任务数
+- ✅ **修改** `src/views/Profile.tsx`：家长审核入口新增红色数字角标，与导航角标数据同步
+- ✅ **修改** `src/views/CheckIn.tsx`：打卡成功后立即调用 `refreshPendingCount`，角标实时更新
+- ✅ **修改** `src/views/ParentControl.tsx`：批准/拒绝/撤销任务后调用 `refreshPendingCount`，角标实时同步
+- ✅ **修改** `src/router.tsx`：在 `RootLayout` 中集成 `PendingTasksProvider`
+- ✅ **修改** `src/views/Dashboard.tsx`：将 `CATEGORY_MAP` 中"生活"分类（`pets` 图标）改为"劳动"（`cleaning_services` 图标）
+- ✅ **修改** `src/views/GoalSetting.tsx`：图标选择器在图标下方显示对应类别名称（如"学习"、"运动"等）
+
+**功能特性**：
+- 家长打开应用即可在导航栏和家长审核入口看到待审核任务数量
+- 孩子打卡后角标立即更新，无需手动刷新
+- 家长审核/拒绝/撤销后角标同步清零或减少
+- 角标数据绕过缓存直接请求，保证实时性
+- 任务分类"劳动"更贴合家务劳动场景
+- 图标选择器显示类别名称，降低选择难度
+
+**无需数据库迁移**：纯前端功能优化
+
+---
+
 ### v3.7 — 共享任务功能
 
 多个孩子可以共同参与同一个任务的竞争，先完成者获得奖励。新增共享任务总结页、打卡后自动跳转、日历金色叶子高亮、任务共享标识等完整功能链路。

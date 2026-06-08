@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { PendingTasksProvider } from './contexts/PendingTasksContext';
 import App from './App';
 
 // bundle-dynamic-imports: 路由级代码分割
@@ -57,12 +58,14 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <SuspenseWrapper>{children}</SuspenseWrapper>;
 }
 
-// 根布局：提供 Auth + Theme 上下文，确保 useNavigate 可用
+// 根布局：提供 Auth + Theme + PendingTasks 上下文，确保 useNavigate 可用
 function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
       <ThemeProvider>
-        {children}
+        <PendingTasksProvider>
+          {children}
+        </PendingTasksProvider>
       </ThemeProvider>
     </AuthProvider>
   );

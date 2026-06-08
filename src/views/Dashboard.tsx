@@ -22,7 +22,7 @@ const CATEGORY_MAP: Record<string, { text: string; className: string }> = {
   fitness_center: { text: '运动', className: 'bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-400' },
   brush: { text: '艺术', className: 'bg-pink-100 text-pink-600 dark:bg-pink-900/40 dark:text-pink-400' },
   piano: { text: '音乐', className: 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400' },
-  pets: { text: '生活', className: 'bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-400' },
+  cleaning_services: { text: '劳动', className: 'bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-400' },
   rocket_launch: { text: '探索', className: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400' },
   psychology: { text: '思维', className: 'bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400' },
   sports_soccer: { text: '运动', className: 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400' },

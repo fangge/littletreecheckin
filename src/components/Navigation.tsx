@@ -1,5 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { usePendingTasksCount } from '../hooks/usePendingTasksCount';
 
 // 路径到导航项的映射
 const pathNavMap: Record<string, string> = {
@@ -22,6 +23,7 @@ export default function Navigation() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isChildMode } = useAuth();
+  const pendingCount = usePendingTasksCount();
 
   const currentPathId = pathNavMap[location.pathname] || '';
 
@@ -43,8 +45,15 @@ export default function Navigation() {
               aria-label={item.label}
               aria-current={currentPathId === item.id ? 'page' : undefined}
             >
-              <span className={`material-symbols-outlined text-2xl ${currentPathId === item.id ? 'fill-icon' : ''}`}>
-                {item.icon}
+              <span className="relative inline-flex">
+                <span className={`material-symbols-outlined text-2xl ${currentPathId === item.id ? 'fill-icon' : ''}`}>
+                  {item.icon}
+                </span>
+                {item.id === 'parent' && pendingCount > 0 && (
+                  <span className="absolute -top-1 -right-1.5 min-w-[16px] h-4 px-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+                    {pendingCount > 99 ? '99+' : pendingCount}
+                  </span>
+                )}
               </span>
               <p className="text-[10px] font-bold leading-normal tracking-wide">{item.label}</p>
             </button>
@@ -79,10 +88,22 @@ export default function Navigation() {
               aria-label={item.label}
               aria-current={currentPathId === item.id ? 'page' : undefined}
             >
-              <span className={`material-symbols-outlined text-xl ${currentPathId === item.id ? 'fill-icon' : ''}`}>
-                {item.icon}
+              <span className="relative inline-flex shrink-0">
+                <span className={`material-symbols-outlined text-xl ${currentPathId === item.id ? 'fill-icon' : ''}`}>
+                  {item.icon}
+                </span>
+                {item.id === 'parent' && pendingCount > 0 && (
+                  <span className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+                    {pendingCount > 99 ? '99+' : pendingCount}
+                  </span>
+                )}
               </span>
               {item.label}
+              {item.id === 'parent' && pendingCount > 0 && (
+                <span className="ml-auto min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+                  {pendingCount > 99 ? '99+' : pendingCount}
+                </span>
+              )}
             </button>
           ))}
         </nav>

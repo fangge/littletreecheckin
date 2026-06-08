@@ -8,8 +8,19 @@ type TaskType = 'independent' | 'shared';
 
 const ICONS = [
   'auto_stories', 'fitness_center', 'brush', 'piano',
-  'pets', 'rocket_launch', 'psychology', 'sports_soccer',
+  'cleaning_services', 'rocket_launch', 'psychology', 'sports_soccer',
 ];
+
+const ICON_LABELS: Record<string, string> = {
+  auto_stories: '学习',
+  fitness_center: '运动',
+  brush: '艺术',
+  piano: '音乐',
+  cleaning_services: '劳动',
+  rocket_launch: '探索',
+  psychology: '思维',
+  sports_soccer: '球类',
+};
 
 type DurationUnit = 'days' | 'hours' | 'minutes';
 type DailyUnit = 'hours' | 'minutes';
@@ -444,19 +455,20 @@ export default function GoalSetting() {
         {/* 选择图标 */}
         <div className="mb-6">
           <h3 className="text-slate-700 text-base font-bold ml-1 pb-4">选择图标</h3>
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-4 gap-3">
             {ICONS.map(icon => (
               <button
                 key={icon}
-                className={`flex aspect-square items-center justify-center rounded-2xl transition-all ${
+                className={`flex flex-col items-center justify-center gap-1.5 py-3 rounded-2xl transition-all ${
                   selectedIcon === icon
                     ? 'bg-primary text-white shadow-lg shadow-primary/30'
                     : 'bg-white dark:bg-[var(--bg-card)] border-2 border-primary/10 text-slate-400 dark:text-[var(--text-secondary)] hover:border-primary/40'
                 }`}
                 onClick={() => setSelectedIcon(icon)}
-                aria-label={icon}
+                aria-label={ICON_LABELS[icon] || icon}
               >
                 <span className="material-symbols-outlined text-3xl">{icon}</span>
+                <span className="text-[10px] font-bold leading-none">{ICON_LABELS[icon] || icon}</span>
               </button>
             ))}
           </div>

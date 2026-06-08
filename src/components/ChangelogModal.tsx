@@ -34,11 +34,29 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
               </button>
             </div>
             <div className="overflow-y-auto max-h-[60vh] px-6 py-4 space-y-4">
-              {/* v3.7 */}
+              {/* v3.8 */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v3.7</span>
+                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v3.8</span>
                   <span className="text-sm text-slate-500 dark:text-[var(--text-muted)]">最新</span>
+                </div>
+                <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">待审核角标、分类优化与图标标签</h4>
+                <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
+                  家长端新增待审核任务实时角标，打卡或审核后立即同步更新，同时优化任务分类图标并在图标选择器中显示类别名称。
+                </p>
+                <ul className="text-xs text-slate-500 dark:text-[var(--text-muted)] space-y-1 ml-2">
+                  <li>• 导航栏"家长中心"和家长审核入口新增待审核任务数角标</li>
+                  <li>• 孩子打卡后角标立即更新，无需手动刷新</li>
+                  <li>• 家长审核/拒绝/撤销后角标实时同步</li>
+                  <li>• 任务分类"生活"改为"劳动"，图标更贴合家务场景</li>
+                  <li>• 目标设置图标选择器在图标下方显示类别名称</li>
+                </ul>
+              </div>
+
+              {/* v3.7 */}
+              <div className="space-y-2 pt-4 border-t border-primary/5 dark:border-[var(--border-color)]">
+                <div className="flex items-center gap-2">
+                  <span className="bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-xs font-bold px-2 py-0.5 rounded">v3.7</span>
                 </div>
                 <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">共享任务功能</h4>
                 <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">

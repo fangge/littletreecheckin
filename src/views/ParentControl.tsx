@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
+import { usePendingTasks } from '../contexts/PendingTasksContext';
 import { tasksApi, messagesApi, TaskData } from '../services/api';
 import { invalidateCache } from '../utils/requestCache';
 import PullToRefresh from '../components/PullToRefresh';
@@ -168,6 +169,7 @@ const TaskCard = ({ task, notes, bonusFruits, processingId, showChildName, onQui
 export default function ParentControl() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { refreshPendingCount } = usePendingTasks();
   const [tasks, setTasks] = useState<TaskWithChild[]>([]);
   const [activeTab, setActiveTab] = useState<'pending' | 'approved'>('pending');
   const [selectedChildId, setSelectedChildId] = useState<string>('all');
@@ -214,6 +216,7 @@ export default function ParentControl() {
         invalidateCache(task.childId);
       }
       await fetchTasks();
+      await refreshPendingCount();
     } catch (err) {
       console.error('审核失败:', err);
       alert(`审核失败: ${err instanceof Error ? err.message : '未知错误'}`);
@@ -230,6 +233,7 @@ export default function ParentControl() {
         invalidateCache(task.childId);
       }
       await fetchTasks();
+      await refreshPendingCount();
     } catch (err) {
       console.error('拒绝失败:', err);
       alert(`拒绝失败: ${err instanceof Error ? err.message : '未知错误'}`);
@@ -251,6 +255,7 @@ export default function ParentControl() {
         invalidateCache(revokeConfirm.task.childId);
       }
       await fetchTasks();
+      await refreshPendingCount();
       setRevokeConfirm({ show: false, task: null });
     } catch (err) {
       console.error('撤销失败:', err);
@@ -375,7 +380,7 @@ export default function ParentControl() {
               onRevoke={setRevokeConfirm}
               onNotesChange={setNotes}
               onBonusFruitsChange={setBonusFruits}
-              showChildName={hasMultipleChildren && selectedChildId === 'all'}
+              showChildName={!!(hasMultipleChildren && selectedChildId === 'all')}
             />
           ))
         )}

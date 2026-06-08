@@ -7,12 +7,14 @@ import { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 
 // GIF 资源地址（男孩/女孩种树成功动画）
-export const BOY_TREE_GIF = 'https://diy-assets.msstatic.com/mrfangge/boytree.gif';
-export const GIRL_TREE_GIF = 'https://diy-assets.msstatic.com/mrfangge/girltree.gif';
+export const BOY_TREE_GIF = 'https://diy-assets.msstatic.com/mrfangge/littletree/boytree.gif';
+export const GIRL_TREE_GIF = 'https://diy-assets.msstatic.com/mrfangge/littletree/girltree.gif';
+export const Gold_Apple = 'https://diy-assets.msstatic.com/mrfangge/littletree/goldapple.gif';
 
 // 音效资源地址
-export const BOY_TREE_MP3 = 'https://diy-assets.msstatic.com/mrfangge/boytree.mp3';
-export const GIRL_TREE_MP3 = 'https://diy-assets.msstatic.com/mrfangge/girltree.mp3';
+export const BOY_TREE_MP3 = 'https://diy-assets.msstatic.com/mrfangge/littletree/boytree.mp3';
+export const GIRL_TREE_MP3 = 'https://diy-assets.msstatic.com/mrfangge/littletree/girltree.mp3';
+export const Gold_Apple_MP3 = 'https://diy-assets.msstatic.com/mrfangge/littletree/goldapple.mp3';
 
 /** 预加载 GIF 和音频到浏览器缓存，供外部页面在合适时机调用 */
 export function preloadTreeGifs(): void {
@@ -38,6 +40,8 @@ interface CelebrationPopupProps {
   isTreeCompleted?: boolean;
   /** 孩子性别：'male' 显示男孩动画，'female' 或未传则显示女孩动画 */
   childGender?: string;
+  /** 是否为共享任务：true 时使用金苹果动画和音效 */
+  isSharedTask?: boolean;
 }
 
 const getContent = (progress: number, treeName: string, isCompleted: boolean) => {
@@ -76,6 +80,7 @@ export default function CelebrationPopup({
   treeName = '小树',
   isTreeCompleted = false,
   childGender,
+  isSharedTask = false,
 }: CelebrationPopupProps) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -85,9 +90,9 @@ export default function CelebrationPopup({
   onCloseRef.current = onClose;
 
   const content = getContent(treeProgress, treeName, isTreeCompleted);
-  // 'male' → 男孩动画/音效，其他（'female' 或未传）→ 女孩动画/音效
-  const gifUrl = childGender === 'male' ? BOY_TREE_GIF : GIRL_TREE_GIF;
-  mp3UrlRef.current = childGender === 'male' ? BOY_TREE_MP3 : GIRL_TREE_MP3;
+  // 共享任务 → 金苹果动画/音效；'male' → 男孩动画/音效；其他 → 女孩动画/音效
+  const gifUrl = isSharedTask ? Gold_Apple : (childGender === 'male' ? BOY_TREE_GIF : GIRL_TREE_GIF);
+  mp3UrlRef.current = isSharedTask ? Gold_Apple_MP3 : (childGender === 'male' ? BOY_TREE_MP3 : GIRL_TREE_MP3);
 
   // 只依赖 isOpen，避免 onClose/mp3Url 引用变化导致重复触发
   useEffect(() => {
