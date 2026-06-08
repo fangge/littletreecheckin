@@ -9,3 +9,6 @@ coverage/
 .cert/
 .codebuddy
 .hy-code
+.agents
+.claude
+skills-lock.json

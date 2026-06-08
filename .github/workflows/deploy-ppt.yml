@@ -1,0 +1,25 @@
+name: Deploy PPT to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'ppt/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy ppt/ to ppt branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./ppt
+          publish_branch: ppt
+          force_orphan: true
