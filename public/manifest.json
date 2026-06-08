@@ -41,22 +41,6 @@
     "education",
     "productivity"
   ],
-  "screenshots": [
-    {
-      "src": "/screenshots/checkin.png",
-      "sizes": "776x1702",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "每日打卡页面 - 孩子完成任务后树木成长"
-    },
-    {
-      "src": "/screenshots/forest.png",
-      "sizes": "750x1334",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "森林主页 - 查看所有成长中的树木"
-    }
-  ],
   "shortcuts": [
     {
       "name": "立即打卡",
