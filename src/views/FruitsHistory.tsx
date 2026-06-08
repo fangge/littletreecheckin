@@ -119,7 +119,15 @@ export default function FruitsHistory() {
               </div>
             ) : (
               <div className="space-y-2">
-                {items.map((item, index) => (
+                {items.map((item, index) => {
+                  // 计算本条记录打卡后的余额（列表按时间降序，index=0 为最新）
+                  const laterEarned = items.slice(0, index).reduce(
+                    (sum, it) => sum + it.fruits_earned + it.bonus_fruits, 0
+                  );
+                  const balanceAfter = fruitsBalance - laterEarned;
+                  const balanceBefore = balanceAfter - item.fruits_earned - item.bonus_fruits;
+
+                  return (
                   <div
                     key={item.id}
                     className="flex items-center gap-3 bg-white dark:bg-[var(--bg-surface)] rounded-2xl px-4 py-3 shadow-sm transition-colors"
@@ -132,21 +140,35 @@ export default function FruitsHistory() {
                     </div>
                     {/* 任务信息 */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-slate-900 truncate">{item.title}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-bold text-slate-900 truncate">{item.title}</p>
+                        {item.is_shared && (
+                          <span className="inline-flex items-center gap-0.5 shrink-0 bg-blue-100 text-blue-500 text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none">
+                            <span className="material-symbols-outlined" style={{ fontSize: '10px' }}>group</span>
+                            共享
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-slate-400 mt-0.5">{formatCheckinTime(item.checkin_time)}</p>
                     </div>
                     {/* 果实数 */}
-                    <div className="flex items-center gap-1 shrink-0">
-                      <span className="text-base font-extrabold text-orange-500">
-                        +{item.fruits_earned}
-                        {item.bonus_fruits > 0 && (
-                          <span className="text-xs text-primary">(+{item.bonus_fruits})</span>
-                        )}
-                      </span>
-                      <span className="text-base">🍎</span>
+                    <div className="flex flex-col items-end gap-0.5 shrink-0">
+                      <div className="flex items-center gap-1">
+                        <span className="text-base font-extrabold text-orange-500">
+                          +{item.fruits_earned}
+                          {item.bonus_fruits > 0 && (
+                            <span className="text-xs text-primary">(+{item.bonus_fruits})</span>
+                          )}
+                        </span>
+                        <span className="text-base">🍎</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 leading-none">
+                        {balanceBefore.toLocaleString()} → {balanceAfter.toLocaleString()}
+                      </p>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
                 <p className="text-center text-xs text-slate-400 py-4">没有更多记录啦~</p>
               </div>
             )}

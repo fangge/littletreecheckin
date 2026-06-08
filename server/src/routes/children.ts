@@ -396,7 +396,7 @@ router.get('/:childId/fruits-history', authMiddleware, async (req: AuthRequest, 
 
   const { data: tasks, error } = await supabase
     .from('tasks')
-    .select('id, title, checkin_time, bonus_fruits, goals(icon, fruits_per_task)')
+    .select('id, title, checkin_time, bonus_fruits, goal_id, goals(icon, fruits_per_task, is_shared), trees(status)')
     .eq('child_id', childId)
     .eq('status', 'approved')
     .order('checkin_time', { ascending: false })
@@ -407,14 +407,33 @@ router.get('/:childId/fruits-history', authMiddleware, async (req: AuthRequest, 
     return;
   }
 
-  const items = (tasks || []).map((task: Record<string, any>) => ({
-    id: task.id,
-    title: task.title,
-    checkin_time: task.checkin_time,
-    fruits_earned: task.goals?.fruits_per_task ?? 10,
-    bonus_fruits: task.bonus_fruits ?? 0,
-    goal_icon: task.goals?.icon ?? null,
-  }));
+  // 找出每个共享目标中最新的打卡记录 ID（按 checkin_time 降序，第一条即最新）
+  const sharedGoalLatestTaskMap = new Map<string, string>(); // goal_id -> task_id
+  for (const task of (tasks || []) as Record<string, any>[]) {
+    const isShared = task.goals?.is_shared ?? false;
+    if (isShared && !sharedGoalLatestTaskMap.has(task.goal_id)) {
+      sharedGoalLatestTaskMap.set(task.goal_id, task.id);
+    }
+  }
+
+  const items = (tasks || []).map((task: Record<string, any>) => {
+    const isShared = task.goals?.is_shared ?? false;
+    const treeCompleted = task.trees?.status === 'completed';
+    const isLatestForSharedGoal = sharedGoalLatestTaskMap.get(task.goal_id) === task.id;
+
+    // 共享任务：只有树木已完成且是最后一次打卡时才显示果实
+    const showFruits = !isShared || (treeCompleted && isLatestForSharedGoal);
+
+    return {
+      id: task.id,
+      title: task.title,
+      checkin_time: task.checkin_time,
+      fruits_earned: showFruits ? (task.goals?.fruits_per_task ?? 10) : 0,
+      bonus_fruits: showFruits ? (task.bonus_fruits ?? 0) : 0,
+      goal_icon: task.goals?.icon ?? null,
+      is_shared: isShared,
+    };
+  });
 
   res.json({ data: items, fruits_balance: child.fruits_balance });
 });

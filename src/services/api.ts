@@ -234,6 +234,7 @@ export interface FruitsHistoryItem {
   fruits_earned: number;
   bonus_fruits: number;
   goal_icon?: string | null;
+  is_shared?: boolean;
 }
 
 // ============================================================

@@ -30,6 +30,56 @@ const CATEGORY_MAP: Record<string, { text: string; className: string }> = {
 
 const DEFAULT_CATEGORY = { text: '生活', className: 'bg-slate-100 text-slate-500 dark:bg-[var(--bg-card)] dark:text-[var(--text-muted)]' };
 
+// 根据时间范围获取对应的月份列表（用于成就单多月数据聚合）
+const getMonthsForFilter = (filter: TimeFilter): Date[] => {
+  const now = new Date();
+  const months: Date[] = [];
+
+  if (filter === 'month') {
+    months.push(new Date(now.getFullYear(), now.getMonth(), 1));
+  } else if (filter === 'quarter') {
+    // 上季度：3个月
+    const currentQuarterStart = Math.floor(now.getMonth() / 3) * 3;
+    let prevQuarterStart = currentQuarterStart - 3;
+    let year = now.getFullYear();
+    if (prevQuarterStart < 0) {
+      prevQuarterStart += 12;
+      year -= 1;
+    }
+    for (let i = 0; i < 3; i++) {
+      months.push(new Date(year, prevQuarterStart + i, 1));
+    }
+  } else {
+    // 过去12个月（包含当前月）
+    for (let i = 11; i >= 0; i--) {
+      months.push(new Date(now.getFullYear(), now.getMonth() - i, 1));
+    }
+  }
+
+  return months;
+};
+
+// 根据时间范围获取日历应该跳转到的起始月
+const getCalendarMonthForFilter = (filter: TimeFilter): Date => {
+  const now = new Date();
+
+  if (filter === 'month') {
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  } else if (filter === 'quarter') {
+    const currentQuarterStart = Math.floor(now.getMonth() / 3) * 3;
+    let prevQuarterStart = currentQuarterStart - 3;
+    let year = now.getFullYear();
+    if (prevQuarterStart < 0) {
+      prevQuarterStart += 12;
+      year -= 1;
+    }
+    return new Date(year, prevQuarterStart, 1);
+  } else {
+    // 过去一年的起始月（11个月前）
+    return new Date(now.getFullYear(), now.getMonth() - 11, 1);
+  }
+};
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user, currentChild, setCurrentChild, isChildMode } = useAuth();
@@ -47,6 +97,7 @@ export default function Dashboard() {
   const [calendarData, setCalendarData] = useState<CalendarData | null>(null);
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [showMonthlySummary, setShowMonthlySummary] = useState(false);
+  const [summaryCalendarData, setSummaryCalendarData] = useState<CalendarData | null>(null);
 
   useEffect(() => {
     if (!currentChild) return;
@@ -81,6 +132,10 @@ export default function Dashboard() {
 
   const handleTimeFilterChange = (filter: TimeFilter) => {
     setTimeFilter(filter);
+    // 切换时间范围时，日历同步跳转到对应的起始月
+    setSelectedMonth(getCalendarMonthForFilter(filter));
+    // 清空成就单缓存，避免下次打开显示旧数据
+    setSummaryCalendarData(null);
   };
 
   const handleMonthChange = (date: Date) => {
@@ -93,6 +148,47 @@ export default function Dashboard() {
 
   const handleCloseDetailPopup = () => {
     setSelectedCalendarDate(null);
+  };
+
+  // 打开成就单：根据 timeFilter 获取对应时间范围的数据
+  const handleOpenSummary = async () => {
+    if (!currentChild) return;
+    // 先清空数据，Modal 内立即显示 loading
+    setSummaryCalendarData(null);
+    setShowMonthlySummary(true);
+
+    if (timeFilter === 'month') {
+      // 本月直接使用已有的日历数据
+      setSummaryCalendarData(calendarData);
+      return;
+    }
+
+    // quarter / year：并行获取多月数据并合并
+    try {
+      const months = getMonthsForFilter(timeFilter);
+      const results = await Promise.all(
+        months.map(m =>
+          childrenApi.getCheckinCalendar(currentChild.id, m.getFullYear(), m.getMonth() + 1)
+        )
+      );
+
+      const merged: CalendarData = {
+        checkin_dates: [],
+        shared_completed_dates: [],
+        tasks_by_date: {},
+      };
+
+      results.forEach(res => {
+        merged.checkin_dates.push(...res.data.checkin_dates);
+        merged.shared_completed_dates.push(...res.data.shared_completed_dates);
+        Object.assign(merged.tasks_by_date, res.data.tasks_by_date);
+      });
+
+      setSummaryCalendarData(merged);
+    } catch (err) {
+      console.error('获取成就单数据失败:', err);
+      setSummaryCalendarData(calendarData);
+    }
   };
 
   // 获取选中日期的任务列表
@@ -217,7 +313,7 @@ export default function Dashboard() {
         </div>
         {/* 任务总结入口按钮 */}
         <button
-          onClick={() => setShowMonthlySummary(true)}
+          onClick={handleOpenSummary}
           className="flex h-10 shrink-0 items-center justify-center gap-x-1.5 rounded-full px-4 bg-gradient-to-r from-primary to-emerald-500 text-white font-bold hover:shadow-lg hover:shadow-primary/30 transition-all active:scale-95"
           aria-label="查看月度任务总结"
         >
@@ -370,9 +466,10 @@ export default function Dashboard() {
       <MonthlySummaryModal
         isOpen={showMonthlySummary}
         onClose={() => setShowMonthlySummary(false)}
-        calendarData={calendarData}
+        calendarData={summaryCalendarData}
         selectedMonth={selectedMonth}
         childName={currentChild?.name}
+        timeFilter={timeFilter}
       />
 
       {/* FAB：仅移动端显示，儿童模式下隐藏 */}

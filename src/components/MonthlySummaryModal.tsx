@@ -7,6 +7,8 @@ interface TaskSummary {
   count: number;
 }
 
+type TimeFilter = 'month' | 'quarter' | 'year';
+
 interface MonthlySummaryModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -22,6 +24,7 @@ interface MonthlySummaryModalProps {
   } | null;
   selectedMonth: Date;
   childName?: string;
+  timeFilter?: TimeFilter;
 }
 
 export default function MonthlySummaryModal({
@@ -30,6 +33,7 @@ export default function MonthlySummaryModal({
   calendarData,
   selectedMonth,
   childName,
+  timeFilter = 'month',
 }: MonthlySummaryModalProps) {
   const modalContentRef = useRef<HTMLDivElement>(null);
 
@@ -98,6 +102,13 @@ export default function MonthlySummaryModal({
 
   const monthName = selectedMonth.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' });
 
+  // 根据 timeFilter 计算成就单的时间段标签
+  const periodLabel = timeFilter === 'month'
+    ? monthName.replace('年', '年 ')
+    : timeFilter === 'quarter'
+      ? '上季度'
+      : '过去一年';
+
   if (!isOpen) return null;
 
   return (
@@ -142,16 +153,21 @@ export default function MonthlySummaryModal({
             <div className="text-center px-6 pb-6">
               <h2 className="text-2xl font-extrabold text-slate-900 dark:text-[var(--text-primary)] mb-2">
                 {childName && <span>{childName}的</span>}
-                {monthName.replace('年', '年 ')}成就单
+                {periodLabel}成就单
               </h2>
               {taskStats && (
                 <p className="text-sm text-slate-500 dark:text-[var(--text-muted)]">
-                  本月共完成 <span className="font-bold text-primary">{taskStats.totalCheckins}</span> 次打卡
+                  {periodLabel}共完成 <span className="font-bold text-primary">{taskStats.totalCheckins}</span> 次打卡
                 </p>
               )}
             </div>
 
-            {taskStats ? (
+            {calendarData === null ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <span className="material-symbols-outlined text-primary text-4xl animate-spin">progress_activity</span>
+                <p className="text-slate-500 dark:text-[var(--text-muted)] text-sm">正在加载成就数据...</p>
+              </div>
+            ) : taskStats ? (
               <div className="px-6 pb-6 space-y-6">
                 {/* 打卡之王 */}
                 <div className="bg-gradient-to-br from-primary/5 to-emerald-50 dark:from-primary/10 dark:to-emerald-900/10 rounded-2xl p-5 border border-primary/20 dark:border-[var(--border-color)]">
@@ -225,7 +241,7 @@ export default function MonthlySummaryModal({
                       ))}
                     </div>
                     <p className="text-xs text-orange-600 dark:text-orange-400 mt-3 text-center font-medium">
-                      继续加油，下个月争取更多打卡！💪
+                      继续加油，争取更多果实！💪
                     </p>
                   </div>
                 )}
