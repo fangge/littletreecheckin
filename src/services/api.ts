@@ -409,6 +409,38 @@ export const tasksApi = {
 export const medalsApi = {
   list: (childId: string) =>
     cachedGet<{ data: MedalData[] }>(`/api/v1/children/${childId}/medals`),
+
+  listAll: () =>
+    request<{ data: MedalData[] }>(`/api/v1/medals`),
+
+  create: (medal: {
+    name: string;
+    icon: string;
+    color: string;
+    description?: string;
+    unlock_condition: { type: string; threshold: number };
+  }) =>
+    request<{ data: MedalData }>(`/api/v1/medals`, {
+      method: 'POST',
+      body: JSON.stringify(medal),
+    }),
+
+  update: (id: string, medal: Partial<{
+    name: string;
+    icon: string;
+    color: string;
+    description: string;
+    unlock_condition: { type: string; threshold: number };
+  }>) =>
+    request<{ data: MedalData }>(`/api/v1/medals/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(medal),
+    }),
+
+  delete: (id: string) =>
+    request<{ message: string }>(`/api/v1/medals/${id}`, {
+      method: 'DELETE',
+    }),
 };
 
 // ============================================================

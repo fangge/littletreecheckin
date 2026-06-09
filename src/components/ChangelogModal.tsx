@@ -34,11 +34,29 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
               </button>
             </div>
             <div className="overflow-y-auto max-h-[60vh] px-6 py-4 space-y-4">
-              {/* v3.8 */}
+              {/* v3.9 */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v3.8</span>
+                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v3.9</span>
                   <span className="text-sm text-slate-500 dark:text-[var(--text-muted)]">最新</span>
+                </div>
+                <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">勋章管理系统与解锁庆祝动画</h4>
+                <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
+                  家长可自由创建和自定义勋章，设置不同的解锁条件；孩子完成任务后自动检测新勋章并弹出庆祝动画，激励成长每一步。
+                </p>
+                <ul className="text-xs text-slate-500 dark:text-[var(--text-muted)] space-y-1 ml-2">
+                  <li>• 新增勋章管理页面，家长可创建/编辑/删除自定义勋章</li>
+                  <li>• 支持 20 种图标、8 种渐变色、6 种解锁条件类型</li>
+                  <li>• 打卡后自动检测新解锁勋章，弹出专属庆祝动画</li>
+                  <li>• 多个勋章同时解锁时逐个展示，体验流畅</li>
+                  <li>• 勋章墙新增管理入口，家长可快速进入管理页</li>
+                </ul>
+              </div>
+
+              {/* v3.8 */}
+              <div className="space-y-2 pt-4 border-t border-primary/5 dark:border-[var(--border-color)]">
+                <div className="flex items-center gap-2">
+                  <span className="bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-xs font-bold px-2 py-0.5 rounded">v3.8</span>
                 </div>
                 <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">待审核角标、分类优化与图标标签</h4>
                 <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">

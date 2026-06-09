@@ -4,14 +4,16 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { medalsApi, MedalData } from '../services/api';
 import PullToRefresh from '../components/PullToRefresh';
+import MedalUnlockPopup from '../components/MedalUnlockPopup';
 
 export default function Medals() {
   const navigate = useNavigate();
-  const { user, currentChild, setCurrentChild } = useAuth();
+  const { user, currentChild, setCurrentChild, isChildMode } = useAuth();
   const [medals, setMedals] = useState<MedalData[]>([]);
   const [filter, setFilter] = useState<'all' | 'unlocked' | 'locked'>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMedal, setSelectedMedal] = useState<MedalData | null>(null);
+  const [newMedals, setNewMedals] = useState<MedalData[]>([]);
 
   const fetchMedals = useCallback(async () => {
     if (!currentChild) return;
@@ -63,7 +65,18 @@ export default function Medals() {
             <span className="material-symbols-outlined text-slate-700 dark:text-[var(--text-primary)]">arrow_back</span>
           </button>
           <h1 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-[var(--text-primary)]">我的勋章墙</h1>
-          <div className="w-10 h-10" />
+          {!isChildMode ? (
+            <button
+              onClick={() => navigate('/medals/manage')}
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-[var(--bg-card)] shadow-sm border border-primary/20 dark:border-[var(--border-color)]"
+              aria-label="管理勋章"
+              title="管理勋章"
+            >
+              <span className="material-symbols-outlined text-slate-700 dark:text-[var(--text-primary)] text-xl">settings</span>
+            </button>
+          ) : (
+            <div className="w-10 h-10" />
+          )}
         </div>
         {/* 多孩子切换器 */}
         {user?.children && user.children.length > 1 && (
@@ -217,6 +230,15 @@ export default function Medals() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 勋章解锁庆祝弹层 */}
+      {newMedals.length > 0 && (
+        <MedalUnlockPopup
+          medals={newMedals}
+          childName={currentChild?.name}
+          onClose={() => setNewMedals(prev => prev.slice(1))}
+        />
+      )}
       </motion.div>
     </PullToRefresh>
   );

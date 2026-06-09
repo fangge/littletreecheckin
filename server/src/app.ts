@@ -44,6 +44,7 @@ app.use('/api/v1/children', childrenRouter);
 app.use('/api/v1/children', treesRouter);
 app.use('/api/v1/children', tasksRouter);
 app.use('/api/v1/children', medalsRouter);
+app.use('/api/v1/medals', medalsRouter);
 app.use('/api/v1/children', messagesRouter);
 app.use('/api/v1/rewards', rewardsRouter);
 app.use('/api/v1/trees', treesRouter);

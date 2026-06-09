@@ -22,6 +22,7 @@ const Register = lazy(() => import('./views/Register'));
 const Login = lazy(() => import('./views/Login'));
 const Profile = lazy(() => import('./views/Profile'));
 const RewardsManagement = lazy(() => import('./views/RewardsManagement'));
+const MedalManagement = lazy(() => import('./views/MedalManagement'));
 const ForgotPassword = lazy(() => import('./views/ForgotPassword'));
 
 // 加载中的占位组件
@@ -158,6 +159,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <RewardsManagement />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'medals/manage',
+        element: (
+          <ProtectedRoute>
+            <MedalManagement />
           </ProtectedRoute>
         ),
       },

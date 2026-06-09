@@ -5,6 +5,8 @@ interface CheckinDetailPopupProps {
   date: string | null;
   tasks: CalendarTask[];
   onClose: () => void;
+  /** 弹层完全消失后的回调，可用于触发勋章检查等后续操作 */
+  onAfterClose?: () => void;
 }
 
 const parseDate = (dateStr: string): { month: number; day: number } => {
@@ -12,13 +14,13 @@ const parseDate = (dateStr: string): { month: number; day: number } => {
   return { month: parseInt(parts[1], 10), day: parseInt(parts[2], 10) };
 };
 
-export default function CheckinDetailPopup({ date, tasks, onClose }: CheckinDetailPopupProps) {
+export default function CheckinDetailPopup({ date, tasks, onClose, onAfterClose }: CheckinDetailPopupProps) {
   const isOpen = !!date;
 
   const parsedDate = date ? parseDate(date) : null;
 
   return (
-    <AnimatePresence>
+    <AnimatePresence onExitComplete={onAfterClose}>
       {isOpen && (
         <>
           {/* 背景遮罩 */}

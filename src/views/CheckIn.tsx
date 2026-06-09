@@ -7,12 +7,15 @@ import { usePendingTasks } from '../contexts/PendingTasksContext';
 import {
   tasksApi,
   treesApi,
+  medalsApi,
   TreeData,
   TaskData,
   GoalData,
+  MedalData,
   invalidateChildDataCache
 } from '../services/api';
 import CelebrationPopup, { preloadTreeGifs } from '../components/CelebrationPopup';
+import MedalUnlockPopup from '../components/MedalUnlockPopup';
 import PullToRefresh from '../components/PullToRefresh';
 
 export default function CheckIn() {
@@ -37,6 +40,11 @@ export default function CheckIn() {
   }>({ treeProgress: 0, treeName: '小树', isTreeCompleted: false });
   // 记录当前打卡的目标是否为共享任务，以及对应的 goalId
   const sharedGoalIdRef = useRef<string | null>(null);
+  // 勋章相关状态
+  const [newMedals, setNewMedals] = useState<MedalData[]>([]);
+  const prevUnlockedMedalIdsRef = useRef<Set<string>>(new Set());
+  // 打卡后待展示的新勋章（等 CelebrationPopup 关闭后再展示）
+  const pendingNewMedalsRef = useRef<MedalData[]>([]);
 
   // 获取 UTC+8 今天的日期字符串 YYYY-MM-DD
   const getUTC8Today = (): string => {
@@ -104,6 +112,15 @@ export default function CheckIn() {
     preloadTreeGifs();
   }, []);
 
+  // 初始化已解锁勋章基准集合，避免首次打卡时把历史勋章误判为新解锁
+  useEffect(() => {
+    if (!currentChild) return;
+    medalsApi.list(currentChild.id).then(res => {
+      const ids = new Set(res.data.filter(m => m.unlocked).map(m => m.id));
+      prevUnlockedMedalIdsRef.current = ids;
+    }).catch(() => {/* 静默失败，不影响主流程 */});
+  }, [currentChild]);
+
   // 获取当前选中树木在指定日期的打卡状态
   const getTaskForTreeOnDate = (
     tree: TreeData | null,
@@ -166,6 +183,21 @@ export default function CheckIn() {
       await fetchData();
       // 立即刷新导航角标待审核数量
       await refreshPendingCount();
+
+      // 同时查询勋章状态，检查是否有新解锁的勋章
+      try {
+        const medalRes = await medalsApi.list(currentChild.id);
+        const freshUnlocked = medalRes.data.filter(m => m.unlocked);
+        const freshIds = new Set(freshUnlocked.map(m => m.id));
+        const newly = freshUnlocked.filter(m => !prevUnlockedMedalIdsRef.current.has(m.id));
+        prevUnlockedMedalIdsRef.current = freshIds;
+        if (newly.length > 0) {
+          // 暂存，等 CelebrationPopup 关闭后再展示
+          pendingNewMedalsRef.current = newly;
+        }
+      } catch (medalErr) {
+        console.error('检查勋章失败:', medalErr);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '打卡失败，请重试');
     } finally {
@@ -278,6 +310,11 @@ export default function CheckIn() {
             navigate(`/shared-task/${sharedGoalIdRef.current}`);
             sharedGoalIdRef.current = null;
           }
+          // CelebrationPopup 关闭后，展示新解锁的勋章
+          if (pendingNewMedalsRef.current.length > 0) {
+            setNewMedals(pendingNewMedalsRef.current);
+            pendingNewMedalsRef.current = [];
+          }
         }}
         treeProgress={celebrationData.treeProgress}
         treeName={celebrationData.treeName}
@@ -285,6 +322,15 @@ export default function CheckIn() {
         childGender={currentChild?.gender}
         isSharedTask={!!sharedGoalIdRef.current}
       />
+
+      {/* 勋章解锁庆祝弹层 */}
+      {newMedals.length > 0 && (
+        <MedalUnlockPopup
+          medals={newMedals}
+          childName={currentChild?.name}
+          onClose={() => setNewMedals(prev => prev.slice(1))}
+        />
+      )}
       <PullToRefresh onRefresh={handleRefresh}>
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
