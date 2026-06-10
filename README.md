@@ -1,4 +1,4 @@
-# 成就丛林 (Achievement Jungle)
+﻿# 成就丛林 (Achievement Jungle)
 
 ![](./logo.png)
 
@@ -35,6 +35,7 @@
 
 - 👨‍👩‍👧 **家长审核**（`/parent-control`）：批准 / 拒绝 / 撤销任务，支持额外奖励果实；多孩子二级 Tab 筛选；实时待审核角标提示
 - 🎁 **奖品管理**（`/rewards-management`）：创建 / 编辑奖品，查看兑换记录，支持撤回待发放兑换
+- 🏅 **勋章管理**（`/medals/manage`）：家长创建 / 编辑 / 删除成就勋章，支持图标、渐变色和 6 种解锁条件（累计打卡、连续打卡、早起打卡等）配置，实时预览勋章样式
 - 👶 **儿童模式**：家长一键开启，限制孩子访问管理功能，切换需密码二次确认
 
 ### 体验增强
@@ -69,6 +70,7 @@
 | `/forest` | Dashboard | 成长树森林 + 打卡日历（需登录） |
 | `/messages` | Messages | 消息中心（需登录） |
 | `/medals` | Medals | 勋章成就墙（需登录） |
+| `/medals/manage` | MedalManagement | 勋章管理（需登录，家长权限） |
 | `/store` | Store | 果实商店（需登录） |
 | `/store/fruits-history` | FruitsHistory | 果实获取记录（需登录） |
 | `/store/redemption-history` | RedemptionHistory | 兑换历史（需登录） |
