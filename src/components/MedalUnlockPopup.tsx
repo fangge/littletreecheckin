@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { MedalData } from '../services/api';
 
+import Icon from '../components/Icon';
 interface MedalUnlockPopupProps {
   medals: MedalData[];
   childName?: string;
@@ -77,9 +78,7 @@ export default function MedalUnlockPopup({ medals, childName, onClose }: MedalUn
               transition={{ type: 'spring', damping: 12, stiffness: 200, delay: 0.15 }}
               className={`w-32 h-32 rounded-full bg-gradient-to-br ${medal.color} flex items-center justify-center shadow-2xl border-4 border-white`}
             >
-              <span className="material-symbols-outlined text-6xl text-white drop-shadow-lg fill-icon">
-                {medal.icon}
-              </span>
+              <Icon name={medal.icon} filled className="text-6xl text-white drop-shadow-lg" />
             </motion.div>
           </div>
 

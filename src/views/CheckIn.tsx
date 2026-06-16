@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePendingTasks } from '../contexts/PendingTasksContext';
+import Icon from '../components/Icon';
 import {
   tasksApi,
   treesApi,
@@ -344,9 +345,7 @@ export default function CheckIn() {
                 className="text-slate-900 dark:text-[var(--text-primary)] flex size-12 shrink-0 items-center justify-start hover:text-primary transition-colors"
                 aria-label="设置"
               >
-                <span className="material-symbols-outlined text-2xl">
-                  settings
-                </span>
+                <Icon name="settings" className="text-2xl" />
               </button>
               <h2 className="text-slate-900 dark:text-[var(--text-primary)] text-lg font-bold leading-tight tracking-tight flex-1 text-center font-display">
                 {currentChild ? `${currentChild.name}的打卡` : '每日打卡'}
@@ -357,9 +356,7 @@ export default function CheckIn() {
                   className="flex items-center justify-center rounded-full size-10 bg-primary/10 text-primary"
                   aria-label="消息"
                 >
-                  <span className="material-symbols-outlined text-2xl fill-icon">
-                    mail
-                  </span>
+                  <Icon name="mail" filled className="text-2xl" />
                 </button>
               </div>
             </div>
@@ -377,9 +374,7 @@ export default function CheckIn() {
                     onClick={() => setCurrentChild(child)}
                     aria-label={`切换到${child.name}`}
                   >
-                    <span className="material-symbols-outlined text-sm">
-                      {child.gender === 'female' ? 'face_3' : 'face'}
-                    </span>
+                    <Icon name={child.gender === 'female' ? 'face_3' : 'face'} className="text-sm" />
                     {child.name}
                   </button>
                 ))}
@@ -389,15 +384,11 @@ export default function CheckIn() {
 
           {isLoading ? (
             <div className="flex justify-center py-12 px-3">
-              <span className="material-symbols-outlined text-primary text-5xl animate-pulse">
-                forest
-              </span>
+              <Icon name="forest" className="text-primary text-5xl animate-pulse" />
             </div>
           ) : growingTrees.length === 0 ? (
             <div className="text-center py-12 px-3 text-slate-400 dark:text-[var(--text-muted)] space-y-4">
-              <span className="material-symbols-outlined text-6xl block">
-                park
-              </span>
+              <Icon name="park" className="text-6xl block" />
               <p className="text-lg font-semibold">还没有进行中的目标</p>
               <p className="text-sm">去首页添加一个新目标吧！</p>
             </div>
@@ -407,9 +398,7 @@ export default function CheckIn() {
               {growingTrees.length > 1 && (
                 <div className="w-full max-w-sm mx-auto">
                   <label className="relative flex items-center gap-2 px-4 py-3 bg-white dark:bg-[var(--bg-card)] border border-slate-200 dark:border-[var(--border-color)] rounded-2xl shadow-sm cursor-pointer hover:border-primary/40 transition-colors">
-                    <span className="material-symbols-outlined text-primary text-xl">
-                      park
-                    </span>
+                    <Icon name="park" className="text-primary text-xl" />
                     <span className="text-slate-600 dark:text-[var(--text-secondary)] text-sm font-medium">
                       当前目标：
                     </span>
@@ -421,7 +410,7 @@ export default function CheckIn() {
                           className="flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400 whitespace-nowrap active:scale-95 transition-transform"
                           aria-label="查看共享任务详情"
                         >
-                          <span className="material-symbols-outlined text-[10px]">group</span>
+                          <Icon name="group" className="text-[10px]" />
                           共享
                         </button>
                       )}
@@ -437,9 +426,7 @@ export default function CheckIn() {
                         <span className="text-amber-500 text-xs">⏳</span>
                       ) : null;
                     })()}
-                    <span className="material-symbols-outlined text-slate-400 dark:text-[var(--text-muted)] text-base">
-                      expand_more
-                    </span>
+                    <Icon name="expand_more" className="text-slate-400 dark:text-[var(--text-muted)] text-base" />
                     <select
                       value={selectedTree?.id || ''}
                       onChange={(e) => {
@@ -476,14 +463,10 @@ export default function CheckIn() {
 
               <div className="relative w-full max-w-sm mx-auto h-40 bg-gradient-to-b from-blue-100 dark:from-[#1a3d3a] to-primary/5 dark:to-[var(--bg-surface)] rounded-3xl overflow-hidden shadow-inner flex flex-col items-center justify-center border-4 border-white dark:border-[var(--bg-card)] transition-colors">
                 <div className="absolute top-8 left-8 text-yellow-400">
-                  <span className="material-symbols-outlined text-6xl fill-icon">
-                    light_mode
-                  </span>
+                  <Icon name="light_mode" filled className="text-6xl" />
                 </div>
                 <div className="absolute top-12 right-12 text-white/80">
-                  <span className="material-symbols-outlined text-4xl fill-icon">
-                    cloud
-                  </span>
+                  <Icon name="cloud" filled className="text-4xl" />
                 </div>
 
                 <div className="relative z-0 mt-auto mb-8">
@@ -522,12 +505,7 @@ export default function CheckIn() {
                             }}
                             className="flex items-center justify-center"
                           >
-                            <span
-                              className="material-symbols-outlined text-primary fill-icon"
-                              style={{ fontSize: treeSize }}
-                            >
-                              park
-                            </span>
+                            <Icon name="park" filled className="text-primary" />
                           </motion.div>
                         )}
                         <motion.div
@@ -554,7 +532,7 @@ export default function CheckIn() {
                       className="flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-400/30 text-amber-700 dark:text-amber-400 whitespace-nowrap active:scale-95 transition-transform"
                       aria-label="查看共享任务详情"
                     >
-                      <span className="material-symbols-outlined text-[10px]">group</span>
+                      <Icon name="group" className="text-[10px]" />
                       共享
                     </button>
                   )}
@@ -574,13 +552,11 @@ export default function CheckIn() {
                     className={`px-4 py-3 border rounded-xl text-sm font-medium flex items-center justify-between gap-2 ${statusInfo.bg} ${statusInfo.color}`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-lg">
-                        {taskStatus === 'approved'
+                      <Icon name={taskStatus === 'approved'
                           ? 'check_circle'
                           : taskStatus === 'rejected'
                             ? 'cancel'
-                            : 'hourglass_empty'}
-                      </span>
+                            : 'hourglass_empty'} className="text-lg" />
                       {statusInfo.text}
                     </div>
                     {todayTask?.checkin_time && (
@@ -607,9 +583,7 @@ export default function CheckIn() {
                     />
                   </div>
                   <p className="text-primary text-sm font-medium flex items-center gap-2">
-                    <span className="material-symbols-outlined text-lg">
-                      water_drop
-                    </span>
+                    <Icon name="water_drop" className="text-lg" />
                     {currentTree
                       ? `还需 ${100 - (currentTree.progress ?? 0)}% 就能结果啦！`
                       : '坚持完成好习惯，让你的幼苗长成参天大树吧。'}
@@ -618,16 +592,12 @@ export default function CheckIn() {
                   {currentGoal && (
                     <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-100 dark:border-[var(--border-color)]">
                       <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-[var(--text-muted)] bg-slate-50 dark:bg-[var(--bg-card)] px-2 py-1 rounded-full">
-                        <span className="material-symbols-outlined text-sm">
-                          calendar_month
-                        </span>
+                        <Icon name="calendar_month" className="text-sm" />
                         目标 {currentGoal.duration_days} 天
                       </span>
                       {currentGoal.duration_minutes > 0 && (
                         <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-[var(--text-muted)] bg-slate-50 dark:bg-[var(--bg-card)] px-2 py-1 rounded-full">
-                          <span className="material-symbols-outlined text-sm">
-                            schedule
-                          </span>
+                          <Icon name="schedule" className="text-sm" />
                           {currentGoal.duration_minutes >= 60
                             ? `每天 ${Math.round(currentGoal.duration_minutes / 60)} 小时`
                             : `每天 ${currentGoal.duration_minutes} 分钟`}
@@ -636,17 +606,13 @@ export default function CheckIn() {
                       {currentGoal.daily_count &&
                         currentGoal.daily_count > 0 && (
                           <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-[var(--text-muted)] bg-slate-50 dark:bg-[var(--bg-card)] px-2 py-1 rounded-full">
-                            <span className="material-symbols-outlined text-sm">
-                              repeat
-                            </span>
+                            <Icon name="repeat" className="text-sm" />
                             每天 {currentGoal.daily_count} 次
                           </span>
                         )}
                       {/* 已打卡天数 */}
                       <span className="flex items-center gap-1 text-xs text-primary bg-primary/10 px-2 py-1 rounded-full">
-                        <span className="material-symbols-outlined text-sm">
-                          check_circle
-                        </span>
+                        <Icon name="check_circle" className="text-sm" />
                         已打卡 {currentTree?.completed_days || 0} 天
                       </span>
                     </div>
@@ -682,18 +648,14 @@ export default function CheckIn() {
                 {/* 打卡日期选择器 */}
                 <div className="flex items-center justify-center">
                   <label className="relative flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-[var(--bg-card)] border border-slate-200 dark:border-[var(--border-color)] rounded-full shadow-sm cursor-pointer hover:border-primary/40 transition-colors">
-                    <span className="material-symbols-outlined text-primary text-xl">
-                      calendar_month
-                    </span>
+                    <Icon name="calendar_month" className="text-primary text-xl" />
                     <span className="text-slate-600 dark:text-[var(--text-secondary)] text-sm font-medium">
                       打卡日期：
                     </span>
                     <span className="text-primary font-bold text-sm">
                       {formatDateDisplay(selectedDate)}
                     </span>
-                    <span className="material-symbols-outlined text-slate-400 dark:text-[var(--text-muted)] text-base">
-                      expand_more
-                    </span>
+                    <Icon name="expand_more" className="text-slate-400 dark:text-[var(--text-muted)] text-base" />
                     <input
                       type="date"
                       value={selectedDate}
@@ -713,9 +675,7 @@ export default function CheckIn() {
                   disabled={isChecking || !canCheckin}
                   aria-label={isBackfillDate ? '补打卡' : '立即打卡'}
                 >
-                  <span className="material-symbols-outlined text-3xl">
-                    check_circle
-                  </span>
+                  <Icon name="check_circle" className="text-3xl" />
                   {isChecking
                     ? '打卡中...'
                     : !canCheckin

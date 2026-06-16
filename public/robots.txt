@@ -6,6 +6,8 @@ Disallow: /parent-control
 Disallow: /rewards-management
 Disallow: /profile
 Disallow: /messages
+Disallow: /login
+Disallow: /register
 
 # Sitemap
 Sitemap: https://littletreecheckin.mrfangge.com/sitemap.xml

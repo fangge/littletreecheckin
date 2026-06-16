@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePendingTasksCount } from '../hooks/usePendingTasksCount';
 
 // 路径到导航项的映射
+import Icon from '../components/Icon';
 const pathNavMap: Record<string, string> = {
   '/': 'tasks',
   '/forest': 'forest',
@@ -46,9 +47,7 @@ export default function Navigation() {
               aria-current={currentPathId === item.id ? 'page' : undefined}
             >
               <span className="relative inline-flex">
-                <span className={`material-symbols-outlined text-2xl ${currentPathId === item.id ? 'fill-icon' : ''}`}>
-                  {item.icon}
-                </span>
+                <Icon name={item.icon} filled={currentPathId === item.id} className="text-2xl" />
                 {item.id === 'parent' && pendingCount > 0 && (
                   <span className="absolute -top-1 -right-1.5 min-w-[16px] h-4 px-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
                     {pendingCount > 99 ? '99+' : pendingCount}
@@ -66,7 +65,7 @@ export default function Navigation() {
         {/* Logo 区域 */}
         <div className="flex items-center gap-3 px-6 py-6 border-b border-primary/10 dark:border-[var(--border-color)]">
           <div className="size-9 bg-primary/10 rounded-xl flex items-center justify-center">
-            <span className="material-symbols-outlined text-primary text-xl fill-icon">forest</span>
+            <Icon name="forest" filled className="text-primary text-xl" />
           </div>
           <div>
             <p className="text-slate-900 dark:text-[var(--text-primary)] font-extrabold text-sm leading-tight">成就丛林</p>
@@ -89,9 +88,7 @@ export default function Navigation() {
               aria-current={currentPathId === item.id ? 'page' : undefined}
             >
               <span className="relative inline-flex shrink-0">
-                <span className={`material-symbols-outlined text-xl ${currentPathId === item.id ? 'fill-icon' : ''}`}>
-                  {item.icon}
-                </span>
+                <Icon name={item.icon} filled={currentPathId === item.id} className="text-xl" />
                 {item.id === 'parent' && pendingCount > 0 && (
                   <span className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
                     {pendingCount > 99 ? '99+' : pendingCount}

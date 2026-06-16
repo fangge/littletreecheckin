@@ -2,6 +2,29 @@
 
 ## 版本历史
 
+### v4.0 — 图标系统全面 SVG 化，消灭字体加载闪烁
+
+彻底移除 Material Symbols 字体图标，全站 90 个图标改用预下载的 inline SVG，解决图标首次渲染时的文字闪烁问题（FOUC）。
+
+- ✅ **新增** `src/components/Icon.tsx`：通用图标组件，通过 `import.meta.glob` 批量导入 90 个 Material Symbols Outlined SVG，渲染为 inline SVG。支持 `filled`（填充）、`size`（尺寸）、`className`（Tailwind 类名）及 `onClick`/`role`/`tabIndex` 等 HTML 属性透传
+- ✅ **新增** `src/assets/icons/`：90 个 Material Symbols Outlined SVG 文件（从 Google Fonts CDN 下载），覆盖全站所有图标
+- ✅ **新增** `scripts/download_icons.sh`：图标下载脚本，新增图标时只需添加到列表运行即可
+- ✅ **修改** 24 个页面与组件文件：所有 `<span className="material-symbols-outlined">` → `<Icon name="..." />` 替换（186 处），包括 CheckIn、Dashboard、Medals、Store、Profile、ParentControl、GoalSetting 等
+- ✅ **修改** `src/index.css`：移除 `.material-symbols-outlined` 和 `.fill-icon` CSS 规则
+- ✅ **修改** `index.html`：移除 Material Symbols 字体 CSS 链接（`fonts.loli.net/css2?family=Material+Symbols+Outlined`），减少首次加载体积约 200KB
+
+**功能特性**：
+- 零 FOUC：图标以 inline SVG 渲染，与页面内容同步出现，再无"先显示文字再变图标"
+- 零外部依赖：不再依赖 Google Fonts CDN 的字体文件，图标数据内建于 JS bundle
+- Tailwind 兼容：`<Icon name="check_circle" className="text-primary text-2xl" />` 自动继承 text-* 颜色
+- Filled 模式：`<Icon name="..." filled />` 渲染填充版本，复用字体原来的 `fill-icon` 语义
+- 动态图标兼容：支持 `name={variable}` 和条件 `filled` 等 JSX 表达式
+
+**无需数据库迁移**：纯前端架构优化
+
+---
+
+
 ### v3.9 — 勋章管理系统与解锁庆祝动画
 
 家长可自由创建、编辑和自定义勋章及解锁条件；孩子打卡完成任务后，自动检测新解锁的勋章并弹出庆祝弹窗，增强激励体验。

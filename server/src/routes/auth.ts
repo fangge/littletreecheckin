@@ -56,11 +56,6 @@ router.post('/register-children', authMiddleware, async (req: AuthRequest, res: 
   const username = req.user!.username;
   const { phone, children } = req.body;
 
-  if (!children || !Array.isArray(children) || children.length === 0) {
-    res.status(400).json({ error: '请至少添加一个孩子信息' });
-    return;
-  }
-
   // 如果提供了手机号，更新 profiles 表
   if (phone) {
     const { error: profileError } = await supabase
@@ -74,23 +69,29 @@ router.post('/register-children', authMiddleware, async (req: AuthRequest, res: 
   }
 
   // 创建孩子记录
-  const childrenData = children.map((child: { name: string; age?: number; gender?: string }) => ({
-    parent_id: userId,
-    name: child.name,
-    age: child.age || null,
-    gender: child.gender || null,
-    fruits_balance: 0,
-  }));
+  let newChildren: Array<Record<string, unknown>> = [];
 
-  const { data: newChildren, error: childrenError } = await supabase
-    .from('children')
-    .insert(childrenData)
-    .select('id, name, age, gender, fruits_balance');
+  if (children && Array.isArray(children) && children.length > 0) {
+    const childrenData = children.map((child: { name: string; age?: number; gender?: string }) => ({
+      parent_id: userId,
+      name: child.name,
+      age: child.age || null,
+      gender: child.gender || null,
+      fruits_balance: 0,
+    }));
 
-  if (childrenError) {
-    console.error('[register-children] 创建孩子失败:', childrenError);
-    res.status(500).json({ error: '创建孩子信息失败', details: childrenError.message });
-    return;
+    const { data: inserted, error: childrenError } = await supabase
+      .from('children')
+      .insert(childrenData)
+      .select('id, name, age, gender, fruits_balance');
+
+    if (childrenError) {
+      console.error('[register-children] 创建孩子失败:', childrenError);
+      res.status(500).json({ error: '创建孩子信息失败', details: childrenError.message });
+      return;
+    }
+
+    newChildren = inserted || [];
   }
 
   res.status(201).json({
@@ -98,7 +99,7 @@ router.post('/register-children', authMiddleware, async (req: AuthRequest, res: 
       id: userId,
       username,
       phone: phone || null,
-      children: newChildren || [],
+      children: newChildren,
     },
     message: '注册成功',
   });

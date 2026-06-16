@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import { useNavigate } from 'react-router-dom';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { User, Child } from '../services/api';
+import { User, Child, childrenApi } from '../services/api';
 
 interface AuthContextType {
   user: User | null;
@@ -16,13 +16,14 @@ interface AuthContextType {
     username: string;
     password: string;
     phone?: string;
-    children: Array<{ name: string; age?: number; gender?: string }>;
+    children?: Array<{ name: string; age?: number; gender?: string }>;
   }) => Promise<void>;
   logout: () => Promise<void>;
   setCurrentChild: (child: Child) => void;
   refreshUser: () => Promise<void>;
   enableChildMode: (password: string) => Promise<void>;
   disableChildMode: (password: string) => Promise<void>;
+  addChildren: (children: Array<{ name: string; age?: number; gender?: string }>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -127,7 +128,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     username: string;
     password: string;
     phone?: string;
-    children: Array<{ name: string; age?: number; gender?: string }>;
+    children?: Array<{ name: string; age?: number; gender?: string }>;
   }) => {
     // 1. 在 Supabase Auth 创建用户
     const { data: authData, error: signUpError } = await supabase.auth.signUp({
@@ -149,31 +150,43 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       throw new Error('注册成功，请检查邮箱验证（如已启用）');
     }
 
-    // 2. 通过后端 API 创建孩子记录（后端使用 service role 操作数据库）
-    const response = await fetch(`${API_BASE_URL}/api/v1/auth/register-children`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${authData.session.access_token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        phone: data.phone,
-        children: data.children,
-      }),
-    });
+    // 2. 有孩子则通过后端 API 创建，无孩子则直接获取用户信息
+    if (data.children && data.children.length > 0) {
+      const response = await fetch(`${API_BASE_URL}/api/v1/auth/register-children`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authData.session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phone: data.phone,
+          children: data.children,
+        }),
+      });
 
-    if (!response.ok) {
-      const errData = await response.json();
-      // 注册失败时删除已创建的 auth 用户
-      await supabase.auth.admin?.deleteUser(authData.user!.id).catch(() => {});
-      throw new Error(errData.error || '创建孩子信息失败');
-    }
+      if (!response.ok) {
+        const errData = await response.json();
+        await supabase.auth.admin?.deleteUser(authData.user!.id).catch(() => {});
+        throw new Error(errData.error || '创建孩子信息失败');
+      }
 
-    const result = await response.json();
-    setUser(result.data);
-    if (result.data.children?.length > 0) {
-      setCurrentChildState(result.data.children[0]);
-      localStorage.setItem(STORAGE_KEYS.CHILD_ID, result.data.children[0].id);
+      const result = await response.json();
+      setUser(result.data);
+      if (result.data.children?.length > 0) {
+        setCurrentChildState(result.data.children[0]);
+        localStorage.setItem(STORAGE_KEYS.CHILD_ID, result.data.children[0].id);
+      }
+    } else {
+      const meResponse = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${authData.session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (meResponse.ok) {
+        const meData = await meResponse.json();
+        setUser(meData.data);
+      }
     }
 
     navigate('/', { replace: true });
@@ -235,6 +248,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsChildMode(false);
   };
 
+  const handleAddChildren = async (childrenData: Array<{ name: string; age?: number; gender?: string }>) => {
+    if (!user) throw new Error('未登录');
+
+    const addedChildren: Child[] = [];
+    for (const child of childrenData) {
+      const result = await childrenApi.add(user.id, child);
+      addedChildren.push(result.data);
+    }
+
+    await refreshUser();
+
+    if (addedChildren.length > 0) {
+      setCurrentChildState(addedChildren[0]);
+      localStorage.setItem(STORAGE_KEYS.CHILD_ID, addedChildren[0].id);
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -249,6 +279,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       refreshUser,
       enableChildMode,
       disableChildMode,
+      addChildren: handleAddChildren,
     }}>
       {children}
     </AuthContext.Provider>

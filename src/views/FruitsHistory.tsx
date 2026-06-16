@@ -6,6 +6,7 @@ import { childrenApi, rewardsApi, FruitsHistoryItem } from '../services/api';
 import PullToRefresh from '../components/PullToRefresh';
 
 // 根据 goal_icon 生成彩色背景
+import Icon from '../components/Icon';
 const ICON_COLORS = [
   'bg-orange-100 text-orange-500',
   'bg-blue-100 text-blue-500',
@@ -76,7 +77,7 @@ export default function FruitsHistory() {
             className="p-2 hover:bg-primary/10 rounded-full transition-colors"
             aria-label="返回"
           >
-            <span className="material-symbols-outlined">arrow_back</span>
+            <Icon name="arrow_back" />
           </button>
           <h1 className="text-xl font-bold tracking-tight">果实获取记录</h1>
         </div>
@@ -95,7 +96,7 @@ export default function FruitsHistory() {
                 <span className="mb-1 text-2xl">🍎</span>
               </div>
               <div className="mt-3 inline-flex items-center gap-1.5 bg-white/20 rounded-full px-3 py-1">
-                <span className="material-symbols-outlined text-sm leading-none">star</span>
+                <Icon name="star" className="text-sm leading-none" />
                 <span className="text-xs font-semibold">继续努力，换取更多奖励！</span>
               </div>
             </div>
@@ -110,11 +111,11 @@ export default function FruitsHistory() {
 
             {isLoading ? (
               <div className="flex justify-center py-12">
-                <span className="material-symbols-outlined text-orange-400 text-4xl animate-pulse">hourglass_empty</span>
+                <Icon name="hourglass_empty" className="text-orange-400 text-4xl animate-pulse" />
               </div>
             ) : items.length === 0 ? (
               <div className="text-center py-12 text-slate-400">
-                <span className="material-symbols-outlined text-5xl mb-3 block">eco</span>
+                <Icon name="eco" className="text-5xl mb-3 block" />
                 <p className="text-sm">还没有获取记录，快去完成任务吧！</p>
               </div>
             ) : (
@@ -134,9 +135,7 @@ export default function FruitsHistory() {
                   >
                     {/* 目标图标 */}
                     <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${getIconColor(index)}`}>
-                      <span className="material-symbols-outlined text-xl leading-none">
-                        {item.goal_icon || 'check_circle'}
-                      </span>
+                      <Icon name={item.goal_icon || 'check_circle'} className="text-xl leading-none" />
                     </div>
                     {/* 任务信息 */}
                     <div className="flex-1 min-w-0">
@@ -144,7 +143,7 @@ export default function FruitsHistory() {
                         <p className="text-sm font-bold text-slate-900 truncate">{item.title}</p>
                         {item.is_shared && (
                           <span className="inline-flex items-center gap-0.5 shrink-0 bg-blue-100 text-blue-500 text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none">
-                            <span className="material-symbols-outlined" style={{ fontSize: '10px' }}>group</span>
+                            <Icon name="group" />
                             共享
                           </span>
                         )}

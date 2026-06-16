@@ -6,6 +6,7 @@ import { medalsApi, MedalData } from '../services/api';
 import PullToRefresh from '../components/PullToRefresh';
 import MedalUnlockPopup from '../components/MedalUnlockPopup';
 
+import Icon from '../components/Icon';
 export default function Medals() {
   const navigate = useNavigate();
   const { user, currentChild, setCurrentChild, isChildMode } = useAuth();
@@ -62,7 +63,7 @@ export default function Medals() {
             className="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-[var(--bg-card)] shadow-sm border border-primary/20 dark:border-[var(--border-color)]"
             aria-label="返回"
           >
-            <span className="material-symbols-outlined text-slate-700 dark:text-[var(--text-primary)]">arrow_back</span>
+            <Icon name="arrow_back" className="text-slate-700 dark:text-[var(--text-primary)]" />
           </button>
           <h1 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-[var(--text-primary)]">我的勋章墙</h1>
           {!isChildMode ? (
@@ -72,7 +73,7 @@ export default function Medals() {
               aria-label="管理勋章"
               title="管理勋章"
             >
-              <span className="material-symbols-outlined text-slate-700 dark:text-[var(--text-primary)] text-xl">settings</span>
+              <Icon name="settings" className="text-slate-700 dark:text-[var(--text-primary)] text-xl" />
             </button>
           ) : (
             <div className="w-10 h-10" />
@@ -92,9 +93,7 @@ export default function Medals() {
                 onClick={() => setCurrentChild(child)}
                 aria-label={`切换到${child.name}`}
               >
-                <span className="material-symbols-outlined text-sm">
-                  {child.gender === 'female' ? 'face_3' : 'face'}
-                </span>
+                <Icon name={child.gender === 'female' ? 'face_3' : 'face'} className="text-sm" />
                 {child.name}
               </button>
             ))}
@@ -106,7 +105,7 @@ export default function Medals() {
       <section className="p-6 flex flex-col items-center text-center">
         <div className="relative mb-4">
           <div className="w-32 h-32 rounded-full border-4 border-primary bg-primary/10 p-1 shadow-lg overflow-hidden flex items-center justify-center">
-            <span className="material-symbols-outlined text-primary text-6xl">child_care</span>
+            <Icon name="child_care" className="text-primary text-6xl" />
           </div>
           <div className="absolute -bottom-2 -right-2 bg-primary text-slate-900 font-bold px-3 py-1 rounded-full text-xs shadow-md border-2 border-white dark:border-[var(--bg-surface)]">
             {unlockedCount} 枚
@@ -114,7 +113,7 @@ export default function Medals() {
         </div>
         <h2 className="text-2xl font-extrabold text-slate-900 dark:text-[var(--text-primary)] mb-1">{currentChild?.name || '小园丁'}</h2>
         <div className="flex items-center gap-2 mb-2">
-          <span className="material-symbols-outlined text-primary font-bold">workspace_premium</span>
+          <Icon name="workspace_premium" className="text-primary font-bold" />
           <p className="text-slate-600 dark:text-[var(--text-secondary)] font-semibold">已获得 {unlockedCount} 枚勋章</p>
         </div>
         <p className="text-sm text-slate-500 dark:text-[var(--text-muted)] max-w-[280px]">你做得太棒了！继续照顾你的小树来解锁更多成就吧！</p>
@@ -136,7 +135,7 @@ export default function Medals() {
 
       {isLoading ? (
         <div className="flex justify-center py-12">
-          <span className="material-symbols-outlined text-primary text-4xl animate-pulse">workspace_premium</span>
+          <Icon name="workspace_premium" className="text-primary text-4xl animate-pulse" />
         </div>
       ) : (
         <section className="px-6 grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-y-8 gap-x-4 py-4">
@@ -147,12 +146,10 @@ export default function Medals() {
               className={`flex flex-col items-center gap-2 ${!medal.unlocked ? 'opacity-50 grayscale' : ''} cursor-pointer`}
             >
               <div className={`w-20 h-20 rounded-full bg-gradient-to-br ${medal.color} flex items-center justify-center shadow-lg border-4 border-white relative`}>
-                <span className="material-symbols-outlined text-4xl text-white drop-shadow-md fill-icon">
-                  {medal.icon}
-                </span>
+                <Icon name={medal.icon} filled className="text-4xl text-white drop-shadow-md" />
                 {medal.unlocked && (
                   <div className="absolute -top-1 -right-1 bg-green-500 w-6 h-6 rounded-full flex items-center justify-center border-2 border-white">
-                    <span className="material-symbols-outlined text-xs text-white font-bold">check</span>
+                    <Icon name="check" className="text-xs text-white font-bold" />
                   </div>
                 )}
               </div>
@@ -170,7 +167,7 @@ export default function Medals() {
       {latestMedal && (
         <div className="mx-6 mt-8 p-4 bg-white dark:bg-[var(--bg-surface)] rounded-2xl shadow-xl border-2 border-primary/20 dark:border-[var(--border-color)] flex gap-4 items-center transition-colors">
           <div className="w-16 h-16 shrink-0 rounded-full bg-primary/20 flex items-center justify-center">
-            <span className="material-symbols-outlined text-primary text-3xl fill-icon">military_tech</span>
+            <Icon name="military_tech" filled className="text-primary text-3xl" />
           </div>
           <div>
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-[var(--text-primary)]">最新获得奖励</h3>
@@ -201,9 +198,7 @@ export default function Medals() {
             >
               <div className="flex flex-col items-center text-center">
                 <div className={`w-24 h-24 rounded-full bg-gradient-to-br ${selectedMedal.color} flex items-center justify-center shadow-lg border-4 border-white dark:border-[var(--bg-surface)] mb-4`}>
-                  <span className="material-symbols-outlined text-5xl text-white drop-shadow-md fill-icon">
-                    {selectedMedal.icon}
-                  </span>
+                  <Icon name={selectedMedal.icon} filled className="text-5xl text-white drop-shadow-md" />
                 </div>
                 <h3 className="text-xl font-extrabold text-slate-900 dark:text-[var(--text-primary)] mb-2">{selectedMedal.name}</h3>
                 <p className="text-slate-600 dark:text-[var(--text-secondary)] mb-4">{selectedMedal.description}</p>

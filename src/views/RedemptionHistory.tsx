@@ -6,6 +6,7 @@ import { rewardsApi, RedemptionData } from '../services/api';
 import PullToRefresh from '../components/PullToRefresh';
 
 // 根据 category 生成彩色背景
+import Icon from '../components/Icon';
 const CATEGORY_COLORS: Record<string, string> = {
   activity: 'bg-blue-100 text-blue-500',
   toy: 'bg-purple-100 text-purple-500',
@@ -102,7 +103,7 @@ export default function RedemptionHistory() {
             className="p-2 hover:bg-primary/10 rounded-full transition-colors"
             aria-label="返回"
           >
-            <span className="material-symbols-outlined">arrow_back</span>
+            <Icon name="arrow_back" />
           </button>
           <h1 className="text-xl font-bold tracking-tight">果实兑换记录</h1>
         </div>
@@ -121,7 +122,7 @@ export default function RedemptionHistory() {
                 <span className="mb-1 text-2xl">🍎</span>
               </div>
               <div className="mt-3 inline-flex items-center gap-1.5 bg-white/20 rounded-full px-3 py-1 backdrop-blur-sm">
-                <span className="material-symbols-outlined text-sm leading-none">shopping_bag</span>
+                <Icon name="shopping_bag" className="text-sm leading-none" />
                 <span className="text-xs font-semibold">已兑换 {items.length} 次奖励</span>
               </div>
             </div>
@@ -136,11 +137,11 @@ export default function RedemptionHistory() {
 
             {isLoading ? (
               <div className="flex justify-center py-12">
-                <span className="material-symbols-outlined text-primary text-4xl animate-pulse">hourglass_empty</span>
+                <Icon name="hourglass_empty" className="text-primary text-4xl animate-pulse" />
               </div>
             ) : items.length === 0 ? (
               <div className="text-center py-12 text-slate-400">
-                <span className="material-symbols-outlined text-5xl mb-3 block">shopping_cart</span>
+                <Icon name="shopping_cart" className="text-5xl mb-3 block" />
                 <p className="text-sm">还没有兑换记录，快去商店兑换奖励吧！</p>
               </div>
             ) : (
@@ -152,9 +153,7 @@ export default function RedemptionHistory() {
                   >
                     {/* 奖励图标 */}
                     <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${getCategoryColor(item.rewards?.category || '')}`}>
-                      <span className="material-symbols-outlined text-xl leading-none">
-                        {getCategoryIcon(item.rewards?.category || '')}
-                      </span>
+                      <Icon name={getCategoryIcon(item.rewards?.category || '')} className="text-xl leading-none" />
                     </div>
                     {/* 奖励信息 */}
                     <div className="flex-1 min-w-0">

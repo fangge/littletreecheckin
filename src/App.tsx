@@ -45,7 +45,7 @@ export default function App() {
         <Outlet />
       </div>
       {/* 今日任务进度弹层 */}
-      <TodayProgressModal />
+      {isAuthenticated && <TodayProgressModal />}
       {/* PWA 更新提示 */}
       <UpdatePrompt />
     </div>

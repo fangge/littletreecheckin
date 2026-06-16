@@ -1,4 +1,5 @@
 
+import Icon from '../components/Icon';
 interface CheckinCalendarProps {
   checkinDates: string[];
   sharedCompletedDates?: string[];
@@ -76,7 +77,7 @@ export default function CheckinCalendar({
             tabIndex={0}
             onKeyDown={e => e.key === 'Enter' && handlePrevMonth()}
           >
-            <span className="material-symbols-outlined text-base">chevron_left</span>
+            <Icon name="chevron_left" className="text-base" />
           </button>
           <span className="text-slate-500 dark:text-[var(--text-secondary)] text-xs font-medium min-w-[72px] text-center">
             {year}年{month}月
@@ -88,7 +89,7 @@ export default function CheckinCalendar({
             tabIndex={0}
             onKeyDown={e => e.key === 'Enter' && handleNextMonth()}
           >
-            <span className="material-symbols-outlined text-base">chevron_right</span>
+            <Icon name="chevron_right" className="text-base" />
           </button>
         </div>
       </div>
@@ -137,13 +138,9 @@ export default function CheckinCalendar({
                 {cell.day}
               </span>
               {isSharedCompleted ? (
-                <span className="material-symbols-outlined text-amber-400 text-[10px] leading-none mt-px fill-icon">
-                  eco
-                </span>
+                <Icon name="eco" filled className="text-amber-400 text-[10px] leading-none mt-px" />
               ) : isCheckin ? (
-                <span className="material-symbols-outlined text-primary text-[10px] leading-none mt-px fill-icon">
-                  eco
-                </span>
+                <Icon name="eco" filled className="text-primary text-[10px] leading-none mt-px" />
               ) : (
                 <span className="h-[10px] mt-px" />
               )}

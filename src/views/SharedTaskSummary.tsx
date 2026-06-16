@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { treesApi, SharedTaskSummaryData } from '../services/api';
 
+import Icon from '../components/Icon';
 export default function SharedTaskSummary() {
   const navigate = useNavigate();
   const { goalId } = useParams<{ goalId: string }>();
@@ -59,7 +60,7 @@ export default function SharedTaskSummary() {
     return (
       <div className="flex-1 flex items-center justify-center bg-background-light">
         <div className="flex flex-col items-center gap-3">
-          <span className="material-symbols-outlined text-4xl text-primary animate-spin">refresh</span>
+          <Icon name="refresh" className="text-4xl text-primary animate-spin" />
           <p className="text-slate-500 text-sm">加载中...</p>
         </div>
       </div>
@@ -70,7 +71,7 @@ export default function SharedTaskSummary() {
     return (
       <div className="flex-1 flex items-center justify-center bg-background-light">
         <div className="flex flex-col items-center gap-3 px-6 text-center">
-          <span className="material-symbols-outlined text-4xl text-red-400">error</span>
+          <Icon name="error" className="text-4xl text-red-400" />
           <p className="text-slate-600 text-sm">{error || '数据加载失败'}</p>
           <button
             onClick={() => navigate(-1)}
@@ -96,7 +97,7 @@ export default function SharedTaskSummary() {
           className="text-slate-900 dark:text-[var(--text-primary)] flex size-10 shrink-0 items-center justify-center rounded-full bg-white dark:bg-[var(--bg-card)] shadow-sm"
           aria-label="返回"
         >
-          <span className="material-symbols-outlined">arrow_back</span>
+          <Icon name="arrow_back" />
         </button>
         <h2 className="text-slate-900 dark:text-[var(--text-primary)] text-lg font-extrabold leading-tight tracking-tight flex-1 text-center">
           共享任务
@@ -115,18 +116,18 @@ export default function SharedTaskSummary() {
           {/* 标签行 */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1 rounded-full">
-              <span className="material-symbols-outlined text-sm">group</span>
+              <Icon name="group" className="text-sm" />
               <span className="text-xs font-bold">共同挑战</span>
             </div>
             {remainingDays !== null && remainingDays > 0 && (
               <div className="flex items-center gap-1 text-slate-500 dark:text-[var(--text-secondary)]">
-                <span className="material-symbols-outlined text-sm">schedule</span>
+                <Icon name="schedule" className="text-sm" />
                 <span className="text-xs font-medium">剩余 {remainingDays} 天</span>
               </div>
             )}
             {remainingDays === 0 && (
               <div className="flex items-center gap-1 text-amber-500">
-                <span className="material-symbols-outlined text-sm">emoji_events</span>
+                <Icon name="emoji_events" className="text-sm" />
                 <span className="text-xs font-bold">已完成</span>
               </div>
             )}
@@ -134,9 +135,7 @@ export default function SharedTaskSummary() {
 
           {/* 任务标题 */}
           <div className="flex items-center gap-3 mb-4">
-            <span className="material-symbols-outlined text-3xl text-primary">
-              {goal?.icon || 'auto_stories'}
-            </span>
+            <Icon name={goal?.icon || 'auto_stories'} className="text-3xl text-primary" />
             <div>
               <h1 className="text-slate-900 dark:text-[var(--text-primary)] text-2xl font-black leading-tight">
                 {goal?.title}
@@ -152,7 +151,7 @@ export default function SharedTaskSummary() {
           {/* 奖励信息 */}
           <div className="bg-slate-50 dark:bg-[var(--bg-card)] rounded-2xl p-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined text-amber-500 text-xl">military_tech</span>
+              <Icon name="military_tech" className="text-amber-500 text-xl" />
             </div>
             <div>
               <p className="text-slate-500 dark:text-[var(--text-secondary)] text-xs">获胜奖励</p>
@@ -164,7 +163,7 @@ export default function SharedTaskSummary() {
 
           {/* 提示文字 */}
           <p className="text-slate-400 dark:text-[var(--text-muted)] text-xs text-center mt-3 flex items-center justify-center gap-1">
-            <span className="material-symbols-outlined text-sm">info</span>
+            <Icon name="info" className="text-sm" />
             先完成的宝贝可以获得水果奖励哦！
           </p>
         </motion.div>
@@ -213,12 +212,7 @@ export default function SharedTaskSummary() {
                            className="w-12 h-12 rounded-full flex items-center justify-center"
                            style={{ backgroundColor: item.is_winner ? '#fef3c7' : `${progressColor}22` }}
                          >
-                           <span
-                             className="material-symbols-outlined text-2xl"
-                             style={{ color: item.is_winner ? '#f59e0b' : progressColor }}
-                           >
-                             {getChildGenderIcon(item.child_id)}
-                           </span>
+                           <Icon name={getChildGenderIcon(item.child_id)} className="text-2xl" />
                          </div>
                          
                        </div>

@@ -40,7 +40,7 @@ export default function TodayProgressModal() {
   // 加载进度数据
   useEffect(() => {
     const loadProgressData = async () => {
-      if (!isAuthenticated || isLoading || !user?.children?.length) return;
+      if (isLoading || !user?.children?.length) return;
       
       // 检查今天是否已经显示过弹窗
       const lastShown = localStorage.getItem('todayProgressLastShown');
@@ -113,7 +113,7 @@ export default function TodayProgressModal() {
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [isAuthenticated, isLoading, user]);
+  }, [isLoading, user]);
 
   const handleClose = () => {
     setIsOpen(false);

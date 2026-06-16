@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { CalendarTask } from '../services/api';
 
+import Icon from '../components/Icon';
 interface CheckinDetailPopupProps {
   date: string | null;
   tasks: CalendarTask[];
@@ -67,7 +68,7 @@ export default function CheckinDetailPopup({ date, tasks, onClose, onAfterClose 
                   aria-label="关闭"
                   tabIndex={0}
                 >
-                  <span className="material-symbols-outlined text-base">close</span>
+                  <Icon name="close" className="text-base" />
                 </button>
               </div>
 
@@ -79,7 +80,7 @@ export default function CheckinDetailPopup({ date, tasks, onClose, onAfterClose 
                     className="flex items-center gap-3 bg-primary/5 rounded-2xl px-4 py-3"
                   >
                     <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary">
-                      <span className="material-symbols-outlined text-white text-base fill-icon">check</span>
+                      <Icon name="check" filled className="text-white text-base" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-slate-800 font-semibold text-sm truncate">{task.title}</p>
@@ -93,7 +94,7 @@ export default function CheckinDetailPopup({ date, tasks, onClose, onAfterClose 
 
               {/* 底部鼓励文案 */}
               <div className="flex items-center justify-center gap-1.5 mt-6 pb-2">
-                <span className="material-symbols-outlined text-primary text-base fill-icon">eco</span>
+                <Icon name="eco" filled className="text-primary text-base" />
                 <p className="text-slate-500 text-sm font-medium">树苗又长高了一些！</p>
               </div>
             </div>

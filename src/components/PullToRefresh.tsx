@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, useMotionValue, useTransform } from 'motion/react';
 
+import Icon from '../components/Icon';
 interface PullToRefreshProps {
   onRefresh: () => Promise<void>;
   children: React.ReactNode;
@@ -183,9 +184,7 @@ const PullToRefresh = ({
                 className="text-2xl flex items-center justify-center"
                 style={{ transformOrigin: 'center' }}
               >
-                <span className="material-symbols-outlined text-primary">
-                  sync
-                </span>
+                <Icon name="sync" className="text-primary" />
               </motion.div>
               <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                 {loadingText}
@@ -198,9 +197,7 @@ const PullToRefresh = ({
                 style={{ rotate }}
                 className="text-2xl"
               >
-                <span className="material-symbols-outlined text-primary">
-                  arrow_downward
-                </span>
+                <Icon name="arrow_downward" className="text-primary" />
               </motion.div>
               <motion.span 
                 className="text-sm font-semibold text-gray-700 dark:text-gray-300"

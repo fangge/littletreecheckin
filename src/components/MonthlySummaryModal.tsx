@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useMemo, useRef, useEffect } from 'react';
 
+import Icon from '../components/Icon';
 interface TaskSummary {
   taskName: string;
   goalTitle?: string;
@@ -136,7 +137,7 @@ export default function MonthlySummaryModal({
               className="absolute top-4 right-4 z-10 flex size-10 items-center justify-center rounded-full bg-primary/10 dark:bg-[var(--bg-card)] text-primary hover:bg-primary/20 transition-colors"
               aria-label="关闭"
             >
-              <span className="material-symbols-outlined text-xl">close</span>
+              <Icon name="close" className="text-xl" />
             </button>
 
             {/* 头部插图 */}
@@ -144,7 +145,7 @@ export default function MonthlySummaryModal({
               <div className="relative size-32 rounded-full bg-gradient-to-br from-yellow-100 to-yellow-200 dark:from-yellow-900/30 dark:to-yellow-800/30 flex items-center justify-center">
                 <div className="text-6xl">🎓</div>
                 <div className="absolute -bottom-2 -right-2 size-12 rounded-full bg-primary flex items-center justify-center">
-                  <span className="material-symbols-outlined text-white text-2xl fill-icon">emoji_events</span>
+                  <Icon name="emoji_events" filled className="text-white text-2xl" />
                 </div>
               </div>
             </div>
@@ -164,7 +165,7 @@ export default function MonthlySummaryModal({
 
             {calendarData === null ? (
               <div className="flex flex-col items-center justify-center py-16 gap-3">
-                <span className="material-symbols-outlined text-primary text-4xl animate-spin">progress_activity</span>
+                <Icon name="progress_activity" className="text-primary text-4xl animate-spin" />
                 <p className="text-slate-500 dark:text-[var(--text-muted)] text-sm">正在加载成就数据...</p>
               </div>
             ) : taskStats ? (
@@ -192,9 +193,7 @@ export default function MonthlySummaryModal({
                           )}
                         </div>
                         <div className="flex items-center gap-1 ml-3 shrink-0">
-                          <span className="material-symbols-outlined text-primary text-lg fill-icon">
-                            sentiment_very_satisfied
-                          </span>
+                          <Icon name="sentiment_very_satisfied" filled className="text-primary text-lg" />
                           <span className="text-2xl font-extrabold text-primary">{task.count}</span>
                           <span className="text-xs text-slate-500 dark:text-[var(--text-muted)]">次</span>
                         </div>
@@ -229,9 +228,7 @@ export default function MonthlySummaryModal({
                             )}
                           </div>
                           <div className="flex items-center gap-1 ml-3 shrink-0">
-                            <span className="material-symbols-outlined text-orange-500 text-lg">
-                              sentiment_content
-                            </span>
+                            <Icon name="sentiment_content" className="text-orange-500 text-lg" />
                             <span className="text-2xl font-extrabold text-orange-600 dark:text-orange-400">
                               {task.count}
                             </span>
@@ -255,7 +252,7 @@ export default function MonthlySummaryModal({
                       element?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                     }}
                   >
-                    <span className="material-symbols-outlined text-base">list</span>
+                    <Icon name="list" className="text-base" />
                     全部任务一览
                   </button>
                   <div id="all-tasks-list" className="space-y-2 mt-3">
@@ -310,9 +307,7 @@ export default function MonthlySummaryModal({
             ) : (
               <div className="px-6 pb-8 text-center">
                 <div className="size-20 mx-auto mb-4 rounded-full bg-slate-100 dark:bg-[var(--bg-card)] flex items-center justify-center">
-                  <span className="material-symbols-outlined text-4xl text-slate-400 dark:text-[var(--text-muted)]">
-                    event_busy
-                  </span>
+                  <Icon name="event_busy" className="text-4xl text-slate-400 dark:text-[var(--text-muted)]" />
                 </div>
                 <p className="text-slate-600 dark:text-[var(--text-secondary)] mb-6">
                   本月还没有打卡记录哦

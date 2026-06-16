@@ -9,6 +9,7 @@ import MonthlySummaryModal from '../components/MonthlySummaryModal';
 import MedalUnlockPopup from '../components/MedalUnlockPopup';
 import PullToRefresh from '../components/PullToRefresh';
 
+import Icon from '../components/Icon';
 type TimeFilter = 'month' | 'quarter' | 'year';
 
 const TIME_FILTER_LABELS: Record<TimeFilter, string> = {
@@ -281,7 +282,7 @@ export default function Dashboard() {
             className="flex size-12 shrink-0 items-center justify-start hover:text-primary transition-colors"
             aria-label="设置"
           >
-            <span className="material-symbols-outlined text-2xl">settings</span>
+            <Icon name="settings" className="text-2xl" />
           </button>
           <h1 className="text-slate-900 dark:text-[var(--text-primary)] text-xl font-bold leading-tight tracking-tight flex-1 text-center">
             {currentChild ? `${currentChild.name}的森林` : '我的森林'}
@@ -302,9 +303,7 @@ export default function Dashboard() {
                 onClick={() => setCurrentChild(child)}
                 aria-label={`切换到${child.name}`}
               >
-                <span className="material-symbols-outlined text-sm">
-                  {child.gender === 'female' ? 'face_3' : 'face'}
-                </span>
+                <Icon name={child.gender === 'female' ? 'face_3' : 'face'} className="text-sm" />
                 {child.name}
               </button>
             ))}
@@ -347,7 +346,7 @@ export default function Dashboard() {
           className="flex h-10 shrink-0 items-center justify-center gap-x-1.5 rounded-full px-4 bg-gradient-to-r from-primary to-emerald-500 text-white font-bold hover:shadow-lg hover:shadow-primary/30 transition-all active:scale-95"
           aria-label="查看月度任务总结"
         >
-          <span className="material-symbols-outlined text-lg">emoji_events</span>
+          <Icon name="emoji_events" className="text-lg" />
           <p className="text-sm leading-normal">成就单</p>
         </button>
       </div>
@@ -387,14 +386,14 @@ export default function Dashboard() {
           >
             <div className="flex items-center gap-3">
               <div className="size-10 bg-white/20 rounded-xl flex items-center justify-center">
-                <span className="material-symbols-outlined text-2xl">rocket_launch</span>
+                <Icon name="rocket_launch" className="text-2xl" />
               </div>
               <div className="text-left">
                 <p className="font-bold text-sm">准备好迎接新挑战了吗？</p>
                 <p className="text-[10px] opacity-80">点击这里种下你的下一个成长之树</p>
               </div>
             </div>
-            <span className="material-symbols-outlined">chevron_right</span>
+            <Icon name="chevron_right" />
           </button>
         </div>
       )}
@@ -403,7 +402,7 @@ export default function Dashboard() {
 
       {isLoading ? (
         <div className="flex justify-center py-12">
-          <span className="material-symbols-outlined text-primary text-4xl animate-pulse">forest</span>
+          <Icon name="forest" className="text-primary text-4xl animate-pulse" />
         </div>
       ) : (
         <div className="flex flex-col gap-3 px-4 lg:max-w-4xl lg:mx-auto">
@@ -434,7 +433,7 @@ export default function Dashboard() {
                         className="shrink-0 flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400 whitespace-nowrap active:scale-95 transition-transform"
                         aria-label="查看共享任务详情"
                       >
-                        <span className="material-symbols-outlined text-[10px]">group</span>
+                        <Icon name="group" className="text-[10px]" />
                         共享
                       </button>
                     )}
@@ -449,7 +448,7 @@ export default function Dashboard() {
                     </span>
                   )}
                   {isDone && (
-                    <span className="material-symbols-outlined text-primary text-2xl fill-icon">check_circle</span>
+                    <Icon name="check_circle" filled className="text-primary text-2xl" />
                   )}
                   {goal && !isChildMode && (
                     <button
@@ -457,7 +456,7 @@ export default function Dashboard() {
                       onClick={e => { e.stopPropagation(); handleEditTree(tree); }}
                       aria-label={`编辑${tree.name}目标`}
                     >
-                      <span className="material-symbols-outlined text-xl">edit</span>
+                      <Icon name="edit" className="text-xl" />
                     </button>
                   )}
                 </div>
@@ -473,7 +472,7 @@ export default function Dashboard() {
               aria-label="添加新目标"
             >
               <div className="size-9 rounded-full bg-primary/15 flex items-center justify-center text-primary shrink-0">
-                <span className="material-symbols-outlined text-xl">add</span>
+                <Icon name="add" className="text-xl" />
               </div>
               <p className="text-primary font-bold text-sm">添加新目标</p>
             </button>
@@ -520,7 +519,7 @@ export default function Dashboard() {
             className="flex size-14 items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/40 text-white transition-transform active:scale-95"
             aria-label="快速添加目标"
           >
-            <span className="material-symbols-outlined text-3xl">add</span>
+            <Icon name="add" className="text-3xl" />
           </button>
         </div>
       )}

@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import PasswordConfirmModal from './PasswordConfirmModal';
 
+import Icon from '../components/Icon';
 export default function ChildModeBanner() {
   const { isChildMode, disableChildMode } = useAuth();
   const [showModal, setShowModal] = useState(false);
@@ -44,7 +45,7 @@ export default function ChildModeBanner() {
         aria-label="儿童模式提示"
       >
         <div className="flex items-center gap-2 min-w-0">
-          <span className="material-symbols-outlined text-amber-900 text-lg shrink-0">child_care</span>
+          <Icon name="child_care" className="text-amber-900 text-lg shrink-0" />
           <p className="text-amber-900 text-xs font-bold truncate">当前处于儿童模式，部分功能已限制</p>
         </div>
         <button
@@ -54,7 +55,7 @@ export default function ChildModeBanner() {
           tabIndex={0}
           onKeyDown={e => e.key === 'Enter' && handleDisableClick()}
         >
-          <span className="material-symbols-outlined text-sm">lock_open</span>
+          <Icon name="lock_open" className="text-sm" />
           退出儿童模式
         </button>
       </motion.div>

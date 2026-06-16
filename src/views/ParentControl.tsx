@@ -7,6 +7,7 @@ import { tasksApi, messagesApi, TaskData } from '../services/api';
 import { invalidateCache } from '../utils/requestCache';
 import PullToRefresh from '../components/PullToRefresh';
 
+import Icon from '../components/Icon';
 interface TaskWithChild extends TaskData {
   childName?: string;
   childId?: string;
@@ -34,7 +35,7 @@ const TaskCard = ({ task, notes, bonusFruits, processingId, showChildName, onQui
         {task.image_url ? (
           <div className="absolute inset-0 bg-cover bg-center opacity-80" style={{ backgroundImage: `url("${task.image_url}")` }} />
         ) : (
-          <span className="material-symbols-outlined text-primary text-3xl">check_circle</span>
+          <Icon name="check_circle" className="text-primary text-3xl" />
         )}
         <div className="absolute bottom-1 right-1 bg-white/90 dark:bg-[var(--bg-surface)]/90 px-1 rounded text-[10px] font-bold text-primary">{task.progress}%</div>
       </div>
@@ -122,11 +123,11 @@ const TaskCard = ({ task, notes, bonusFruits, processingId, showChildName, onQui
         </div>
         <div className="flex border-t border-primary/5 dark:border-[var(--border-color)]">
           <button className="flex-1 py-4 flex items-center justify-center gap-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-colors border-r border-primary/5 dark:border-[var(--border-color)] disabled:opacity-50" onClick={() => onReject(task)} disabled={processingId === task.id} aria-label="拒绝任务">
-            <span className="material-symbols-outlined text-xl">cancel</span>
+            <Icon name="cancel" className="text-xl" />
             <span className="font-bold text-sm">需改进</span>
           </button>
           <button className="flex-1 py-4 flex items-center justify-center gap-2 bg-primary/10 hover:bg-primary text-primary hover:text-white transition-all disabled:opacity-50" onClick={() => onApprove(task)} disabled={processingId === task.id} aria-label="批准任务">
-            <span className="material-symbols-outlined fill-icon text-xl">check_circle</span>
+            <Icon name="check_circle" filled className="text-xl" />
             <span className="font-bold text-sm">{processingId === task.id ? '处理中...' : '批准并发送'}</span>
           </button>
         </div>
@@ -137,7 +138,7 @@ const TaskCard = ({ task, notes, bonusFruits, processingId, showChildName, onQui
       <div className="px-4 pb-4 space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-primary">
-            <span className="material-symbols-outlined fill-icon">check_circle</span>
+            <Icon name="check_circle" filled />
             <span className="text-sm font-semibold">已批准</span>
           </div>
           <button
@@ -145,13 +146,13 @@ const TaskCard = ({ task, notes, bonusFruits, processingId, showChildName, onQui
             onClick={() => onRevoke({ show: true, task })}
             disabled={processingId === task.id}
           >
-            <span className="material-symbols-outlined text-sm">undo</span>
+            <Icon name="undo" className="text-sm" />
             撤销批准
           </button>
         </div>
         {task.updated_at && (
           <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-[var(--text-muted)]">
-            <span className="material-symbols-outlined text-sm">schedule</span>
+            <Icon name="schedule" className="text-sm" />
             <span>批准时间：{new Date(task.updated_at).toLocaleString('zh-CN', {
               year: 'numeric',
               month: '2-digit',
@@ -291,10 +292,10 @@ export default function ParentControl() {
         <div className="flex items-center justify-between max-w-md mx-auto lg:max-w-2xl">
           <div className="flex items-center gap-3">
             <button onClick={() => navigate('/profile')} className="p-2 hover:bg-primary/10 rounded-full transition-colors" aria-label="返回">
-              <span className="material-symbols-outlined">arrow_back</span>
+              <Icon name="arrow_back" />
             </button>
             <div className="p-2 rounded-lg bg-primary/10 text-primary">
-              <span className="material-symbols-outlined">shield_person</span>
+              <Icon name="shield_person" />
             </div>
             <h1 className="text-xl font-bold tracking-tight">家长控制</h1>
           </div>
@@ -359,11 +360,11 @@ export default function ParentControl() {
       <main className="flex-1 px-4 pb-32 overflow-y-auto max-w-md mx-auto w-full space-y-3 lg:max-w-2xl lg:pb-8">
         {isLoading ? (
           <div className="flex justify-center py-12">
-            <span className="material-symbols-outlined text-primary text-4xl animate-pulse">hourglass_empty</span>
+            <Icon name="hourglass_empty" className="text-primary text-4xl animate-pulse" />
           </div>
         ) : filteredTasks.length === 0 ? (
           <div className="text-center py-12 text-slate-400 dark:text-[var(--text-muted)]">
-            <span className="material-symbols-outlined text-5xl mb-3 block">check_circle</span>
+            <Icon name="check_circle" className="text-5xl mb-3 block" />
             <p>{activeTab === 'pending' ? '暂无待审核任务' : '暂无已批准任务'}</p>
           </div>
         ) : (

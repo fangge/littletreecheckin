@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 
+import Icon from '../components/Icon';
 const REMEMBER_KEY = 'login_remember_credentials';
 
 const loadSavedEmail = (): string => {
@@ -86,7 +87,7 @@ export default function Login() {
           className="text-slate-900 flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
           aria-label="返回"
         >
-          <span className="material-symbols-outlined">arrow_back_ios_new</span>
+          <Icon name="arrow_back_ios_new" />
         </button>
         <h2 className="text-slate-900 text-lg font-bold leading-tight tracking-tight flex-1 text-center pr-10">家长登录</h2>
       </div>
@@ -94,7 +95,7 @@ export default function Login() {
       {/* Header Content */}
       <div className="px-6 pt-12 pb-8 text-center">
         <div className="inline-flex items-center justify-center w-20 h-20 bg-primary/10 rounded-3xl mb-6">
-          <span className="material-symbols-outlined text-primary text-4xl fill-icon">forest</span>
+          <Icon name="forest" filled className="text-primary text-4xl" />
         </div>
         <h3 className="text-slate-900 text-3xl font-bold leading-tight mb-2">欢迎回来</h3>
         <p className="text-slate-500 text-sm">登录账户，继续记录孩子的成长点滴</p>
@@ -141,9 +142,7 @@ export default function Login() {
               aria-label={showPassword ? '隐藏密码' : '显示密码'}
               tabIndex={0}
             >
-              <span className="material-symbols-outlined">
-                {showPassword ? 'visibility_off' : 'visibility'}
-              </span>
+              <Icon name={showPassword ? 'visibility_off' : 'visibility'} />
             </button>
           </div>
         </div>
@@ -185,7 +184,7 @@ export default function Login() {
         <div className="text-center">
           <p className="text-sm text-slate-500">
             还没有账户？{' '}
-            <button onClick={() => navigate('/register')} className="text-primary font-bold">新用户注册</button>
+            <button onClick={() => navigate('/register')} className="text-primary font-bold">免费创建，30秒开始培养好习惯</button>
           </p>
         </div>
       </div>

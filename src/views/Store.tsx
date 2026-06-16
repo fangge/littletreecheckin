@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { rewardsApi, RewardData, Child } from '../services/api';
 import PullToRefresh from '../components/PullToRefresh';
 
+import Icon from '../components/Icon';
 const CATEGORIES = [
   { key: '', label: '全部奖励' },
   { key: 'activity', label: '活动' },
@@ -110,7 +111,7 @@ export default function Store() {
             className="flex size-10 items-center justify-center rounded-full bg-slate-200/50"
             aria-label="返回"
           >
-            <span className="material-symbols-outlined text-slate-900">arrow_back</span>
+            <Icon name="arrow_back" className="text-slate-900" />
           </button>
           <h2 className="flex-1 text-center text-xl font-bold tracking-tight text-slate-900 pr-10">果实商店</h2>
         </div>
@@ -129,9 +130,7 @@ export default function Store() {
                 onClick={() => handleSelectChild(child)}
                 aria-label={`切换到${child.name}`}
               >
-                <span className="material-symbols-outlined text-sm">
-                  {child.gender === 'female' ? 'face_3' : 'face'}
-                </span>
+                <Icon name={child.gender === 'female' ? 'face_3' : 'face'} className="text-sm" />
                 {child.name}
               </button>
             ))}
@@ -156,7 +155,7 @@ export default function Store() {
                 className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition-colors px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm shrink-0"
                 aria-label="查看果实获取记录"
               >
-                <span className="material-symbols-outlined text-sm leading-none">history</span>
+                <Icon name="history" className="text-sm leading-none" />
                 获取记录
               </button>
               <button
@@ -164,7 +163,7 @@ export default function Store() {
                 className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition-colors px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm shrink-0"
                 aria-label="查看兑换记录"
               >
-                <span className="material-symbols-outlined text-sm leading-none">shopping_bag</span>
+                <Icon name="shopping_bag" className="text-sm leading-none" />
                 兑换记录
               </button>
             </div>
@@ -192,7 +191,7 @@ export default function Store() {
 
         {isLoading ? (
           <div className="flex justify-center py-12">
-            <span className="material-symbols-outlined text-primary text-4xl animate-pulse">storefront</span>
+            <Icon name="storefront" className="text-primary text-4xl animate-pulse" />
           </div>
         ) : (
           <div className="mt-6 grid grid-cols-2 gap-4">
@@ -240,7 +239,7 @@ export default function Store() {
             >
               <div className="flex flex-col items-center gap-4">
                 <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-primary text-5xl">redeem</span>
+                  <Icon name="redeem" className="text-primary text-5xl" />
                 </div>
                 
                 <div className="text-center">
@@ -286,7 +285,7 @@ export default function Store() {
                   >
                     {isRedeeming ? (
                       <>
-                        <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>
+                        <Icon name="progress_activity" className="text-base animate-spin" />
                         兑换中...
                       </>
                     ) : (

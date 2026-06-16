@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'motion/react';
 
+import Icon from '../components/Icon';
 interface ChangelogModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -30,15 +31,32 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
                 className="text-slate-400 hover:text-slate-600 dark:hover:text-[var(--text-primary)] transition-colors"
                 aria-label="关闭"
               >
-                <span className="material-symbols-outlined">close</span>
+                <Icon name="close" />
               </button>
             </div>
             <div className="overflow-y-auto max-h-[60vh] px-6 py-4 space-y-4">
-              {/* v3.9 */}
+              {/* v4.0 */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v3.9</span>
+                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v4.0</span>
                   <span className="text-sm text-slate-500 dark:text-[var(--text-muted)]">最新</span>
+                </div>
+                <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">图标系统全面 SVG 化</h4>
+                <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
+                  彻底移除 Material Symbols 字体图标，全站 90+ 图标改用预下载的 inline SVG，再也不会出现"先显示文字再变图标"的闪烁问题了。
+                </p>
+                <ul className="text-xs text-slate-500 dark:text-[var(--text-muted)] space-y-1 ml-2">
+                  <li>• 图标零闪烁，与页面内容同步显示</li>
+                  <li>• 不再依赖外部字体 CDN，加载更快更稳定</li>
+                  <li>• 图标颜色自动适配亮色/暗色主题</li>
+                  <li>• 保持与原来一模一样的视觉风格</li>
+                </ul>
+              </div>
+
+              {/* v3.9 */}
+              <div className="space-y-2 pt-4 border-t border-primary/5 dark:border-[var(--border-color)]">
+                <div className="flex items-center gap-2">
+                  <span className="bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-xs font-bold px-2 py-0.5 rounded">v3.9</span>
                 </div>
                 <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">勋章管理系统与解锁庆祝动画</h4>
                 <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">

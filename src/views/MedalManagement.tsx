@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { medalsApi, MedalData } from '../services/api';
 
 // 支持的 unlock_condition 类型
+import Icon from '../components/Icon';
 const CONDITION_TYPES = [
   { value: 'total_tasks', label: '累计打卡次数', unit: '次', placeholder: '例如：10' },
   { value: 'consecutive_days', label: '连续打卡天数', unit: '天', placeholder: '例如：7' },
@@ -166,7 +167,7 @@ export default function MedalManagement() {
             className="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-[var(--bg-card)] shadow-sm border border-primary/20 dark:border-[var(--border-color)]"
             aria-label="返回"
           >
-            <span className="material-symbols-outlined text-slate-700 dark:text-[var(--text-primary)]">arrow_back</span>
+            <Icon name="arrow_back" className="text-slate-700 dark:text-[var(--text-primary)]" />
           </button>
           <h1 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-[var(--text-primary)]">勋章管理</h1>
           <button
@@ -174,7 +175,7 @@ export default function MedalManagement() {
             className="w-10 h-10 flex items-center justify-center rounded-full bg-primary text-slate-900 shadow-sm"
             aria-label="添加勋章"
           >
-            <span className="material-symbols-outlined text-xl">add</span>
+            <Icon name="add" className="text-xl" />
           </button>
         </div>
       </header>
@@ -189,7 +190,7 @@ export default function MedalManagement() {
         {/* 勋章列表 */}
         {isLoading ? (
           <div className="flex justify-center py-12">
-            <span className="material-symbols-outlined text-primary text-4xl animate-pulse">workspace_premium</span>
+            <Icon name="workspace_premium" className="text-primary text-4xl animate-pulse" />
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -201,7 +202,7 @@ export default function MedalManagement() {
                   className="bg-white dark:bg-[var(--bg-card)] rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-[var(--border-color)] flex items-center gap-4"
                 >
                   <div className={`w-14 h-14 shrink-0 rounded-full bg-gradient-to-br ${medal.color} flex items-center justify-center shadow-md`}>
-                    <span className="material-symbols-outlined text-2xl text-white fill-icon">{medal.icon}</span>
+                    <Icon name={medal.icon} filled className="text-2xl text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-extrabold text-slate-800 dark:text-[var(--text-primary)] text-sm">{medal.name}</p>
@@ -231,7 +232,7 @@ export default function MedalManagement() {
             })}
             {medals.length === 0 && (
               <div className="text-center py-12 text-slate-400 dark:text-[var(--text-muted)]">
-                <span className="material-symbols-outlined text-4xl mb-2 block">workspace_premium</span>
+                <Icon name="workspace_premium" className="text-4xl mb-2 block" />
                 <p className="text-sm">暂无勋章，点击右上角添加</p>
               </div>
             )}
@@ -270,14 +271,14 @@ export default function MedalManagement() {
                     className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 dark:bg-[var(--bg-card)] text-slate-500"
                     aria-label="关闭"
                   >
-                    <span className="material-symbols-outlined text-base">close</span>
+                    <Icon name="close" className="text-base" />
                   </button>
                 </div>
 
                 {/* 预览 */}
                 <div className="flex justify-center mb-5">
                   <div className={`w-20 h-20 rounded-full bg-gradient-to-br ${formData.color} flex items-center justify-center shadow-lg border-4 border-white`}>
-                    <span className="material-symbols-outlined text-4xl text-white fill-icon">{formData.icon}</span>
+                    <Icon name={formData.icon} filled className="text-4xl text-white" />
                   </div>
                 </div>
 
@@ -296,7 +297,7 @@ export default function MedalManagement() {
                         }`}
                         aria-label={icon}
                       >
-                        <span className="material-symbols-outlined text-xl fill-icon">{icon}</span>
+                        <Icon name={icon} filled className="text-xl" />
                       </button>
                     ))}
                   </div>
@@ -419,7 +420,7 @@ export default function MedalManagement() {
             >
               <div className="flex flex-col items-center text-center">
                 <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mb-4">
-                  <span className="material-symbols-outlined text-red-500 text-3xl">delete</span>
+                  <Icon name="delete" className="text-red-500 text-3xl" />
                 </div>
                 <h3 className="text-lg font-extrabold text-slate-900 dark:text-[var(--text-primary)] mb-2">确认删除</h3>
                 <p className="text-sm text-slate-500 dark:text-[var(--text-secondary)] mb-5">删除后无法恢复，已获得该勋章的记录也会一并删除。</p>

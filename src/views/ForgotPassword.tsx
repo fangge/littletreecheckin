@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../lib/supabase';
 
+import Icon from '../components/Icon';
 type Step = 'request' | 'sent' | 'reset' | 'success';
 
 export default function ForgotPassword() {
@@ -112,7 +113,7 @@ export default function ForgotPassword() {
             className="text-slate-900 dark:text-[var(--text-primary)] flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-[var(--bg-surface)] transition-colors cursor-pointer"
             aria-label="返回"
           >
-            <span className="material-symbols-outlined">arrow_back_ios_new</span>
+            <Icon name="arrow_back_ios_new" />
           </button>
           <h2 className="text-slate-900 dark:text-[var(--text-primary)] text-lg font-bold leading-tight tracking-tight flex-1 text-center pr-10">
             {titleMap[step]}
@@ -130,7 +131,7 @@ export default function ForgotPassword() {
             >
               <div className="px-6 pt-12 pb-8 text-center">
                 <div className="inline-flex items-center justify-center w-20 h-20 bg-amber-50 rounded-3xl mb-6">
-                  <span className="material-symbols-outlined text-amber-500 text-4xl fill-icon">lock_reset</span>
+                  <Icon name="lock_reset" filled className="text-amber-500 text-4xl" />
                 </div>
                 <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-3xl font-bold leading-tight mb-2">忘记密码？</h3>
                 <p className="text-slate-500 dark:text-[var(--text-secondary)] text-sm">请输入您的用户名，我们将发送重置链接</p>
@@ -184,7 +185,7 @@ export default function ForgotPassword() {
               className="px-6 pt-16 pb-8 text-center"
             >
               <div className="inline-flex items-center justify-center w-24 h-24 bg-blue-50 rounded-full mb-6">
-                <span className="material-symbols-outlined text-blue-500 text-5xl fill-icon">mark_email_read</span>
+                <Icon name="mark_email_read" filled className="text-blue-500 text-5xl" />
               </div>
               <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-2xl font-bold leading-tight mb-3">重置链接已发送</h3>
               <p className="text-slate-500 dark:text-[var(--text-secondary)] text-sm mb-2">
@@ -219,7 +220,7 @@ export default function ForgotPassword() {
             >
               <div className="px-6 pt-8 pb-4 text-center">
                 <div className="inline-flex items-center justify-center w-20 h-20 bg-green-50 rounded-3xl mb-4">
-                  <span className="material-symbols-outlined text-green-500 text-4xl fill-icon">lock_open</span>
+                  <Icon name="lock_open" filled className="text-green-500 text-4xl" />
                 </div>
                 <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-2xl font-bold leading-tight mb-2">设置新密码</h3>
                 <p className="text-slate-500 dark:text-[var(--text-secondary)] text-sm">请输入您的新密码</p>
@@ -250,9 +251,7 @@ export default function ForgotPassword() {
                       tabIndex={0}
                       aria-label={showPassword ? '隐藏密码' : '显示密码'}
                     >
-                      <span className="material-symbols-outlined">
-                        {showPassword ? 'visibility_off' : 'visibility'}
-                      </span>
+                      <Icon name={showPassword ? 'visibility_off' : 'visibility'} />
                     </button>
                   </div>
                 </div>
@@ -292,7 +291,7 @@ export default function ForgotPassword() {
               className="px-6 pt-16 pb-8 text-center"
             >
               <div className="inline-flex items-center justify-center w-24 h-24 bg-green-50 rounded-full mb-6">
-                <span className="material-symbols-outlined text-green-500 text-5xl fill-icon">check_circle</span>
+                <Icon name="check_circle" filled className="text-green-500 text-5xl" />
               </div>
               <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-2xl font-bold leading-tight mb-3">密码重置成功！</h3>
               <p className="text-slate-500 dark:text-[var(--text-secondary)] text-sm mb-8">您的新密码已生效，可以使用新密码重新登录了</p>

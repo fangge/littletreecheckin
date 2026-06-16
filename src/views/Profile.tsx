@@ -10,6 +10,7 @@ import PasswordConfirmModal from '../components/PasswordConfirmModal';
 import ChangelogModal from '../components/ChangelogModal';
 import { APP_VERSION } from '../version';
 
+import Icon from '../components/Icon';
 interface AddChildForm {
   name: string;
   age: string;
@@ -214,7 +215,7 @@ export default function Profile() {
     >
       <div className="flex items-center bg-white dark:bg-[var(--bg-surface)] p-4 pb-2 justify-between sticky top-0 z-10 border-b border-primary/10 dark:border-[var(--border-color)] lg:max-w-2xl lg:mx-auto lg:w-full transition-colors">
         <button onClick={() => navigate('/')} className="text-slate-900 dark:text-[var(--text-primary)] flex size-12 shrink-0 items-center justify-center cursor-pointer" aria-label="返回">
-          <span className="material-symbols-outlined">arrow_back</span>
+          <Icon name="arrow_back" />
         </button>
         <h2 className="text-slate-900 dark:text-[var(--text-primary)] text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center pr-12">个人管理中心</h2>
       </div>
@@ -224,7 +225,7 @@ export default function Profile() {
         <div className="flex w-full flex-col gap-4">
           <div className="flex gap-4 items-center">
             <div className="size-20 rounded-full border-4 border-primary/20 bg-primary/10 flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined text-primary text-4xl">person</span>
+              <Icon name="person" className="text-primary text-4xl" />
             </div>
             <div className="flex flex-col justify-center">
               <p className="text-slate-900 dark:text-[var(--text-primary)] text-[20px] font-bold leading-tight">{user?.username || '家长'}</p>
@@ -240,7 +241,7 @@ export default function Profile() {
         {!isChildMode && (
           <div className="bg-white dark:bg-[var(--bg-surface)] rounded-xl p-4 shadow-sm border border-primary/5 dark:border-[var(--border-color)] transition-colors">
             <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-base font-bold leading-tight mb-4 flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-sm">shield_person</span>
+              <Icon name="shield_person" className="text-primary text-sm" />
               家长审核
               {pendingCount > 0 && (
                 <span className="ml-1 min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
@@ -256,7 +257,7 @@ export default function Profile() {
                     {pendingCount > 99 ? '99+' : pendingCount}
                   </span>
                 )}
-                <span className="material-symbols-outlined text-slate-400">chevron_right</span>
+                <Icon name="chevron_right" className="text-slate-400" />
               </div>
             </button>
           </div>
@@ -266,12 +267,12 @@ export default function Profile() {
         {!isChildMode && (
           <div className="bg-white dark:bg-[var(--bg-surface)] rounded-xl p-4 shadow-sm border border-primary/5 dark:border-[var(--border-color)] transition-colors">
             <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-base font-bold leading-tight mb-4 flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-sm">redeem</span>
+              <Icon name="redeem" className="text-primary text-sm" />
               奖品与兑换
             </h3>
             <button onClick={() => navigate('/rewards-management')} className="w-full flex items-center justify-between py-2 hover:bg-slate-50 dark:hover:bg-[var(--bg-card)] transition-colors rounded-lg px-2" aria-label="管理奖品和兑换记录">
               <p className="text-slate-600 dark:text-[var(--text-secondary)] text-sm">管理奖品 · 查看兑换记录</p>
-              <span className="material-symbols-outlined text-slate-400">chevron_right</span>
+              <Icon name="chevron_right" className="text-slate-400" />
             </button>
           </div>
         )}
@@ -279,7 +280,7 @@ export default function Profile() {
         {/* 账户设置 */}
         <div className="bg-white dark:bg-[var(--bg-surface)] rounded-xl p-4 shadow-sm border border-primary/5 dark:border-[var(--border-color)] transition-colors">
           <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-base font-bold leading-tight mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-sm">settings</span>
+            <Icon name="settings" className="text-primary text-sm" />
             账户设置
           </h3>
           <div className="space-y-4">
@@ -293,7 +294,7 @@ export default function Profile() {
               aria-label="修改密码"
             >
               <p className="text-slate-600 dark:text-[var(--text-secondary)] text-sm">修改密码</p>
-              <span className="material-symbols-outlined text-slate-400">chevron_right</span>
+              <Icon name="chevron_right" className="text-slate-400" />
             </button>
           </div>
         </div>
@@ -301,7 +302,7 @@ export default function Profile() {
         {/* 版本信息 */}
         <div className="bg-white dark:bg-[var(--bg-surface)] rounded-xl p-4 shadow-sm border border-primary/5 dark:border-[var(--border-color)] transition-colors">
           <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-base font-bold leading-tight mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-sm">info</span>
+            <Icon name="info" className="text-primary text-sm" />
             版本信息
           </h3>
           <div className="space-y-3">
@@ -320,7 +321,7 @@ export default function Profile() {
               aria-label="查看更新日志"
             >
               <p className="text-slate-600 dark:text-[var(--text-secondary)] text-sm">更新日志</p>
-              <span className="material-symbols-outlined text-slate-400">chevron_right</span>
+              <Icon name="chevron_right" className="text-slate-400" />
             </button>
             <button
               onClick={() => window.dispatchEvent(new CustomEvent('pwa-install-prompt'))}
@@ -328,7 +329,7 @@ export default function Profile() {
               aria-label="安装应用"
             >
               <p className="text-slate-600 dark:text-[var(--text-secondary)] text-sm">安装应用到主屏幕</p>
-              <span className="material-symbols-outlined text-slate-400">download</span>
+              <Icon name="download" className="text-slate-400" />
             </button>
           </div>
         </div>
@@ -336,7 +337,7 @@ export default function Profile() {
         {/* 外观设置 */}
         <div className="bg-white dark:bg-[var(--bg-surface)] rounded-xl p-4 shadow-sm border border-primary/5 dark:border-[var(--border-color)] transition-colors">
           <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-base font-bold leading-tight mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-sm">palette</span>
+            <Icon name="palette" className="text-primary text-sm" />
             外观设置
           </h3>
           <div className="space-y-3">
@@ -352,17 +353,13 @@ export default function Profile() {
                       : 'text-slate-600 dark:text-[var(--text-secondary)] hover:bg-white dark:hover:bg-[var(--bg-surface)]'
                   }`}
                 >
-                  <span className="material-symbols-outlined text-sm">
-                    {mode === 'light' ? 'light_mode' : mode === 'dark' ? 'dark_mode' : 'computer'}
-                  </span>
+                  <Icon name={mode === 'light' ? 'light_mode' : mode === 'dark' ? 'dark_mode' : 'computer'} className="text-sm" />
                   {mode === 'light' ? '浅色' : mode === 'dark' ? '深色' : '跟随系统'}
                 </button>
               ))}
             </div>
             <div className="flex items-center gap-2 py-2">
-              <span className="material-symbols-outlined text-sm text-slate-400">
-                {isDark ? 'dark_mode' : 'light_mode'}
-              </span>
+              <Icon name={isDark ? 'dark_mode' : 'light_mode'} className="text-sm text-slate-400" />
               <p className="text-xs text-slate-500 dark:text-[var(--text-muted)]">
                 当前：{isDark ? '深色模式' : '浅色模式'}
               </p>
@@ -373,7 +370,7 @@ export default function Profile() {
         {/* 儿童模式切换 */}
         <div className="bg-white dark:bg-[var(--bg-surface)] rounded-xl p-4 shadow-sm border border-primary/5 dark:border-[var(--border-color)] transition-colors">
           <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-base font-bold leading-tight mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-amber-500 text-sm">child_care</span>
+            <Icon name="child_care" className="text-amber-500 text-sm" />
             儿童模式
           </h3>
           <div className="flex items-center justify-between py-2">
@@ -398,9 +395,7 @@ export default function Profile() {
               tabIndex={0}
               onKeyDown={e => e.key === 'Enter' && handleChildModeToggleClick()}
             >
-              <span className="material-symbols-outlined text-sm">
-                {isChildMode ? 'lock_open' : 'lock'}
-              </span>
+              <Icon name={isChildMode ? 'lock_open' : 'lock'} className="text-sm" />
               {isChildMode ? '关闭' : '开启'}
             </button>
           </div>
@@ -410,11 +405,11 @@ export default function Profile() {
         <div className="bg-white dark:bg-[var(--bg-surface)] rounded-xl p-4 shadow-sm border border-primary/5 dark:border-[var(--border-color)] transition-colors">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-base font-bold leading-tight flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-sm">child_care</span>
+              <Icon name="child_care" className="text-primary text-sm" />
               孩子信息
             </h3>
             <button className="text-primary text-sm font-bold flex items-center gap-1 hover:text-primary/80 transition-colors" onClick={() => setShowAddForm(v => !v)} aria-label="添加孩子">
-              <span className="material-symbols-outlined text-sm">{showAddForm ? 'remove_circle' : 'add_circle'}</span>
+              <Icon name={showAddForm ? 'remove_circle' : 'add_circle'} className="text-sm" />
               {showAddForm ? '取消' : '添加'}
             </button>
           </div>
@@ -449,7 +444,7 @@ export default function Profile() {
               {user.children.map(child => (
                 <div key={child.id} className={`flex items-center gap-3 p-3 rounded-lg transition-all cursor-pointer ${currentChild?.id === child.id ? 'bg-primary/10 border border-primary/30' : 'bg-background-light dark:bg-[var(--bg-card)] hover:bg-primary/5 dark:hover:bg-[var(--bg-surface)]'}`} onClick={() => handleSwitchChild(child)} role="button" tabIndex={0} onKeyDown={e => e.key === 'Enter' && handleSwitchChild(child)} aria-label={`切换到${child.name}`}>
                   <div className={`size-10 rounded-full flex items-center justify-center ${currentChild?.id === child.id ? 'bg-primary/30' : 'bg-primary/20'}`}>
-                    <span className="material-symbols-outlined text-primary">{genderIcon(child.gender)}</span>
+                    <Icon name={genderIcon(child.gender)} className="text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -462,7 +457,7 @@ export default function Profile() {
                   </div>
                   <div className="flex gap-1" onClick={e => e.stopPropagation()}>
                     <button className="p-1.5 text-slate-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50" onClick={() => handleDeleteChild(child.id)} aria-label={`删除${child.name}`}>
-                      <span className="material-symbols-outlined text-[18px]">delete</span>
+                      <Icon name="delete" className="text-[18px]" />
                     </button>
                   </div>
                 </div>
@@ -515,7 +510,7 @@ export default function Profile() {
               {passwordSuccess ? (
                 <div className="flex flex-col items-center text-center py-4">
                   <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
-                    <span className="material-symbols-outlined text-green-600 text-4xl">check_circle</span>
+                    <Icon name="check_circle" className="text-green-600 text-4xl" />
                   </div>
                   <h3 className="text-xl font-extrabold text-slate-900 mb-2">密码修改成功</h3>
                   <p className="text-slate-600 text-sm">请使用新密码重新登录</p>

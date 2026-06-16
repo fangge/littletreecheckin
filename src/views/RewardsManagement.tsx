@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { rewardsApi, RewardData, RedemptionData } from '../services/api';
 import PullToRefresh from '../components/PullToRefresh';
 
+import Icon from '../components/Icon';
 interface RewardForm {
   name: string;
   price: string;
@@ -179,12 +180,12 @@ export default function RewardsManagement() {
       <header className="sticky top-0 z-10 bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md border-b border-primary/10 dark:border-[var(--border-color)] transition-colors">
         <div className="flex items-center px-4 py-4 justify-between lg:max-w-2xl lg:mx-auto">
           <button onClick={() => navigate('/profile')} className="p-2 hover:bg-primary/10 rounded-full transition-colors" aria-label="返回">
-            <span className="material-symbols-outlined">arrow_back</span>
+            <Icon name="arrow_back" />
           </button>
           <h1 className="text-xl font-bold tracking-tight">奖品与兑换管理</h1>
           {activeTab === 'rewards' && (
             <button className="flex items-center gap-1 text-primary text-sm font-bold" onClick={handleOpenAdd} aria-label="添加奖品">
-              <span className="material-symbols-outlined text-lg">add_circle</span>
+              <Icon name="add_circle" className="text-lg" />
               添加
             </button>
           )}
@@ -237,11 +238,11 @@ export default function RewardsManagement() {
 
             {isLoadingRewards ? (
               <div className="flex justify-center py-12">
-                <span className="material-symbols-outlined text-primary text-4xl animate-pulse">redeem</span>
+                <Icon name="redeem" className="text-primary text-4xl animate-pulse" />
               </div>
             ) : rewards.length === 0 ? (
               <div className="text-center py-12 text-slate-400 dark:text-[var(--text-muted)]">
-                <span className="material-symbols-outlined text-5xl mb-3 block">redeem</span>
+                <Icon name="redeem" className="text-5xl mb-3 block" />
                 <p>暂无奖品，点击右上角"添加"创建</p>
               </div>
             ) : (
@@ -258,13 +259,13 @@ export default function RewardsManagement() {
                     </div>
                     <div className="flex gap-1 shrink-0">
                       <button className="p-2 text-slate-400 dark:text-[var(--text-muted)] hover:text-primary transition-colors rounded-lg hover:bg-primary/10" onClick={() => handleOpenEdit(reward)} aria-label="编辑">
-                        <span className="material-symbols-outlined text-lg">edit</span>
+                        <Icon name="edit" className="text-lg" />
                       </button>
                       <button className={`p-2 transition-colors rounded-lg ${reward.is_active ? 'text-slate-400 dark:text-[var(--text-muted)] hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20' : 'text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20'}`} onClick={() => handleToggle(reward)} aria-label={reward.is_active ? '下架' : '上架'} title={reward.is_active ? '点击下架' : '点击上架'}>
-                        <span className="material-symbols-outlined text-lg">{reward.is_active ? 'visibility_off' : 'visibility'}</span>
+                        <Icon name={reward.is_active ? 'visibility_off' : 'visibility'} className="text-lg" />
                       </button>
                       <button className="p-2 text-slate-400 dark:text-[var(--text-muted)] hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => handleDelete(reward)} aria-label="删除">
-                        <span className="material-symbols-outlined text-lg">delete</span>
+                        <Icon name="delete" className="text-lg" />
                       </button>
                     </div>
                   </div>
@@ -300,9 +301,7 @@ export default function RewardsManagement() {
                     }`}
                     onClick={() => setSelectedChildId(child.id)}
                   >
-                    <span className="material-symbols-outlined text-base">
-                      {child.gender === 'female' ? 'face_3' : 'face'}
-                    </span>
+                    <Icon name={child.gender === 'female' ? 'face_3' : 'face'} className="text-base" />
                     {child.name}
                   </button>
                 ))}
@@ -311,11 +310,11 @@ export default function RewardsManagement() {
 
             {isLoadingRedemptions ? (
               <div className="flex justify-center py-12">
-                <span className="material-symbols-outlined text-primary text-4xl animate-pulse">receipt_long</span>
+                <Icon name="receipt_long" className="text-primary text-4xl animate-pulse" />
               </div>
             ) : filteredRedemptions.length === 0 ? (
               <div className="text-center py-12 text-slate-400 dark:text-[var(--text-muted)]">
-                <span className="material-symbols-outlined text-5xl mb-3 block">receipt_long</span>
+                <Icon name="receipt_long" className="text-5xl mb-3 block" />
                 <p>{selectedChildId === 'all' ? '暂无兑换记录' : '该孩子暂无兑换记录'}</p>
               </div>
             ) : (
@@ -323,7 +322,7 @@ export default function RewardsManagement() {
                 <div key={r.id} className="bg-white dark:bg-[var(--bg-surface)] rounded-2xl shadow-sm border border-primary/5 dark:border-[var(--border-color)] overflow-hidden transition-colors">
                   <div className="p-4 flex gap-3 items-center">
                     <div className="w-16 h-16 rounded-xl bg-slate-100 dark:bg-[var(--bg-card)] shrink-0 flex items-center justify-center text-slate-300 dark:text-[var(--text-muted)]">
-                      <span className="material-symbols-outlined text-3xl">redeem</span>
+                      <Icon name="redeem" className="text-3xl" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">

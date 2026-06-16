@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { treesApi, Child, GoalData } from '../services/api';
 
+import Icon from '../components/Icon';
 type TaskType = 'independent' | 'shared';
 
 const ICONS = [
@@ -275,7 +276,7 @@ export default function GoalSetting() {
           className="text-slate-900 dark:text-[var(--text-primary)] flex size-10 shrink-0 items-center justify-center rounded-full bg-white dark:bg-[var(--bg-card)] shadow-sm"
           aria-label="返回"
         >
-          <span className="material-symbols-outlined">arrow_back</span>
+          <Icon name="arrow_back" />
         </button>
         <h2 className="text-slate-900 dark:text-[var(--text-primary)] text-lg font-extrabold leading-tight tracking-tight flex-1 text-center">
           {isEditMode ? '修改目标' : '设置新目标'}
@@ -288,9 +289,7 @@ export default function GoalSetting() {
             disabled={isDeleting}
             aria-label="删除目标"
           >
-            <span className="material-symbols-outlined text-xl">
-              {isDeleting ? 'hourglass_empty' : 'delete'}
-            </span>
+            <Icon name={isDeleting ? 'hourglass_empty' : 'delete'} className="text-xl" />
           </button>
         ) : (
           <div className="size-10" />
@@ -299,7 +298,7 @@ export default function GoalSetting() {
 
       {isEditMode && (
         <div className="mx-6 mt-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-xs flex items-center gap-2 lg:max-w-xl lg:mx-auto lg:w-[calc(100%-3rem)]">
-          <span className="material-symbols-outlined text-sm">edit</span>
+          <Icon name="edit" className="text-sm" />
           修改目标信息不会影响已完成的打卡记录
         </div>
       )}
@@ -332,7 +331,7 @@ export default function GoalSetting() {
                 }`}
                 onClick={() => setTaskType('independent')}
               >
-                <span className="material-symbols-outlined text-2xl">person</span>
+                <Icon name="person" className="text-2xl" />
                 <span className="text-sm font-bold">独立任务</span>
                 <span className="text-xs opacity-70 text-center">单个孩子完成</span>
               </button>
@@ -344,7 +343,7 @@ export default function GoalSetting() {
                 }`}
                 onClick={() => setTaskType('shared')}
               >
-                <span className="material-symbols-outlined text-2xl">group</span>
+                <Icon name="group" className="text-2xl" />
                 <span className="text-sm font-bold">共享任务</span>
                 <span className="text-xs opacity-70 text-center">多孩子竞争完成</span>
               </button>
@@ -370,12 +369,10 @@ export default function GoalSetting() {
                 onClick={() => setSelectedChild(child)}
                 aria-label={`选择${child.name}`}
               >
-                  <span className="material-symbols-outlined text-base">
-                    {child.gender === 'female' ? 'face_3' : 'face'}
-                  </span>
+                  <Icon name={child.gender === 'female' ? 'face_3' : 'face'} className="text-base" />
                   {child.name}
                   {selectedChild?.id === child.id && (
-                    <span className="material-symbols-outlined text-sm">check_circle</span>
+                    <Icon name="check_circle" className="text-sm" />
                   )}
                 </button>
               ))}
@@ -409,12 +406,10 @@ export default function GoalSetting() {
                     onClick={() => handleToggleSharedChild(child.id)}
                     aria-label={`${isSelected ? '取消选择' : '选择'}${child.name}`}
                   >
-                    <span className="material-symbols-outlined text-base">
-                      {child.gender === 'female' ? 'face_3' : 'face'}
-                    </span>
+                    <Icon name={child.gender === 'female' ? 'face_3' : 'face'} className="text-base" />
                     {child.name}
                     {isSelected && (
-                      <span className="material-symbols-outlined text-sm">check_circle</span>
+                      <Icon name="check_circle" className="text-sm" />
                     )}
                   </button>
                 );
@@ -446,7 +441,7 @@ export default function GoalSetting() {
                 aria-label="目标名称"
               />
               <div className="absolute right-4 top-1/2 -translate-y-1/2 text-primary">
-                <span className="material-symbols-outlined text-3xl">edit_note</span>
+                <Icon name="edit_note" className="text-3xl" />
               </div>
             </div>
           </label>
@@ -467,7 +462,7 @@ export default function GoalSetting() {
                 onClick={() => setSelectedIcon(icon)}
                 aria-label={ICON_LABELS[icon] || icon}
               >
-                <span className="material-symbols-outlined text-3xl">{icon}</span>
+                <Icon name={icon} className="text-3xl" />
                 <span className="text-[10px] font-bold leading-none">{ICON_LABELS[icon] || icon}</span>
               </button>
             ))}
@@ -491,7 +486,7 @@ export default function GoalSetting() {
                 onClick={() => { setDailyCountValue(''); }}
                 aria-label="按总天数完成"
               >
-                <span className="material-symbols-outlined text-sm align-middle mr-1">calendar_month</span>
+                <Icon name="calendar_month" className="text-sm align-middle mr-1" />
                 总天数
               </button>
               <button
@@ -503,7 +498,7 @@ export default function GoalSetting() {
                 onClick={() => { if (!dailyCountValue) setDailyCountValue('1'); }}
                 aria-label="按总次数完成"
               >
-                <span className="material-symbols-outlined text-sm align-middle mr-1">repeat</span>
+                <Icon name="repeat" className="text-sm align-middle mr-1" />
                 总次数
               </button>
             </div>
@@ -654,7 +649,7 @@ export default function GoalSetting() {
                   onClick={() => setDailyValue('')}
                   aria-label="清除每日时长"
                 >
-                  <span className="material-symbols-outlined text-lg">close</span>
+                  <Icon name="close" className="text-lg" />
                 </button>
               )}
             </div>
@@ -709,7 +704,7 @@ export default function GoalSetting() {
                 onClick={() => setDailyCountValue('')}
                 aria-label="清除每日次数"
               >
-                <span className="material-symbols-outlined text-lg">close</span>
+                <Icon name="close" className="text-lg" />
               </button>
             ) : (
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">次</span>
@@ -768,7 +763,7 @@ export default function GoalSetting() {
           />
           <div className="flex items-center gap-4 bg-gradient-to-r from-primary to-green-400 rounded-2xl p-5 text-white shadow-lg mt-4">
             <div className="size-14 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined text-3xl fill-icon">forest</span>
+              <Icon name="forest" filled className="text-3xl" />
             </div>
             <div className="flex-1">
               <p className="text-xs font-bold uppercase opacity-80">完成目标解锁</p>
@@ -803,9 +798,7 @@ export default function GoalSetting() {
           ) : (
             <>
               {isEditMode ? '保存修改' : '种下这棵树'}
-              <span className="material-symbols-outlined">
-                {isEditMode ? 'save' : 'park'}
-              </span>
+              <Icon name={isEditMode ? 'save' : 'park'} />
             </>
           )}
         </button>
@@ -817,9 +810,7 @@ export default function GoalSetting() {
             disabled={isDeleting}
             aria-label="删除此目标"
           >
-            <span className="material-symbols-outlined text-lg">
-              {isDeleting ? 'hourglass_empty' : 'delete_forever'}
-            </span>
+            <Icon name={isDeleting ? 'hourglass_empty' : 'delete_forever'} className="text-lg" />
             {isDeleting ? '删除中...' : '删除此目标（含打卡记录和树木）'}
           </button>
         )}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 
+import Icon from '../components/Icon';
 interface PasswordConfirmModalProps {
   isOpen: boolean;
   title: string;
@@ -65,7 +66,7 @@ export default function PasswordConfirmModal({
             {/* 图标 + 标题 */}
             <div className="flex flex-col items-center gap-3 mb-5">
               <div className="size-14 rounded-full bg-primary/10 flex items-center justify-center">
-                <span className="material-symbols-outlined text-primary text-3xl">lock</span>
+                <Icon name="lock" className="text-primary text-3xl" />
               </div>
               <h3 className="text-slate-900 text-lg font-bold text-center">{title}</h3>
               {description && (
@@ -93,9 +94,7 @@ export default function PasswordConfirmModal({
                 aria-label={showPassword ? '隐藏密码' : '显示密码'}
                 tabIndex={0}
               >
-                <span className="material-symbols-outlined text-xl">
-                  {showPassword ? 'visibility_off' : 'visibility'}
-                </span>
+                <Icon name={showPassword ? 'visibility_off' : 'visibility'} className="text-xl" />
               </button>
             </div>
 
@@ -106,7 +105,7 @@ export default function PasswordConfirmModal({
                 animate={{ opacity: 1, y: 0 }}
                 className="text-red-500 text-xs bg-red-50 px-3 py-2 rounded-lg mb-3 flex items-center gap-1.5"
               >
-                <span className="material-symbols-outlined text-sm">error</span>
+                <Icon name="error" className="text-sm" />
                 {error}
               </motion.p>
             )}
@@ -131,7 +130,7 @@ export default function PasswordConfirmModal({
               >
                 {isLoading ? (
                   <span className="flex items-center justify-center gap-2">
-                    <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+                    <Icon name="progress_activity" className="text-sm animate-spin" />
                     验证中...
                   </span>
                 ) : confirmLabel}
