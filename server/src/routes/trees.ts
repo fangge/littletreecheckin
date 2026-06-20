@@ -138,11 +138,12 @@ router.get('/:childId/dashboard-data', authMiddleware, async (req: AuthRequest, 
   if (uniqueGoalIds.length > 0) {
     // 批量查询已完成天数和今日签到状态（并行执行）
     const [approvedTasksRes, todayTasksRes, goalsDurationRes] = await Promise.all([
-      supabase.from('tasks').select('goal_id').in('goal_id', uniqueGoalIds).eq('status', 'approved'),
+      supabase.from('tasks').select('goal_id').in('goal_id', uniqueGoalIds).eq('child_id', childId).eq('status', 'approved'),
       (() => {
         const utc8Offset = 8 * 60 * 60 * 1000;
         const today = new Date(Date.now() + utc8Offset).toISOString().split('T')[0];
         return supabase.from('tasks').select('goal_id')
+          .eq('child_id', childId)
           .in('goal_id', uniqueGoalIds).neq('status', 'rejected')
           .gte('checkin_time', `${today}T00:00:00+08:00`)
           .lte('checkin_time', `${today}T23:59:59.999+08:00`);
@@ -250,10 +251,11 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
     return;
   }
 
-  // 批量查询已完成天数（approved 任务数）
+  // 批量查询已完成天数（approved 任务数，仅限该孩子）
   const { data: approvedTasks } = await supabase
     .from('tasks')
     .select('goal_id')
+    .eq('child_id', childId)
     .in('goal_id', goalIds)
     .eq('status', 'approved');
 
@@ -264,6 +266,7 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
   const { data: todayTasks } = await supabase
     .from('tasks')
     .select('goal_id')
+    .eq('child_id', childId)
     .in('goal_id', goalIds)
     .neq('status', 'rejected')
     .gte('checkin_time', `${today}T00:00:00+08:00`)
