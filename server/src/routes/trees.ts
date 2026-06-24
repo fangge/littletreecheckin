@@ -137,8 +137,7 @@ router.get('/:childId/dashboard-data', authMiddleware, async (req: AuthRequest, 
 
   if (uniqueGoalIds.length > 0) {
     // 批量查询已完成天数和今日签到状态（并行执行）
-    const [approvedTasksRes, todayTasksRes, goalsDurationRes] = await Promise.all([
-      supabase.from('tasks').select('goal_id').in('goal_id', uniqueGoalIds).eq('child_id', childId).eq('status', 'approved'),
+    const [todayTasksRes, goalsDurationRes] = await Promise.all([
       (() => {
         const utc8Offset = 8 * 60 * 60 * 1000;
         const today = new Date(Date.now() + utc8Offset).toISOString().split('T')[0];
@@ -151,10 +150,33 @@ router.get('/:childId/dashboard-data', authMiddleware, async (req: AuthRequest, 
       supabase.from('goals').select('id, duration_days').in('id', uniqueGoalIds),
     ]);
 
-    // 构建 completedDaysMap
-    for (const task of approvedTasksRes.data || []) {
-      if (task.goal_id) {
-        completedDaysMap.set(task.goal_id, (completedDaysMap.get(task.goal_id) || 0) + 1);
+    // 构建 completedDaysMap（统计每个 goal 下已批准任务的不同日期数，UTC+8 时区）
+    // 使用 Set 去重，避免同一天多次打卡重复计算
+    if (uniqueGoalIds.length > 0) {
+      const { data: approvedWithDates } = await supabase
+        .from('tasks')
+        .select('goal_id, checkin_time')
+        .in('goal_id', uniqueGoalIds)
+        .eq('child_id', childId)
+        .eq('status', 'approved');
+
+      const approvedDaysByGoal = new Map<string, Set<string>>();
+      for (const task of approvedWithDates || []) {
+        if (task.goal_id && task.checkin_time) {
+          const utc8Offset = 8 * 60 * 60 * 1000;
+          const dateStr = new Date(
+            new Date(task.checkin_time).getTime() + utc8Offset
+          ).toISOString().split('T')[0];
+          if (!approvedDaysByGoal.has(task.goal_id)) {
+            approvedDaysByGoal.set(task.goal_id, new Set());
+          }
+          approvedDaysByGoal.get(task.goal_id)!.add(dateStr);
+        }
+      }
+
+      // 将 Set size 写入 completedDaysMap
+      for (const [gid, dateSet] of approvedDaysByGoal) {
+        completedDaysMap.set(gid, dateSet.size);
       }
     }
 

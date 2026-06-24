@@ -2,6 +2,37 @@
 
 ## 版本历史
 
+### v4.1 — 注册流程重构与共享任务果实修复
+
+注册改为两步流程（先建账户再可选添加孩子），修复共享任务果实提前发放的问题，果树数据多孩子隔离，打卡页和森林页新增勋章自动检测与打卡历史列表。
+
+- ✅ **重写** `src/views/Register.tsx`：两步注册流程（Step 1 邮箱密码 → Step 2 可选添加孩子），孩子信息改为可选项，支持跳过稍后添加
+- ✅ **修改** `src/contexts/AuthContext.tsx`：注册方法 `children` 参数改为可选，新增 `addChildren()` 方法支持注册后添加孩子
+- ✅ **修改** `server/src/routes/auth.ts`：`register-children` 接口允许无孩子信息注册，不再强制要求至少一个孩子
+- ✅ **新增** `supabase/migrations/012_fix_shared_goal_fruits.sql`：重写 `approve_task_rpc` 函数，共享任务审核通过不立即发果实，树木进度达 100% 时才发放
+- ✅ **新增** `supabase/migrations/013_fix_shared_fruits_data.sql`：一次性数据修复脚本，扣除共享任务中错误预发的果实
+- ✅ **修改** `server/src/routes/children.ts`：果实历史接口返回 `is_shared` 字段，共享任务未完成时果实显示为 0
+- ✅ **修改** `server/src/routes/trees.ts`：Dashboard 和树木接口所有查询增加 `child_id` 过滤，修复多孩子数据串号
+- ✅ **修改** `server/src/routes/tasks.ts`：撤销审核改为调用 `recalculate_tree_progress` RPC 重算进度，避免简单递减导致的进度不准
+- ✅ **修改** `src/views/CheckIn.tsx`：展示全部树木（含已完成）、已完成树木禁用打卡、新增打卡历史列表弹窗、打卡后自动检测勋章解锁
+- ✅ **修改** `src/views/Dashboard.tsx`：已完成树木显示绿色渐变背景 + 🌳 + "已长成"徽章、成就单支持季度/年度时间筛选、详情弹窗关闭后检测勋章
+- ✅ **修改** `src/components/MonthlySummaryModal.tsx`：新增 `timeFilter` prop 支持多月数据聚合展示
+- ✅ **修改** `src/services/api.ts`：`FruitsHistoryItem` 新增 `is_shared` 字段，`medalsApi` 新增 `listAll`/`create`/`update`/`delete` CRUD 方法
+- ✅ **修改** `src/router.tsx`：新增 `/medals/manage` 路由（勋章管理页入口）
+
+**功能特性**：
+- 注册不再需要立即填写孩子信息，降低新用户注册门槛
+- 共享任务公平竞争：只有最终完成全部天数目标的孩子才会获得果实奖励
+- 已完成树木保留在打卡页和森林页，绿色高亮展示，不可再打卡
+- 打卡历史弹窗按时间倒序展示每条打卡记录（含审核中/已通过/已拒绝状态标签）
+- 打卡和查看详情后自动比对勋章状态，仅在解锁新勋章时弹出庆祝动画
+- 成就单支持本月/上季度/过去一年三个时间范围，多月数据自动聚合
+- 多孩子家庭果树进度不再串号，每个孩子数据独立隔离
+- 家长撤销审核时树木进度精确重算（通过数据库 RPC）
+
+**数据库迁移**：执行 `supabase/migrations/012_fix_shared_goal_fruits.sql` 和 `013_fix_shared_fruits_data.sql`（先预览再执行扣除）
+
+---
 ### v4.0 — 图标系统全面 SVG 化，消灭字体加载闪烁
 
 彻底移除 Material Symbols 字体图标，全站 90 个图标改用预下载的 inline SVG，解决图标首次渲染时的文字闪烁问题（FOUC）。

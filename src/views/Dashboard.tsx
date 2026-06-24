@@ -409,13 +409,18 @@ export default function Dashboard() {
           {trees.map((tree) => {
             const goal = getGoalForTree(tree);
             const checkedInToday = tree.checked_in_today ?? false;
-            const isDone = tree.status === 'completed' || checkedInToday;
+            const isCompleted = tree.status === 'completed';
+            const isDone = checkedInToday && !isCompleted;
             const category = goal?.icon ? (CATEGORY_MAP[goal.icon] ?? DEFAULT_CATEGORY) : null;
 
             return (
               <div
                 key={tree.id}
-                className="bg-white dark:bg-[var(--bg-surface)] rounded-2xl px-4 py-4 shadow-sm border border-slate-100 dark:border-[var(--border-color)] flex items-center justify-between gap-3 transition-colors"
+                className={`rounded-2xl px-4 py-4 shadow-sm border flex items-center justify-between gap-3 transition-colors ${
+                  isCompleted
+                    ? 'bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-emerald-200 dark:border-emerald-800'
+                    : 'bg-white dark:bg-[var(--bg-surface)] border-slate-100 dark:border-[var(--border-color)]'
+                }`}
               >
                 {/* 左侧：分类标签 + 树木名称 */}
                 <div className="flex flex-col gap-1.5 min-w-0">
@@ -425,7 +430,7 @@ export default function Dashboard() {
                     </span>
                   )}
                   <div className="flex items-center gap-2">
-                    <span className="text-xl shrink-0">🍎</span>
+                    <span className="text-xl shrink-0">{isCompleted ? '🌳' : '🍎'}</span>
                     <p className="text-slate-900 dark:text-[var(--text-primary)] text-lg font-bold leading-tight truncate">{tree.name}</p>
                     {goal?.is_shared && (
                       <button
@@ -445,6 +450,12 @@ export default function Dashboard() {
                   {goal?.fruits_per_task && goal.fruits_per_task > 0 && (
                     <span className="bg-primary/10 text-primary text-sm font-bold px-3 py-1 rounded-full whitespace-nowrap">
                       +{goal.fruits_per_task} 果实
+                    </span>
+                  )}
+                  {isCompleted && (
+                    <span className="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap flex items-center gap-1">
+                      <Icon name="check_circle" filled className="text-sm" />
+                      已长成
                     </span>
                   )}
                   {isDone && (

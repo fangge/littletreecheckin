@@ -24,7 +24,7 @@ export default function CheckIn() {
   const { user, currentChild, setCurrentChild } = useAuth();
   const { isDark } = useTheme();
   const { refreshPendingCount } = usePendingTasks();
-  const [growingTrees, setGrowingTrees] = useState<TreeData[]>([]);
+  const [trees, setTrees] = useState<TreeData[]>([]);
   const [selectedTree, setSelectedTree] = useState<TreeData | null>(null);
   const [goals, setGoals] = useState<GoalData[]>([]);
   const [todayTasks, setTodayTasks] = useState<Record<string, TaskData>>({});
@@ -44,6 +44,7 @@ export default function CheckIn() {
   // 勋章相关状态
   const [newMedals, setNewMedals] = useState<MedalData[]>([]);
   const prevUnlockedMedalIdsRef = useRef<Set<string>>(new Set());
+  const [showCheckinHistory, setShowCheckinHistory] = useState(false);
   // 打卡后待展示的新勋章（等 CelebrationPopup 关闭后再展示）
   const pendingNewMedalsRef = useRef<MedalData[]>([]);
 
@@ -59,14 +60,14 @@ export default function CheckIn() {
     if (!currentChild) return;
     setIsLoading(true);
     try {
-      // 并行获取进行中的树木、今日任务和目标列表
+      // 并行获取全部树木（含已完成）、今日任务和目标列表
       const [treesRes, tasksRes, goalsRes] = await Promise.all([
-        treesApi.list(currentChild.id, 'growing'),
+        treesApi.list(currentChild.id),
         tasksApi.list(currentChild.id),
         treesApi.listGoals(currentChild.id)
       ]);
 
-      setGrowingTrees(treesRes.data);
+      setTrees(treesRes.data);
       setGoals(goalsRes.data);
       // 保存全量任务数据，供切换树时复用（避免重复网络请求）
       setAllTasks(tasksRes.data);
@@ -292,7 +293,7 @@ export default function CheckIn() {
   };
 
   const statusInfo = getStatusText();
-  const canCheckin = !hasCheckedInToday || taskStatus === 'rejected';
+  const canCheckin = (!hasCheckedInToday || taskStatus === 'rejected') && selectedTree?.status !== 'completed';
 
   // 下拉刷新处理函数（清除缓存后强制刷新）
   const handleRefresh = useCallback(async () => {
@@ -386,16 +387,16 @@ export default function CheckIn() {
             <div className="flex justify-center py-12 px-3">
               <Icon name="forest" className="text-primary text-5xl animate-pulse" />
             </div>
-          ) : growingTrees.length === 0 ? (
+          ) : trees.length === 0 ? (
             <div className="text-center py-12 px-3 text-slate-400 dark:text-[var(--text-muted)] space-y-4">
               <Icon name="park" className="text-6xl block" />
-              <p className="text-lg font-semibold">还没有进行中的目标</p>
+              <p className="text-lg font-semibold">还没有任何目标</p>
               <p className="text-sm">去首页添加一个新目标吧！</p>
             </div>
           ) : (
             <div className="w-full space-y-4 pb-4 px-3">
               {/* 树木选择 */}
-              {growingTrees.length > 1 && (
+              {trees.length > 1 && (
                 <div className="w-full max-w-sm mx-auto">
                   <label className="relative flex items-center gap-2 px-4 py-3 bg-white dark:bg-[var(--bg-card)] border border-slate-200 dark:border-[var(--border-color)] rounded-2xl shadow-sm cursor-pointer hover:border-primary/40 transition-colors">
                     <Icon name="park" className="text-primary text-xl" />
@@ -430,7 +431,7 @@ export default function CheckIn() {
                     <select
                       value={selectedTree?.id || ''}
                       onChange={(e) => {
-                        const tree = growingTrees.find(
+                        const tree = trees.find(
                           (t) => t.id === e.target.value
                         );
                         if (tree) setSelectedTree(tree);
@@ -438,17 +439,19 @@ export default function CheckIn() {
                       className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
                       aria-label="选择目标"
                     >
-                      {growingTrees.map((tree) => {
+                      {trees.map((tree) => {
                         const treeTask = getTaskForTreeOnDate(
                           tree,
                           selectedDate
                         );
                         const statusIcon =
-                          treeTask?.status === 'approved'
-                            ? ' ✓'
-                            : treeTask?.status === 'pending'
-                              ? ' ⏳'
-                              : '';
+                          tree.status === 'completed'
+                            ? ' ✅已长成'
+                            : treeTask?.status === 'approved'
+                              ? ' ✓'
+                              : treeTask?.status === 'pending'
+                                ? ' ⏳'
+                                : '';
                         return (
                           <option key={tree.id} value={tree.id}>
                             {tree.name}
@@ -471,8 +474,9 @@ export default function CheckIn() {
 
                 <div className="relative z-0 mt-auto mb-8">
                   {(() => {
-                    // 根据进度计算树的大小：0% → 64px，100% → 128px
-                    const progress = currentTree?.progress ?? 0;
+                    // 根据进度计算树的大小：0% → 64px，100% → 128px（已完成树木强制 100%）
+                    const isTreeCompleted = currentTree?.status === 'completed';
+                    const progress = isTreeCompleted ? 100 : (currentTree?.progress ?? 0);
                     const minSize = 64;
                     const maxSize = 128;
                     const treeSize = Math.round(
@@ -573,22 +577,31 @@ export default function CheckIn() {
                       成长进度
                     </p>
                     <span className="px-2 py-1 bg-primary/20 text-primary text-xs font-bold rounded-full">
-                      {currentTree?.progress ?? 0}%
+                      {selectedTree?.status === 'completed' ? 100 : (currentTree?.progress ?? 0)}%
                     </span>
                   </div>
                   <div className="h-4 w-full rounded-full bg-slate-100 dark:bg-[var(--bg-card)] overflow-hidden">
                     <div
                       className="h-full rounded-full bg-primary shadow-[0_0_10px_rgba(13,242,13,0.5)] transition-all"
-                      style={{ width: `${currentTree?.progress ?? 0}%` }}
+                      style={{ width: `${selectedTree?.status === 'completed' ? 100 : (currentTree?.progress ?? 0)}%` }}
                     />
                   </div>
                   <p className="text-primary text-sm font-medium flex items-center gap-2">
                     <Icon name="water_drop" className="text-lg" />
                     {currentTree
-                      ? `还需 ${100 - (currentTree.progress ?? 0)}% 就能结果啦！`
+                      ? selectedTree?.status === 'completed'
+                        ? '树木已长成！🎉 继续坚持好习惯，种下更多成长的种子吧。'
+                        : `还需 ${100 - (currentTree.progress ?? 0)}% 就能结果啦！`
                       : '坚持完成好习惯，让你的幼苗长成参天大树吧。'}
                   </p>
                   {/* 目标详情：时长 / 每日时长 / 每日次数 / 已打卡天数 */}
+                  <button
+                    onClick={() => setShowCheckinHistory(true)}
+                    className="flex items-center gap-1 text-xs font-bold text-primary/70 hover:text-primary active:scale-95 transition-all self-start"
+                  >
+                    <Icon name="history" className="text-sm" />
+                    查看打卡记录
+                  </button>
                   {currentGoal && (
                     <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-100 dark:border-[var(--border-color)]">
                       <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-[var(--text-muted)] bg-slate-50 dark:bg-[var(--bg-card)] px-2 py-1 rounded-full">
@@ -675,24 +688,135 @@ export default function CheckIn() {
                   disabled={isChecking || !canCheckin}
                   aria-label={isBackfillDate ? '补打卡' : '立即打卡'}
                 >
-                  <Icon name="check_circle" className="text-3xl" />
-                  {isChecking
-                    ? '打卡中...'
-                    : !canCheckin
-                      ? taskStatus === 'approved'
-                        ? `${isBackfillDate ? formatDateDisplay(selectedDate) : '今日'}已完成`
-                        : '等待审核中'
-                      : taskStatus === 'rejected'
-                        ? '重新打卡'
-                        : isBackfillDate
-                          ? `补打卡 · ${formatDateDisplay(selectedDate)}`
-                          : '立即打卡'}
+                  {selectedTree?.status === 'completed' ? (
+                    <>
+                      <Icon name="park" className="text-3xl" />
+                      树木已长成 🌳
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="check_circle" className="text-3xl" />
+                      {isChecking
+                        ? '打卡中...'
+                        : !canCheckin
+                          ? taskStatus === 'approved'
+                            ? `${isBackfillDate ? formatDateDisplay(selectedDate) : '今日'}已完成`
+                            : '等待审核中'
+                          : taskStatus === 'rejected'
+                            ? '重新打卡'
+                            : isBackfillDate
+                              ? `补打卡 · ${formatDateDisplay(selectedDate)}`
+                              : '立即打卡'}
+                    </>
+                  )}
                 </button>
               </div>
             </div>
           )}
         </motion.div>
       </PullToRefresh>
+
+      {/* 打卡记录历史弹窗 */}
+      {showCheckinHistory && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          {/* 背景遮罩 */}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowCheckinHistory(false)}
+          />
+          {/* 弹窗内容 */}
+          <motion.div
+            initial={{ opacity: 0, y: '100%' }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="relative z-10 w-full sm:max-w-sm bg-[var(--bg-surface)] dark:bg-[var(--bg-primary)] rounded-t-3xl sm:rounded-3xl max-h-[80vh] flex flex-col shadow-xl"
+          >
+            {/* 头部 */}
+            <div className="flex items-center justify-between px-5 pt-5 pb-3">
+              <div className="flex items-center gap-2">
+                <Icon name="history" className="text-primary text-xl" />
+                <div>
+                  <p className="text-slate-900 dark:text-[var(--text-primary)] text-lg font-bold leading-tight">
+                    {selectedTree?.name || '目标'} 打卡记录
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-[var(--text-muted)]">
+                    共 {selectedTreeTasks.length} 次打卡 · 已通过 {selectedTreeTasks.filter(t => t.status === 'approved').length}
+                    {selectedTreeTasks.filter(t => t.status === 'rejected').length > 0 && <> · 已拒绝 {selectedTreeTasks.filter(t => t.status === 'rejected').length}</>}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCheckinHistory(false)}
+                className="size-9 flex items-center justify-center rounded-full bg-slate-100 dark:bg-[var(--bg-card)] text-slate-400 hover:text-slate-600 dark:hover:text-[var(--text-secondary)] transition-colors"
+              >
+                <Icon name="close" className="text-lg" />
+              </button>
+            </div>
+
+            {/* 列表 */}
+            <div className="flex-1 overflow-y-auto px-5 pb-5">
+              {selectedTreeTasks.length === 0 ? (
+                <div className="text-center py-8 text-slate-400 dark:text-[var(--text-muted)]">
+                  <Icon name="event_busy" className="text-4xl mx-auto mb-2" />
+                  <p className="text-sm">暂无打卡记录</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {[...selectedTreeTasks]
+                    .sort((a, b) => new Date(b.checkin_time).getTime() - new Date(a.checkin_time).getTime())
+                    .map((task, idx) => {
+                      const checkinDate = new Date(task.checkin_time);
+                      const dateStr = checkinDate.toLocaleDateString('zh-CN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        timeZone: 'Asia/Shanghai',
+                      });
+                      const timeStr = checkinDate.toLocaleTimeString('zh-CN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        timeZone: 'Asia/Shanghai',
+                        hour12: false,
+                      });
+
+                      const statusConfig = {
+                        approved: { text: '已通过', bg: 'bg-green-100 dark:bg-green-900/40', textColor: 'text-green-600 dark:text-green-400', icon: 'check_circle' },
+                        rejected: { text: '已拒绝', bg: 'bg-red-100 dark:bg-red-900/40', textColor: 'text-red-500 dark:text-red-400', icon: 'cancel' },
+                        pending: { text: '审核中', bg: 'bg-amber-100 dark:bg-amber-900/40', textColor: 'text-amber-600 dark:text-amber-400', icon: 'hourglass_empty' },
+                      }[task.status] || { text: task.status, bg: 'bg-slate-100', textColor: 'text-slate-500', icon: 'help' };
+
+                      return (
+                        <div
+                          key={task.id}
+                          className="flex items-center justify-between px-4 py-3 bg-white dark:bg-[var(--bg-card)] rounded-2xl border border-slate-100 dark:border-[var(--border-color)]"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0">
+                              {idx + 1}
+                            </span>
+                            <div>
+                              <p className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">
+                                {dateStr}
+                              </p>
+                              <p className="text-xs text-slate-400 dark:text-[var(--text-muted)]">
+                                {timeStr}
+                              </p>
+                            </div>
+                          </div>
+                          <span className={`text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 ${statusConfig.bg} ${statusConfig.textColor}`}>
+                            <Icon name={statusConfig.icon} className="text-xs" />
+                            {statusConfig.text}
+                          </span>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
     </>
   );
 }

@@ -370,34 +370,31 @@ router.put('/:taskId/revoke', authMiddleware, async (req: AuthRequest, res: Resp
     .update({ fruits_balance: child.fruits_balance - totalFruitsToDeduct })
     .eq('id', task.child_id);
 
-  // 3. 恢复树木进度（如有）
+  // 3. 重新计算树木进度（撤销后始终重新计算，基于实际已批准的 distinct 日期数）
   if (task.tree_id) {
-    const { data: tree } = await supabase
-      .from('trees')
-      .select('id, progress, status, goal_id')
-      .eq('id', task.tree_id)
-      .single();
+    // 使用 recalculate_tree_progress RPC 重新计算该树木的进度
+    // 无论树之前是什么状态，撤销后都需要基于真实已批准数据重算
+    const { error: recalcError } = await supabase
+      .rpc('recalculate_tree_progress', { p_tree_id: task.tree_id });
 
-    if (tree && tree.status === 'completed') {
-      const { data: goalInfo } = await supabase
-        .from('goals')
-        .select('duration_days, fruits_per_task')
-        .eq('id', task.goal_id)
-        .single();
-
-      const durationDays = goalInfo?.duration_days || 30;
-      const progressDecrement = Math.round(100 / durationDays);
-
-      await supabase
+    if (recalcError) {
+      console.error('撤销后重新计算树木进度失败:', recalcError);
+      // 降级：手动恢复目标为活跃（如果已完成被撤回）
+      const { data: tree } = await supabase
         .from('trees')
-        .update({ progress: Math.max(0, tree.progress - progressDecrement), status: 'growing' })
-        .eq('id', task.tree_id);
-
-      // 恢复目标为活跃状态
-      await supabase
-        .from('goals')
-        .update({ is_active: true })
-        .eq('id', task.goal_id);
+        .select('status')
+        .eq('id', task.tree_id)
+        .single();
+      if (tree?.status === 'completed') {
+        await supabase
+          .from('trees')
+          .update({ progress: 99, status: 'growing' })
+          .eq('id', task.tree_id);
+        await supabase
+          .from('goals')
+          .update({ is_active: true })
+          .eq('id', task.goal_id);
+      }
     }
   }
 
