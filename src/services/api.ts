@@ -108,6 +108,7 @@ export interface TreeData {
   goal_id?: string;
   completed_days?: number;
   checked_in_today?: boolean;
+  completed_by_child_id?: string | null;
 }
 
 export interface GoalData {
@@ -400,6 +401,17 @@ export const tasksApi = {
   revoke: (taskId: string) =>
     request<{ data: TaskData }>(`/api/v1/tasks/${taskId}/revoke`, {
       method: 'PUT',
+    }),
+
+  bulkApprove: (taskIds: string[], notesMap?: Record<string, { bonus_fruits?: number }>) =>
+    request<{
+      data: Array<{ task_id: string; status: string; error?: string }>;
+      approved_count: number;
+      total: number;
+      message: string;
+    }>("/api/v1/tasks/bulk-approve", {
+      method: "PUT",
+      body: JSON.stringify({ task_ids: taskIds, notes_map: notesMap }),
     }),
 };
 

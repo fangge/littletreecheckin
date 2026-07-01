@@ -159,6 +159,25 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
     return;
   }
 
+  // 对于共享任务，额外检查是否有其他孩子已经打卡（跨孩子防重复）
+  if (goal.is_shared) {
+    const { data: otherChildTask } = await supabase
+      .from("tasks")
+      .select("id")
+      .eq("goal_id", goal_id)
+      .neq("status", "rejected")
+      .neq("child_id", child_id)
+      .gte("checkin_time", `${checkDate}T00:00:00+08:00`)
+      .lte("checkin_time", `${checkDate}T23:59:59.999+08:00`)
+      .maybeSingle();
+
+    if (otherChildTask) {
+      const isToday = checkDate === getUTC8Today();
+      res.status(409).json({ error: isToday ? "今天的共享任务已被其他小朋友完成啦！" : "该日期的共享任务已被其他小朋友完成啦！" });
+      return;
+    }
+  }
+
   // 获取关联树木（共享任务需要按 child_id 过滤，找到该孩子的树木）
   const { data: tree } = await supabase
     .from('trees')
@@ -412,5 +431,96 @@ router.put('/:taskId/revoke', authMiddleware, async (req: AuthRequest, res: Resp
 
   res.json({ data: updatedTask, message: '撤销成功' });
 });
+
+
+
+// PUT /api/v1/tasks/bulk-approve  (批量审核通过)
+router.put('/bulk-approve', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { task_ids, notes_map } = req.body;
+
+  if (!task_ids || !Array.isArray(task_ids) || task_ids.length === 0) {
+    res.status(400).json({ error: '请提供有效的任务ID列表' });
+    return;
+  }
+
+  // 限制单次批量数量
+  if (task_ids.length > 50) {
+    res.status(400).json({ error: '单次最多批量审核50个任务' });
+    return;
+  }
+
+  // 验证所有任务都存在且状态为 pending
+  const { data: tasks, error: fetchError } = await supabase
+    .from('tasks')
+    .select('id, status, child_id')
+    .in('id', task_ids);
+
+  if (fetchError || !tasks) {
+    res.status(500).json({ error: '获取任务失败' });
+    return;
+  }
+
+  const invalidTasks = tasks.filter(t => t.status !== 'pending');
+  if (invalidTasks.length > 0) {
+    res.status(400).json({
+      error: `以下任务状态不是待审核，无法批量操作: ${invalidTasks.map(t => t.id).join(', ')}`,
+      invalid_task_ids: invalidTasks.map(t => t.id),
+    });
+    return;
+  }
+
+  if (tasks.length !== task_ids.length) {
+    const foundIds = new Set(tasks.map(t => t.id));
+    const missingIds = task_ids.filter(id => !foundIds.has(id));
+    res.status(400).json({ error: `以下任务不存在: ${missingIds.join(', ')}` });
+    return;
+  }
+
+  const results: Array<{ task_id: string; status: string; error?: string }> = [];
+  let approvedCount = 0;
+
+  // 逐个调用 approve_task_rpc（每个任务在自己的事务中）
+  for (const taskId of task_ids) {
+    const bonusFruits = Math.max(0, parseInt(notes_map?.[taskId]?.bonus_fruits ?? '0', 10) || 0);
+
+    try {
+      const { data: result, error } = await supabase
+        .rpc('approve_task_rpc', {
+          p_task_id: taskId,
+          p_bonus_fruits: bonusFruits,
+        });
+
+      if (error || !result || result.length === 0) {
+        results.push({ task_id: taskId, status: 'failed', error: error?.message || '未知错误' });
+        continue;
+      }
+
+      const row = result[0];
+      if (row.error_msg) {
+        results.push({ task_id: taskId, status: 'failed', error: row.error_msg });
+        continue;
+      }
+
+      results.push({ task_id: taskId, status: 'approved' });
+      approvedCount++;
+
+      // 异步检测勋章（不阻塞批量处理）
+      const childId = tasks.find(t => t.id === taskId)?.child_id;
+      if (childId) {
+        checkAndUnlockMedals(childId).catch(console.error);
+      }
+    } catch (err) {
+      results.push({ task_id: taskId, status: 'failed', error: err instanceof Error ? err.message : '未知错误' });
+    }
+  }
+
+  res.json({
+    data: results,
+    approved_count: approvedCount,
+    total: task_ids.length,
+    message: approvedCount === task_ids.length ? '全部审核通过' : `完成 ${approvedCount}/${task_ids.length} 个任务审核`,
+  });
+});
+
 
 export default router;

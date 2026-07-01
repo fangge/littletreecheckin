@@ -35,11 +35,28 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
               </button>
             </div>
             <div className="overflow-y-auto max-h-[60vh] px-6 py-4 space-y-4">
-              {/* v4.1 */}
+              {/* v4.2 */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v4.1</span>
+                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v4.2</span>
                   <span className="text-sm text-slate-500 dark:text-[var(--text-muted)]">最新</span>
+                </div>
+                <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">家长审核批量操作与共享任务体验优化</h4>
+                <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
+                  家长审核页按孩子分组，支持一键批量批准/拒绝；共享任务打卡文案适配"已有小朋友完成"场景；树木进度计算更精准。
+                </p>
+                <ul className="text-xs text-slate-500 dark:text-[var(--text-muted)] space-y-1 ml-2">
+                  <li>• 家长审核按孩子分组，每个孩子独立展示待审核任务</li>
+                  <li>• 一键批量批准/拒绝某个孩子的全部待审核任务</li>
+                  <li>• 共享任务打卡时如已有小朋友完成，文案友好提示</li>
+                  <li>• 树木进度精准重算，避免同天多次打卡导致进度虚高</li>
+                  <li>• 项目文档全面升级，完整路由表、API 速查、数据库结构一览</li>
+                </ul>
+              </div>
+              {/* v4.1 */}
+              <div className="space-y-2 pt-4 border-t border-primary/5 dark:border-[var(--border-color)]">
+                <div className="flex items-center gap-2">
+                  <span className="bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-xs font-bold px-2 py-0.5 rounded">v4.1</span>
                 </div>
                 <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">注册流程重构与共享任务果实修复</h4>
                 <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">

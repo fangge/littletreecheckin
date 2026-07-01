@@ -2,6 +2,31 @@
 
 ## 版本历史
 
+
+### v4.2 — 家长审核批量操作与共享任务体验优化
+
+家长审核页按孩子分组展示，支持一键批量批准/拒绝；共享任务打卡文案适配"已有小朋友完成"场景；Dashboard 聚合接口修复同天多次打卡重复计数问题。
+
+- ✅ **新增** `server/src/routes/tasks.ts`：`POST /api/v1/tasks/bulk-approve` 批量审核接口，一次请求批准多个任务的打卡
+- ✅ **新增** `src/services/api.ts`：`tasksApi.bulkApprove()` 批量审核 API 方法
+- ✅ **新增** `src/views/ParentControl.tsx`：`ChildModuleHeader` 组件 + 按孩子分组展示待审核任务 + 批量全部批准/全部拒绝 + 批量拒绝确认弹窗
+- ✅ **新增** `src/views/CheckIn.tsx`：`sharedCheckedInToday` 状态检测共享任务是否已被其他孩子打卡，按钮和标题文案适配
+- ✅ **修改** `src/views/ParentControl.tsx`：孩子筛选 tab 计数改为仅统计当前 activeTab 下的任务数，pending 模式按孩子分组，approved 模式保持平铺
+- ✅ **修改** `server/src/routes/tasks.ts`：撤销审核逻辑改进 — 始终调用 `recalculate_tree_progress` RPC 重算进度，RPC 失败时降级手动恢复
+- ✅ **修改** `server/src/routes/trees.ts`：Dashboard 聚合接口中 `completedDaysMap` 从简单 count 改为基于 `checkin_time` 的 UTC+8 distinct 日期计数，避免同一天多次批准导致的进度虚高
+- ✅ **修改** `AGENTS.md` / `CLAUDE.md`：从 53 行"快速接入指南"扩展为 350 行"项目全景"：新增完整目录结构、路由表、核心业务流（认证/打卡审核/树木进度/勋章/共享任务/商店兑换）、API 端点速查、数据库 Schema 与 RPC 函数、数据流架构图、环境变量表、关键约定与注意事项
+
+**功能特性**：
+- 家长审核页按孩子分组，每个孩子下独立展示待审核任务和批量操作按钮
+- 点击孩子头部的"全部批准"一键通过该孩子所有待审核任务，支持额外奖励果实
+- 批量拒绝带二次确认弹窗，防止误操作
+- 共享任务打卡时如其他小朋友已完成，按钮文案为"共享任务已完成"，标题为"共享任务已完成！"
+- Dashboard 树木进度计算修复：同一天多次批准不再重复增加进度，与实际 distinct 打卡天数严格一致
+- 项目文档全面升级，新开发者可快速定位路由、API、数据库结构
+
+**无需数据库迁移**：纯后端逻辑改进和前端体验优化
+
+---
 ### v4.1 — 注册流程重构与共享任务果实修复
 
 注册改为两步流程（先建账户再可选添加孩子），修复共享任务果实提前发放的问题，果树数据多孩子隔离，打卡页和森林页新增勋章自动检测与打卡历史列表。

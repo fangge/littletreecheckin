@@ -6,14 +6,25 @@ import { usePendingTasks } from '../contexts/PendingTasksContext';
 import { tasksApi, messagesApi, TaskData } from '../services/api';
 import { invalidateCache } from '../utils/requestCache';
 import PullToRefresh from '../components/PullToRefresh';
-
 import Icon from '../components/Icon';
+
+// ─── 类型 ────────────────────────────────────────────────────
 interface TaskWithChild extends TaskData {
   childName?: string;
   childId?: string;
 }
 
-// 任务卡片组件
+/** 孩子色板（索引轮换） */
+const CHILD_COLORS = [
+  '#006e18', // Sprout Green
+  '#2563eb', // Blue
+  '#d97706', // Amber
+  '#dc2626', // Red
+  '#7c3aed', // Violet
+  '#0891b2', // Cyan
+];
+
+// ─── 任务卡片（不变） ─────────────────────────────────────────────
 interface TaskCardProps {
   task: TaskWithChild;
   notes: Record<string, string>;
@@ -167,6 +178,53 @@ const TaskCard = ({ task, notes, bonusFruits, processingId, showChildName, onQui
   </div>
 );
 
+// ─── 孩子模块头部（批量操作） ─────────────────────────────────────
+interface ChildModuleHeaderProps {
+  childName: string;
+  colorAccent: string;
+  pendingCount: number;
+  totalCount: number;
+  isBulkProcessing: boolean;
+  onBulkApprove: () => void;
+  onBulkReject: () => void;
+}
+
+const ChildModuleHeader = ({
+  childName, colorAccent, pendingCount, totalCount, isBulkProcessing,
+  onBulkApprove, onBulkReject,
+}: ChildModuleHeaderProps) => (
+  <div className="flex items-center justify-between py-2 px-1">
+    <div className="flex items-center gap-2.5">
+      <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: colorAccent }} />
+      <h2 className="text-base font-bold text-slate-900 dark:text-[var(--text-primary)]">{childName}</h2>
+      <span className="text-xs text-slate-400 dark:text-[var(--text-muted)]">
+        {pendingCount}/{totalCount} 待审核
+      </span>
+    </div>
+    {pendingCount > 0 && (
+      <div className="flex gap-2">
+        <button
+          className="px-3 py-1.5 text-xs font-bold rounded-xl bg-red-50 dark:bg-red-900/20 text-red-500 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors disabled:opacity-50 flex items-center gap-1"
+          onClick={onBulkReject}
+          disabled={isBulkProcessing}
+        >
+          <Icon name="cancel" className="text-sm" />
+          全部拒绝
+        </button>
+        <button
+          className="px-3 py-1.5 text-xs font-bold rounded-xl bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-white transition-all disabled:opacity-50 flex items-center gap-1"
+          onClick={onBulkApprove}
+          disabled={isBulkProcessing}
+        >
+          <Icon name="check_circle" filled className="text-sm" />
+          {isBulkProcessing ? '批量处理中...' : '全部批准'}
+        </button>
+      </div>
+    )}
+  </div>
+);
+
+// ─── 主组件 ────────────────────────────────────────────────────
 export default function ParentControl() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -179,6 +237,10 @@ export default function ParentControl() {
   const [bonusFruits, setBonusFruits] = useState<Record<string, number>>({});
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [revokeConfirm, setRevokeConfirm] = useState<{ show: boolean; task: TaskWithChild | null }>({ show: false, task: null });
+
+  // 批量操作状态
+  const [bulkApprovingChildId, setBulkApprovingChildId] = useState<string | null>(null);
+  const [bulkRejectConfirm, setBulkRejectConfirm] = useState<{ show: boolean; childName: string; taskIds: string[] } | null>(null);
 
   const fetchTasks = useCallback(async () => {
     if (!user?.children || user.children.length === 0) return;
@@ -247,6 +309,97 @@ export default function ParentControl() {
     setNotes(prev => ({ ...prev, [taskId]: text }));
   };
 
+  // ── 批量批准 ──────────────────────────────────────────────────
+  const handleBulkApprove = async (childId: string) => {
+    const childPendingTasks = tasks.filter(t => t.childId === childId && t.status === 'pending');
+    if (childPendingTasks.length === 0) return;
+
+    setBulkApprovingChildId(childId);
+    try {
+      const taskIds = childPendingTasks.map(t => t.id);
+      const notesMap: Record<string, { bonus_fruits?: number }> = {};
+      for (const t of childPendingTasks) {
+        const bonus = bonusFruits[t.id] ?? 0;
+        if (bonus > 0) {
+          notesMap[t.id] = { bonus_fruits: bonus };
+        }
+      }
+
+      const result = await tasksApi.bulkApprove(taskIds, Object.keys(notesMap).length > 0 ? notesMap : undefined);
+
+      // 发送留言
+      for (const t of childPendingTasks) {
+        const note = notes[t.id];
+        if (note) {
+          try { await messagesApi.send(childId, note); } catch { /* 留言失败不影响 */ }
+        }
+      }
+
+      if (taskIds.length > 0) {
+        invalidateCache(childId);
+      }
+
+      await fetchTasks();
+      await refreshPendingCount();
+
+      // 如果有部分失败，给用户反馈
+      if (result.approved_count < result.total) {
+        const failures = result.data.filter(r => r.status === 'failed');
+        alert(`部分审核失败(${result.approved_count}/${result.total}):\n${failures.map(f => f.error).join('\n')}`);
+      }
+    } catch (err) {
+      console.error('批量审核失败:', err);
+      alert(`批量审核失败: ${err instanceof Error ? err.message : '未知错误'}`);
+    } finally {
+      setBulkApprovingChildId(null);
+    }
+  };
+
+  // ── 批量拒绝 ──────────────────────────────────────────────────
+  const confirmBulkReject = (childId: string, childName: string) => {
+    const childPendingTasks = tasks.filter(t => t.childId === childId && t.status === 'pending');
+    if (childPendingTasks.length === 0) return;
+    setBulkRejectConfirm({
+      show: true,
+      childName,
+      taskIds: childPendingTasks.map(t => t.id),
+    });
+  };
+
+  const handleBulkReject = async () => {
+    if (!bulkRejectConfirm) return;
+    const { taskIds } = bulkRejectConfirm;
+    setBulkRejectConfirm(null);
+    setBulkApprovingChildId(taskIds[0] || null);
+
+    try {
+      // 逐个拒绝（没有后端 bulk-reject，顺序执行）
+      for (const taskId of taskIds) {
+        try {
+          const reason = notes[taskId] || undefined;
+          await tasksApi.reject(taskId, reason);
+        } catch (err) {
+          console.error(`拒绝任务 ${taskId} 失败:`, err);
+        }
+      }
+
+      // 清除所有被操作的孩子缓存
+      const affectedChildIds = new Set<string>();
+      for (const t of tasks.filter(t => taskIds.includes(t.id))) {
+        if (t.childId) affectedChildIds.add(t.childId);
+      }
+      for (const cid of affectedChildIds) invalidateCache(cid);
+
+      await fetchTasks();
+      await refreshPendingCount();
+    } catch (err) {
+      console.error('批量拒绝失败:', err);
+      alert(`批量拒绝失败: ${err instanceof Error ? err.message : '未知错误'}`);
+    } finally {
+      setBulkApprovingChildId(null);
+    }
+  };
+
   const handleRevoke = async () => {
     if (!revokeConfirm.task) return;
     setProcessingId(revokeConfirm.task.id);
@@ -267,14 +420,48 @@ export default function ParentControl() {
   };
 
   const pendingCount = tasks.filter(t => t.status === 'pending').length;
-
-  // 是否有多个孩子
   const hasMultipleChildren = user?.children && user.children.length > 1;
 
+  // ── 按孩子分组（仅 pending 模式下使用） ─────────────────────────
+  const groupedPendingTasks = (() => {
+    if (activeTab !== 'pending') return null;
+    const groups = new Map<string, TaskWithChild[]>();
+    for (const task of tasks) {
+      if (!task.childId || task.status !== 'pending') continue;
+      const existing = groups.get(task.childId) || [];
+      existing.push(task);
+      groups.set(task.childId, existing);
+    }
+    return groups;
+  })();
+
   // 根据选中的孩子过滤任务
-  const filteredTasks = selectedChildId === 'all'
-    ? tasks
-    : tasks.filter(t => t.childId === selectedChildId);
+  const filteredTasks = (() => {
+    if (selectedChildId === 'all') return tasks;
+    return tasks.filter(t => t.childId === selectedChildId);
+  })();
+
+  // 根据选中的孩子过滤分组
+  const visibleGroups = (() => {
+    if (!groupedPendingTasks) return null;
+    if (selectedChildId === 'all') return groupedPendingTasks;
+    const filtered = new Map<string, TaskWithChild[]>();
+    const childTasks = groupedPendingTasks.get(selectedChildId);
+    if (childTasks && childTasks.length > 0) {
+      filtered.set(selectedChildId, childTasks);
+    }
+    // Also include all children who have tasks (for empty-state display)
+    for (const [childId, childTasks] of groupedPendingTasks) {
+      if (childId === selectedChildId) continue;
+    }
+    return filtered;
+  })();
+
+  const getChildColor = (childId: string) => {
+    if (!user?.children) return CHILD_COLORS[0];
+    const idx = user.children.findIndex(c => c.id === childId);
+    return CHILD_COLORS[idx % CHILD_COLORS.length];
+  };
 
   // 下拉刷新处理函数
   const handleRefresh = useCallback(async () => {
@@ -324,7 +511,7 @@ export default function ParentControl() {
           </button>
         </div>
 
-        {/* 二级 Tab: 孩子筛选（仅在有多个孩子时显示） */}
+        {/* 二级 Tab: 孩子筛选 */}
         {hasMultipleChildren && (
           <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
             <button
@@ -335,10 +522,10 @@ export default function ParentControl() {
               }`}
               onClick={() => setSelectedChildId('all')}
             >
-              全部 ({tasks.length})
+              全部 ({tasks.filter(t => activeTab === 'pending' ? t.status === 'pending' : t.status === 'approved').length})
             </button>
             {user?.children?.map(child => {
-              const childTaskCount = tasks.filter(t => t.childId === child.id).length;
+              const childTaskCount = tasks.filter(t => t.childId === child.id && (activeTab === 'pending' ? t.status === 'pending' : t.status === 'approved')).length;
               return (
                 <button
                   key={child.id}
@@ -362,7 +549,62 @@ export default function ParentControl() {
           <div className="flex justify-center py-12">
             <Icon name="hourglass_empty" className="text-primary text-4xl animate-pulse" />
           </div>
+        ) : activeTab === 'pending' && groupedPendingTasks ? (
+          /* ── 待审核模式：按孩子分组 ── */
+          (() => {
+            const groupIds = visibleGroups ? Array.from(visibleGroups.keys()) : [];
+            const targetIds = selectedChildId === 'all'
+              ? groupIds
+              : groupIds.length > 0 ? groupIds : [selectedChildId];
+
+            if (targetIds.length === 0 || targetIds.every(cid => (groupedPendingTasks.get(cid) || []).length === 0)) {
+              return (
+                <div className="text-center py-12 text-slate-400 dark:text-[var(--text-muted)]">
+                  <Icon name="check_circle" className="text-5xl mb-3 block" />
+                  <p>暂无待审核任务</p>
+                </div>
+              );
+            }
+
+            return targetIds.map(childId => {
+              const childTasks = (groupedPendingTasks.get(childId) || []).filter(t => t.status === 'pending');
+              const child = user?.children?.find(c => c.id === childId);
+
+              if (childTasks.length === 0) return null;
+
+              return (
+                <div key={childId} className="space-y-3">
+                  <ChildModuleHeader
+                    childName={child?.name || '未知'}
+                    colorAccent={getChildColor(childId)}
+                    pendingCount={childTasks.length}
+                    totalCount={tasks.filter(t => t.childId === childId).length}
+                    isBulkProcessing={bulkApprovingChildId === childId}
+                    onBulkApprove={() => handleBulkApprove(childId)}
+                    onBulkReject={() => confirmBulkReject(childId, child?.name || '未知')}
+                  />
+                  {childTasks.map(task => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      notes={notes}
+                      bonusFruits={bonusFruits}
+                      processingId={processingId}
+                      onQuickNote={handleQuickNote}
+                      onApprove={handleApprove}
+                      onReject={handleReject}
+                      onRevoke={setRevokeConfirm}
+                      onNotesChange={setNotes}
+                      onBonusFruitsChange={setBonusFruits}
+                      showChildName={false}
+                    />
+                  ))}
+                </div>
+              );
+            });
+          })()
         ) : filteredTasks.length === 0 ? (
+          /* ── 已批准模式：平铺列表 ── */
           <div className="text-center py-12 text-slate-400 dark:text-[var(--text-muted)]">
             <Icon name="check_circle" className="text-5xl mb-3 block" />
             <p>{activeTab === 'pending' ? '暂无待审核任务' : '暂无已批准任务'}</p>
@@ -387,6 +629,7 @@ export default function ParentControl() {
         )}
       </main>
 
+      {/* 撤销确认弹窗 */}
       {revokeConfirm.show && revokeConfirm.task && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={() => setRevokeConfirm({ show: false, task: null })} />
@@ -417,6 +660,42 @@ export default function ParentControl() {
                 disabled={processingId === revokeConfirm.task.id}
               >
                 {processingId === revokeConfirm.task.id ? '处理中...' : '确认撤销'}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* 批量拒绝确认弹窗 */}
+      {bulkRejectConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setBulkRejectConfirm(null)} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative bg-white dark:bg-[var(--bg-surface)] rounded-2xl p-6 w-full max-w-sm shadow-xl transition-colors"
+          >
+            <h3 className="text-lg font-bold text-slate-900 dark:text-[var(--text-primary)] mb-2">批量拒绝确认</h3>
+            <p className="text-sm text-slate-500 dark:text-[var(--text-muted)] mb-4">
+              确定要<span className="font-semibold text-red-500">拒绝</span> <span className="font-semibold text-slate-900 dark:text-[var(--text-primary)]">{bulkRejectConfirm.childName}</span> 的全部 <span className="font-semibold text-slate-900 dark:text-[var(--text-primary)]">{bulkRejectConfirm.taskIds.length}</span> 个待审核任务吗？
+            </p>
+            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 mb-4">
+              <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                ⚠️ 此操作不可撤销，被拒绝的任务需要孩子重新打卡
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                className="flex-1 py-3 rounded-xl font-bold text-sm text-slate-600 dark:text-[var(--text-secondary)] bg-slate-100 dark:bg-[var(--bg-card)] hover:bg-slate-200 dark:hover:bg-[var(--bg-surface)] transition-colors"
+                onClick={() => setBulkRejectConfirm(null)}
+              >
+                取消
+              </button>
+              <button
+                className="flex-1 py-3 rounded-xl font-bold text-sm text-white bg-red-500 hover:bg-red-600 transition-colors"
+                onClick={handleBulkReject}
+              >
+                确认拒绝
               </button>
             </div>
           </motion.div>

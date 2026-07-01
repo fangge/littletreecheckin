@@ -8,7 +8,7 @@ import Icon from '../components/Icon';
 import {
   tasksApi,
   treesApi,
-  medalsApi,
+  medalsApi, rewardsApi,
   TreeData,
   TaskData,
   GoalData,
@@ -45,6 +45,8 @@ export default function CheckIn() {
   const [newMedals, setNewMedals] = useState<MedalData[]>([]);
   const prevUnlockedMedalIdsRef = useRef<Set<string>>(new Set());
   const [showCheckinHistory, setShowCheckinHistory] = useState(false);
+  // 果实余额
+  const [fruitsBalance, setFruitsBalance] = useState(0);
   // 打卡后待展示的新勋章（等 CelebrationPopup 关闭后再展示）
   const pendingNewMedalsRef = useRef<MedalData[]>([]);
 
@@ -113,6 +115,14 @@ export default function CheckIn() {
   useEffect(() => {
     preloadTreeGifs();
   }, []);
+
+  // 获取果实余额
+  useEffect(() => {
+    if (!currentChild) return;
+    rewardsApi.getFruits(currentChild.id)
+      .then(res => setFruitsBalance(res.data.fruits_balance))
+      .catch(() => {});
+  }, [currentChild]);
 
   // 初始化已解锁勋章基准集合，避免首次打卡时把历史勋章误判为新解锁
   useEffect(() => {
@@ -215,6 +225,10 @@ export default function CheckIn() {
   const hasCheckedInToday = !!todayTask;
   const taskStatus = todayTask?.status;
 
+  // 共享任务：另一个孩子已打卡，当前孩子也视为已完成
+  const sharedCheckedInToday =
+    currentGoal?.is_shared && selectedTree?.checked_in_today && !hasCheckedInToday;
+
   // 将 ISO 时间字符串格式化为北京时间显示
   const formatCheckinTime = useCallback((isoString: string): string => {
     return new Date(isoString).toLocaleString('zh-CN', {
@@ -266,6 +280,13 @@ export default function CheckIn() {
   };
 
   const getStatusText = () => {
+    if (sharedCheckedInToday) {
+      return {
+        text: '共享任务已完成 🎉',
+        color: 'text-green-600',
+        bg: 'bg-green-50 border-green-200'
+      };
+    }
     if (!hasCheckedInToday) return null;
     const dateLabel = isBackfillDate ? formatDateDisplay(selectedDate) : '今日';
     switch (taskStatus) {
@@ -293,7 +314,7 @@ export default function CheckIn() {
   };
 
   const statusInfo = getStatusText();
-  const canCheckin = (!hasCheckedInToday || taskStatus === 'rejected') && selectedTree?.status !== 'completed';
+  const canCheckin = !sharedCheckedInToday && (!hasCheckedInToday || taskStatus === 'rejected') && selectedTree?.status !== 'completed';
 
   // 下拉刷新处理函数（清除缓存后强制刷新）
   const handleRefresh = useCallback(async () => {
@@ -509,7 +530,7 @@ export default function CheckIn() {
                             }}
                             className="flex items-center justify-center"
                           >
-                            <Icon name="park" filled className="text-primary" />
+                            <Icon name="park" filled size={`${treeSize}px`} className="text-primary" />
                           </motion.div>
                         )}
                         <motion.div
@@ -556,7 +577,9 @@ export default function CheckIn() {
                     className={`px-4 py-3 border rounded-xl text-sm font-medium flex items-center justify-between gap-2 ${statusInfo.bg} ${statusInfo.color}`}
                   >
                     <div className="flex items-center gap-2">
-                      <Icon name={taskStatus === 'approved'
+                      <Icon name={sharedCheckedInToday
+                        ? 'check_circle'
+                        : taskStatus === 'approved'
                           ? 'check_circle'
                           : taskStatus === 'rejected'
                             ? 'cancel'
@@ -570,6 +593,14 @@ export default function CheckIn() {
                     )}
                   </div>
                 )}
+
+                <button
+                    onClick={() => navigate('/store')}
+                    className="w-full flex items-center justify-between p-4 bg-white dark:bg-[var(--bg-surface)] rounded-2xl shadow-sm border border-slate-100 dark:border-[var(--border-color)] active:scale-[0.98] transition-all hover:border-primary/30"
+                  >
+                    <span className="text-slate-600 dark:text-[var(--text-secondary)] text-sm font-medium">当前果实</span>
+                    <span className="text-primary font-extrabold text-lg">{fruitsBalance.toLocaleString()}</span>
+                  </button>
 
                 <div className="flex flex-col gap-3 p-4 bg-white dark:bg-[var(--bg-surface)] rounded-2xl shadow-sm border border-slate-100 dark:border-[var(--border-color)] transition-colors">
                   <div className="flex gap-6 justify-between items-center">
@@ -590,7 +621,12 @@ export default function CheckIn() {
                     <Icon name="water_drop" className="text-lg" />
                     {currentTree
                       ? selectedTree?.status === 'completed'
-                        ? '树木已长成！🎉 继续坚持好习惯，种下更多成长的种子吧。'
+                        ? (currentGoal?.is_shared && selectedTree?.completed_by_child_id && selectedTree.completed_by_child_id !== currentChild?.id
+                            ? (() => {
+                                const finisher = user?.children?.find(c => c.id === selectedTree.completed_by_child_id);
+                                return `🎉 ${finisher?.name || '小伙伴'} 已经完成了这个共享任务！你也可以继续努力，种下属于自己的小树吧~`;
+                              })()
+                            : '树木已长成！🎉 继续坚持好习惯，种下更多成长的种子吧。')
                         : `还需 ${100 - (currentTree.progress ?? 0)}% 就能结果啦！`
                       : '坚持完成好习惯，让你的幼苗长成参天大树吧。'}
                   </p>
@@ -632,23 +668,27 @@ export default function CheckIn() {
                   )}
                 </div>
 
-                <div className="text-center py-4">
-                  <h1 className="text-slate-900 dark:text-[var(--text-primary)] tracking-tight text-3xl font-extrabold leading-tight">
-                    {!hasCheckedInToday
-                      ? isBackfillDate
-                        ? '补打卡'
-                        : '浇水时间到！'
+                <div className="text-center py-2">
+                  <h1 className="text-slate-900 dark:text-[var(--text-primary)] tracking-tight text-2xl font-extrabold leading-tight">
+                    {sharedCheckedInToday
+                      ? '共享任务已完成！'
+                      : !hasCheckedInToday
+                        ? isBackfillDate
+                          ? '补打卡'
+                          : '浇水时间到！'
                       : taskStatus === 'approved'
                         ? `${isBackfillDate ? formatDateDisplay(selectedDate) : '今日'}已完成！🎉`
                         : taskStatus === 'rejected'
                           ? '需要重新打卡'
                           : `${isBackfillDate ? formatDateDisplay(selectedDate) : '今日'}已打卡！`}
                   </h1>
-                  <p className="text-slate-500 dark:text-[var(--text-secondary)] mt-2">
-                    {!hasCheckedInToday
-                      ? isBackfillDate
-                        ? `为 ${formatDateDisplay(selectedDate)} 补打卡，记录你的坚持！`
-                        : '坚持完成好习惯，让你的幼苗长成参天大树吧。'
+                    <p className="text-slate-500 dark:text-[var(--text-secondary)] mt-2">
+                      {sharedCheckedInToday
+                        ? '有小朋友已经帮你完成了这个任务，快来欣赏你的小树吧！'
+                        : !hasCheckedInToday
+                          ? isBackfillDate
+                            ? `为 ${formatDateDisplay(selectedDate)} 补打卡，记录你的坚持！`
+                            : '坚持完成好习惯，让你的幼苗长成参天大树吧。'
                       : taskStatus === 'approved'
                         ? '家长已审核通过，树木正在成长！'
                         : taskStatus === 'rejected'
@@ -693,6 +733,8 @@ export default function CheckIn() {
                       <Icon name="park" className="text-3xl" />
                       树木已长成 🌳
                     </>
+                  ) : sharedCheckedInToday ? (
+                    '共享任务已完成'
                   ) : (
                     <>
                       <Icon name="check_circle" className="text-3xl" />
