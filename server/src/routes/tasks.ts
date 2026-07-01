@@ -159,24 +159,6 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
     return;
   }
 
-  // 对于共享任务，额外检查是否有其他孩子已经打卡（跨孩子防重复）
-  if (goal.is_shared) {
-    const { data: otherChildTask } = await supabase
-      .from("tasks")
-      .select("id")
-      .eq("goal_id", goal_id)
-      .neq("status", "rejected")
-      .neq("child_id", child_id)
-      .gte("checkin_time", `${checkDate}T00:00:00+08:00`)
-      .lte("checkin_time", `${checkDate}T23:59:59.999+08:00`)
-      .maybeSingle();
-
-    if (otherChildTask) {
-      const isToday = checkDate === getUTC8Today();
-      res.status(409).json({ error: isToday ? "今天的共享任务已被其他小朋友完成啦！" : "该日期的共享任务已被其他小朋友完成啦！" });
-      return;
-    }
-  }
 
   // 获取关联树木（共享任务需要按 child_id 过滤，找到该孩子的树木）
   const { data: tree } = await supabase

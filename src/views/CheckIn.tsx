@@ -225,9 +225,6 @@ export default function CheckIn() {
   const hasCheckedInToday = !!todayTask;
   const taskStatus = todayTask?.status;
 
-  // 共享任务：另一个孩子已打卡，当前孩子也视为已完成
-  const sharedCheckedInToday =
-    currentGoal?.is_shared && selectedTree?.checked_in_today && !hasCheckedInToday;
 
   // 将 ISO 时间字符串格式化为北京时间显示
   const formatCheckinTime = useCallback((isoString: string): string => {
@@ -280,13 +277,6 @@ export default function CheckIn() {
   };
 
   const getStatusText = () => {
-    if (sharedCheckedInToday) {
-      return {
-        text: '共享任务已完成 🎉',
-        color: 'text-green-600',
-        bg: 'bg-green-50 border-green-200'
-      };
-    }
     if (!hasCheckedInToday) return null;
     const dateLabel = isBackfillDate ? formatDateDisplay(selectedDate) : '今日';
     switch (taskStatus) {
@@ -314,7 +304,7 @@ export default function CheckIn() {
   };
 
   const statusInfo = getStatusText();
-  const canCheckin = !sharedCheckedInToday && (!hasCheckedInToday || taskStatus === 'rejected') && selectedTree?.status !== 'completed';
+  const canCheckin = (!hasCheckedInToday || taskStatus === 'rejected') && selectedTree?.status !== 'completed';
 
   // 下拉刷新处理函数（清除缓存后强制刷新）
   const handleRefresh = useCallback(async () => {
@@ -577,9 +567,7 @@ export default function CheckIn() {
                     className={`px-4 py-3 border rounded-xl text-sm font-medium flex items-center justify-between gap-2 ${statusInfo.bg} ${statusInfo.color}`}
                   >
                     <div className="flex items-center gap-2">
-                      <Icon name={sharedCheckedInToday
-                        ? 'check_circle'
-                        : taskStatus === 'approved'
+                      <Icon name={taskStatus === 'approved'
                           ? 'check_circle'
                           : taskStatus === 'rejected'
                             ? 'cancel'
@@ -670,9 +658,7 @@ export default function CheckIn() {
 
                 <div className="text-center py-2">
                   <h1 className="text-slate-900 dark:text-[var(--text-primary)] tracking-tight text-2xl font-extrabold leading-tight">
-                    {sharedCheckedInToday
-                      ? '共享任务已完成！'
-                      : !hasCheckedInToday
+                    {!hasCheckedInToday
                         ? isBackfillDate
                           ? '补打卡'
                           : '浇水时间到！'
@@ -683,9 +669,7 @@ export default function CheckIn() {
                           : `${isBackfillDate ? formatDateDisplay(selectedDate) : '今日'}已打卡！`}
                   </h1>
                     <p className="text-slate-500 dark:text-[var(--text-secondary)] mt-2">
-                      {sharedCheckedInToday
-                        ? '有小朋友已经帮你完成了这个任务，快来欣赏你的小树吧！'
-                        : !hasCheckedInToday
+                      {!hasCheckedInToday
                           ? isBackfillDate
                             ? `为 ${formatDateDisplay(selectedDate)} 补打卡，记录你的坚持！`
                             : '坚持完成好习惯，让你的幼苗长成参天大树吧。'
@@ -733,8 +717,6 @@ export default function CheckIn() {
                       <Icon name="park" className="text-3xl" />
                       树木已长成 🌳
                     </>
-                  ) : sharedCheckedInToday ? (
-                    '共享任务已完成'
                   ) : (
                     <>
                       <Icon name="check_circle" className="text-3xl" />

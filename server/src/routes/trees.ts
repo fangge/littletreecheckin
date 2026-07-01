@@ -135,18 +135,14 @@ router.get('/:childId/dashboard-data', authMiddleware, async (req: AuthRequest, 
   let checkedInTodaySet = new Set<string>();
   let goalDurationMap = new Map<string, number>();
 
-  // 统计共享 goalId 集合（共享任务任何孩子打卡都算当前孩子已完成）
-  const sharedGoalIdsForToday = new Set(
-    goals.filter((g: { is_shared?: boolean }) => g.is_shared).map((g: { id: string }) => g.id)
-  );
-
   if (uniqueGoalIds.length > 0) {
     // 批量查询已完成天数和今日签到状态（并行执行）
     const [todayTasksRes, goalsDurationRes] = await Promise.all([
       (() => {
         const utc8Offset = 8 * 60 * 60 * 1000;
         const today = new Date(Date.now() + utc8Offset).toISOString().split('T')[0];
-        return supabase.from('tasks').select('goal_id, child_id')
+        return supabase.from('tasks').select('goal_id')
+          .eq('child_id', childId)
           .in('goal_id', uniqueGoalIds).neq('status', 'rejected')
           .gte('checkin_time', `${today}T00:00:00+08:00`)
           .lte('checkin_time', `${today}T23:59:59.999+08:00`);
@@ -185,11 +181,8 @@ router.get('/:childId/dashboard-data', authMiddleware, async (req: AuthRequest, 
     }
 
     // 构建 checkedInTodaySet
-    // 共享任务：任何参与孩子的打卡都算已完成；非共享任务：只看当前孩子
     for (const t of todayTasksRes.data || []) {
-      if (t.goal_id && (sharedGoalIdsForToday.has(t.goal_id) || t.child_id === childId)) {
-        checkedInTodaySet.add(t.goal_id);
-      }
+      if (t.goal_id) checkedInTodaySet.add(t.goal_id);
     }
 
     // 构建 goalDurationMap
@@ -199,13 +192,14 @@ router.get('/:childId/dashboard-data', authMiddleware, async (req: AuthRequest, 
   }
 
   // 共享任务：检查是否有任何参与孩子的树已完成，是则当前孩子的树也标记为已完成
+  const sharedGoalIdsDash = (goals || []).filter(g => g.is_shared).map(g => g.id);
   let sharedCompletedGoalIdsDash = new Set<string>();
-  const sharedCompletedByChildMapDash = new Map<string, string>(); // goal_id -> child_id
-  if (sharedGoalIdsForToday.size > 0) {
+  const sharedCompletedByChildMapDash = new Map<string, string>();
+  if (sharedGoalIdsDash.length > 0) {
     const { data: sharedCompletedTreesDash } = await supabase
       .from('trees')
       .select('goal_id, child_id')
-      .in('goal_id', [...sharedGoalIdsForToday])
+      .in('goal_id', sharedGoalIdsDash)
       .eq('status', 'completed');
     for (const t of (sharedCompletedTreesDash || [])) {
       if (t.goal_id) {
@@ -323,10 +317,11 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
     .in('id', goalIds);
   const sharedGoalIdsSet = new Set((sharedGoalsData || []).map((g: { id: string }) => g.id));
 
-  // 批量查询今日签到状态（去掉 child_id 限制，后续按规则过滤）
+  // 批量查询今日签到状态（非 rejected 的今日任务）
   const { data: todayTasks } = await supabase
     .from('tasks')
-    .select('goal_id, child_id')
+    .select('goal_id')
+    .eq('child_id', childId)
     .in('goal_id', goalIds)
     .neq('status', 'rejected')
     .gte('checkin_time', `${today}T00:00:00+08:00`)
@@ -341,13 +336,9 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
   }
 
   // 统计今日已签到的 goal
-  // 共享任务：任何参与孩子的打卡都算已完成；非共享任务：只看当前孩子
-  const checkedInTodaySet = new Set<string>();
-  for (const t of (todayTasks || [])) {
-    if (t.goal_id && (sharedGoalIdsSet.has(t.goal_id) || t.child_id === childId)) {
-      checkedInTodaySet.add(t.goal_id);
-    }
-  }
+  const checkedInTodaySet = new Set<string>(
+    (todayTasks || []).map((t: { goal_id: string }) => t.goal_id).filter(Boolean)
+  );
 
   // 批量查询 goal 的 duration_days 用于准确计算 progress
   const { data: goalsData } = await supabase
