@@ -147,15 +147,15 @@ BEGIN
     RETURN;
   END IF;
 
-  SELECT fruits_per_yuan, yuan_amount, is_enabled
+  SELECT ces.fruits_per_yuan, ces.yuan_amount, ces.is_enabled
   INTO v_setting
-  FROM cash_exchange_settings
-  WHERE parent_id = v_child.parent_id;
+  FROM cash_exchange_settings AS ces
+  WHERE ces.parent_id = v_child.parent_id;
 
   IF NOT FOUND THEN
-    INSERT INTO cash_exchange_settings (parent_id, fruits_per_yuan, yuan_amount, is_enabled)
+    INSERT INTO cash_exchange_settings AS ces (parent_id, fruits_per_yuan, yuan_amount, is_enabled)
     VALUES (v_child.parent_id, 100, 1.00, true)
-    RETURNING fruits_per_yuan, yuan_amount, is_enabled INTO v_setting;
+    RETURNING ces.fruits_per_yuan, ces.yuan_amount, ces.is_enabled INTO v_setting;
   END IF;
 
   IF v_setting.is_enabled IS NOT TRUE THEN

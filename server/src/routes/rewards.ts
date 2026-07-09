@@ -191,7 +191,12 @@ router.post('/cash/redeem', authMiddleware, async (req: AuthRequest, res: Respon
 
   if (error || !result) {
     console.error('现金兑换失败:', error);
-    res.status(500).json({ error: '现金兑换失败' });
+    res.status(500).json({
+      error: '现金兑换失败',
+      details: error?.details || error?.message,
+      hint: error?.hint,
+      code: error?.code,
+    });
     return;
   }
 
