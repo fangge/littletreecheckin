@@ -5,6 +5,51 @@ import { AuthRequest } from '../types.js';
 
 const router: Router = Router();
 
+const CASH_DEFAULT_FRUITS_PER_YUAN = 100;
+const CASH_DEFAULT_YUAN_AMOUNT = 1;
+
+const toCashAmount = (value: unknown): number => Number(Number(value || 0).toFixed(2));
+
+const sortByRedeemedAtDesc = <T extends { redeemed_at: string }>(items: T[]): T[] =>
+  items.sort((a, b) => new Date(b.redeemed_at).getTime() - new Date(a.redeemed_at).getTime());
+
+const getOwnedChildIds = async (parentId: string, requestedChildIds: string[]) => {
+  const { data, error } = await supabase
+    .from('children')
+    .select('id')
+    .eq('parent_id', parentId)
+    .eq('is_deleted', false)
+    .in('id', requestedChildIds);
+
+  if (error) return [];
+  return (data || []).map(child => child.id as string);
+};
+
+const getCashSettingForParent = async (parentId: string) => {
+  const { data: existing, error } = await supabase
+    .from('cash_exchange_settings')
+    .select('id, parent_id, fruits_per_yuan, yuan_amount, is_enabled, updated_at')
+    .eq('parent_id', parentId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (existing) return existing;
+
+  const { data: created, error: createError } = await supabase
+    .from('cash_exchange_settings')
+    .insert({
+      parent_id: parentId,
+      fruits_per_yuan: CASH_DEFAULT_FRUITS_PER_YUAN,
+      yuan_amount: CASH_DEFAULT_YUAN_AMOUNT,
+      is_enabled: true,
+    })
+    .select('id, parent_id, fruits_per_yuan, yuan_amount, is_enabled, updated_at')
+    .single();
+
+  if (createError) throw createError;
+  return created;
+};
+
 // GET /api/v1/rewards
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { category } = req.query;
@@ -46,6 +91,126 @@ router.get('/children/:childId/fruits', authMiddleware, async (req: AuthRequest,
   }
 
   res.json({ data: { fruits_balance: child.fruits_balance } });
+});
+
+// GET /api/v1/rewards/cash/settings
+router.get('/cash/settings', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  if (!req.user?.id) {
+    res.status(401).json({ error: '认证已过期，请重新登录' });
+    return;
+  }
+
+  try {
+    const setting = await getCashSettingForParent(req.user.id);
+    res.json({ data: setting });
+  } catch (error) {
+    console.error('获取现金兑换配置失败:', error);
+    res.status(500).json({ error: '获取现金兑换配置失败' });
+  }
+});
+
+// PUT /api/v1/rewards/cash/settings
+router.put('/cash/settings', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  if (!req.user?.id) {
+    res.status(401).json({ error: '认证已过期，请重新登录' });
+    return;
+  }
+
+  const fruitsPerYuan = Number(req.body.fruits_per_yuan);
+  const yuanAmount = Number(req.body.yuan_amount);
+  const isEnabled = req.body.is_enabled;
+
+  if (!Number.isInteger(fruitsPerYuan) || fruitsPerYuan <= 0) {
+    res.status(400).json({ error: '兑换比例必须是大于0的整数' });
+    return;
+  }
+
+  if (!Number.isFinite(yuanAmount) || yuanAmount <= 0) {
+    res.status(400).json({ error: '兑换金额必须大于0' });
+    return;
+  }
+
+  if (isEnabled !== undefined && typeof isEnabled !== 'boolean') {
+    res.status(400).json({ error: '开启状态必须是布尔值' });
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from('cash_exchange_settings')
+    .upsert({
+      parent_id: req.user.id,
+      fruits_per_yuan: fruitsPerYuan,
+      yuan_amount: toCashAmount(yuanAmount),
+      is_enabled: isEnabled ?? true,
+    }, { onConflict: 'parent_id' })
+    .select('id, parent_id, fruits_per_yuan, yuan_amount, is_enabled, updated_at')
+    .single();
+
+  if (error || !data) {
+    res.status(500).json({ error: '保存现金兑换配置失败' });
+    return;
+  }
+
+  res.json({ data, message: '现金兑换配置已保存' });
+});
+
+// POST /api/v1/rewards/cash/redeem
+router.post('/cash/redeem', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { child_id, fruits_spent } = req.body;
+  const fruitsSpent = Number(fruits_spent);
+
+  if (!child_id) {
+    res.status(400).json({ error: '孩子ID不能为空' });
+    return;
+  }
+
+  if (!Number.isInteger(fruitsSpent) || fruitsSpent <= 0) {
+    res.status(400).json({ error: '兑换果实数必须是大于0的整数' });
+    return;
+  }
+
+  const { data: child, error: childError } = await supabase
+    .from('children')
+    .select('id')
+    .eq('id', child_id)
+    .eq('parent_id', req.user?.id)
+    .eq('is_deleted', false)
+    .single();
+
+  if (childError || !child) {
+    res.status(403).json({ error: '无权为该孩子发起现金兑换' });
+    return;
+  }
+
+  const { data, error } = await supabase.rpc('redeem_cash_rpc', {
+    p_child_id: child_id,
+    p_fruits_spent: fruitsSpent,
+  });
+
+  const result = Array.isArray(data) ? data[0] : data;
+
+  if (error || !result) {
+    console.error('现金兑换失败:', error);
+    res.status(500).json({ error: '现金兑换失败' });
+    return;
+  }
+
+  if (result.error_msg) {
+    res.status(400).json({ error: result.error_msg, data: result });
+    return;
+  }
+
+  res.status(201).json({
+    data: {
+      redemption_id: result.redemption_id,
+      fruits_spent: result.fruits_spent,
+      fruits_per_yuan: result.fruits_per_yuan,
+      yuan_amount: toCashAmount(result.yuan_amount),
+      cash_amount: toCashAmount(result.cash_amount),
+      remaining_balance: result.remaining_balance,
+    },
+    message: `成功提交现金兑换，${result.fruits_spent} 个果实可兑换 ¥${toCashAmount(result.cash_amount).toFixed(2)}`,
+  });
 });
 
 // POST /api/v1/rewards/:rewardId/redeem
@@ -138,21 +303,37 @@ router.post('/:rewardId/redeem', authMiddleware, async (req: AuthRequest, res: R
 router.get('/children/:childId/redemptions', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { childId } = req.params;
 
-  const { data, error } = await supabase
-    .from('reward_redemptions')
-    .select(`
-      id, redeemed_at, status,
-      rewards(name, price, category)
-    `)
-    .eq('child_id', childId)
-    .order('redeemed_at', { ascending: false });
+  const [rewardRes, cashRes] = await Promise.all([
+    supabase
+      .from('reward_redemptions')
+      .select(`
+        id, child_id, redeemed_at, status,
+        rewards(name, price, category)
+      `)
+      .eq('child_id', childId),
+    supabase
+      .from('cash_redemptions')
+      .select('id, child_id, redeemed_at, status, fruits_spent, fruits_per_yuan, yuan_amount, cash_amount')
+      .eq('child_id', childId),
+  ]);
 
-  if (error) {
+  if (rewardRes.error || cashRes.error) {
     res.status(500).json({ error: '获取兑换记录失败' });
     return;
   }
 
-  res.json({ data: data || [] });
+  const rewardItems = (rewardRes.data || []).map(item => ({
+    ...item,
+    redemption_type: 'reward' as const,
+  }));
+
+  const cashItems = (cashRes.data || []).map(item => ({
+    ...item,
+    redemption_type: 'cash' as const,
+    cash_amount: toCashAmount(item.cash_amount),
+  }));
+
+  res.json({ data: sortByRedeemedAtDesc([...rewardItems, ...cashItems]) });
 });
 
 // GET /api/v1/rewards/redemptions/batch?child_ids=uuid1,uuid2,uuid3
@@ -165,29 +346,54 @@ router.get('/redemptions/batch', authMiddleware, async (req: AuthRequest, res: R
     return;
   }
 
-  const childIdArray = child_ids.split(',').filter(Boolean);
+  const requestedChildIds = child_ids.split(',').filter(Boolean);
+
+  if (requestedChildIds.length === 0) {
+    res.json({ data: [] });
+    return;
+  }
+
+  const childIdArray = req.user?.id
+    ? await getOwnedChildIds(req.user.id, requestedChildIds)
+    : requestedChildIds;
 
   if (childIdArray.length === 0) {
     res.json({ data: [] });
     return;
   }
 
-  const { data, error } = await supabase
-    .from('reward_redemptions')
-    .select(`
-      id, child_id, redeemed_at, status,
-      rewards(name, price, category),
-      children(name)
-    `)
-    .in('child_id', childIdArray)
-    .order('redeemed_at', { ascending: false });
+  const [rewardRes, cashRes] = await Promise.all([
+    supabase
+      .from('reward_redemptions')
+      .select(`
+        id, child_id, redeemed_at, status,
+        rewards(name, price, category),
+        children(name)
+      `)
+      .in('child_id', childIdArray),
+    supabase
+      .from('cash_redemptions')
+      .select('id, child_id, redeemed_at, status, fruits_spent, fruits_per_yuan, yuan_amount, cash_amount, children(name)')
+      .in('child_id', childIdArray),
+  ]);
 
-  if (error) {
+  if (rewardRes.error || cashRes.error) {
     res.status(500).json({ error: '获取兑换记录失败' });
     return;
   }
 
-  res.json({ data: data || [] });
+  const rewardItems = (rewardRes.data || []).map(item => ({
+    ...item,
+    redemption_type: 'reward' as const,
+  }));
+
+  const cashItems = (cashRes.data || []).map(item => ({
+    ...item,
+    redemption_type: 'cash' as const,
+    cash_amount: toCashAmount(item.cash_amount),
+  }));
+
+  res.json({ data: sortByRedeemedAtDesc([...rewardItems, ...cashItems]) });
 });
 
 // PUT /api/v1/rewards/redemptions/:redemptionId/complete  (家长确认奖励已发放)
@@ -205,6 +411,44 @@ router.put('/redemptions/:redemptionId/complete', authMiddleware, async (req: Au
   }
 
   res.json({ message: '已确认奖励发放' });
+});
+
+// PUT /api/v1/rewards/cash/redemptions/:redemptionId/complete  (家长确认现金已发放)
+router.put('/cash/redemptions/:redemptionId/complete', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { redemptionId } = req.params;
+
+  const { data: redemption, error: fetchError } = await supabase
+    .from('cash_redemptions')
+    .select('id, status, parent_id')
+    .eq('id', redemptionId)
+    .single();
+
+  if (fetchError || !redemption) {
+    res.status(404).json({ error: '现金兑换记录不存在' });
+    return;
+  }
+
+  if (req.user?.id && redemption.parent_id !== req.user.id) {
+    res.status(403).json({ error: '无权操作该兑换记录' });
+    return;
+  }
+
+  if (redemption.status !== 'pending') {
+    res.status(400).json({ error: '只能确认待发放的现金兑换记录' });
+    return;
+  }
+
+  const { error } = await supabase
+    .from('cash_redemptions')
+    .update({ status: 'completed', completed_at: new Date().toISOString() })
+    .eq('id', redemptionId);
+
+  if (error) {
+    res.status(500).json({ error: '确认现金发放失败' });
+    return;
+  }
+
+  res.json({ message: '已确认现金发放' });
 });
 
 // PUT /api/v1/rewards/redemptions/:redemptionId/cancel  (家长撤回兑换)
@@ -266,6 +510,65 @@ router.put('/redemptions/:redemptionId/cancel', authMiddleware, async (req: Auth
   }
 
   res.json({ message: '已撤回兑换，果实已返还' });
+});
+
+// PUT /api/v1/rewards/cash/redemptions/:redemptionId/cancel  (家长撤回现金兑换)
+router.put('/cash/redemptions/:redemptionId/cancel', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { redemptionId } = req.params;
+
+  const { data: redemption, error: fetchError } = await supabase
+    .from('cash_redemptions')
+    .select('child_id, parent_id, fruits_spent, status')
+    .eq('id', redemptionId)
+    .single();
+
+  if (fetchError || !redemption) {
+    res.status(404).json({ error: '现金兑换记录不存在' });
+    return;
+  }
+
+  if (req.user?.id && redemption.parent_id !== req.user.id) {
+    res.status(403).json({ error: '无权操作该兑换记录' });
+    return;
+  }
+
+  if (redemption.status !== 'pending') {
+    res.status(400).json({ error: '只能撤回待发放的现金兑换记录' });
+    return;
+  }
+
+  const { data: child, error: childError } = await supabase
+    .from('children')
+    .select('fruits_balance')
+    .eq('id', redemption.child_id)
+    .single();
+
+  if (childError || !child) {
+    res.status(404).json({ error: '孩子不存在' });
+    return;
+  }
+
+  const { error: updateError } = await supabase
+    .from('children')
+    .update({ fruits_balance: child.fruits_balance + redemption.fruits_spent })
+    .eq('id', redemption.child_id);
+
+  if (updateError) {
+    res.status(500).json({ error: '返还果实失败' });
+    return;
+  }
+
+  const { error: deleteError } = await supabase
+    .from('cash_redemptions')
+    .delete()
+    .eq('id', redemptionId);
+
+  if (deleteError) {
+    res.status(500).json({ error: '删除现金兑换记录失败' });
+    return;
+  }
+
+  res.json({ message: '已撤回现金兑换，果实已返还' });
 });
 
 // POST /api/v1/rewards  (创建奖品)

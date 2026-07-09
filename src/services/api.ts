@@ -187,13 +187,31 @@ export interface RewardData {
 
 export interface RedemptionData {
   id: string;
+  child_id?: string;
   redeemed_at: string;
   status: 'pending' | 'completed';
+  redemption_type?: 'reward' | 'cash';
   rewards?: {
     name: string;
     price: number;
     category: string;
   };
+  fruits_spent?: number;
+  fruits_per_yuan?: number;
+  yuan_amount?: number;
+  cash_amount?: number;
+  children?: {
+    name: string;
+  };
+}
+
+export interface CashExchangeSetting {
+  id: string;
+  parent_id: string;
+  fruits_per_yuan: number;
+  yuan_amount: number;
+  is_enabled: boolean;
+  updated_at?: string;
 }
 
 export interface MessageData {
@@ -473,6 +491,31 @@ export const rewardsApi = {
       { method: 'POST', body: JSON.stringify({ child_id: childId }) }
     ),
 
+  getCashSetting: () =>
+    request<{ data: CashExchangeSetting }>('/api/v1/rewards/cash/settings'),
+
+  updateCashSetting: (data: { fruits_per_yuan: number; yuan_amount: number; is_enabled: boolean }) =>
+    request<{ data: CashExchangeSetting; message: string }>('/api/v1/rewards/cash/settings', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  redeemCash: (childId: string, fruitsSpent: number) =>
+    request<{
+      data: {
+        redemption_id: string;
+        fruits_spent: number;
+        fruits_per_yuan: number;
+        yuan_amount: number;
+        cash_amount: number;
+        remaining_balance: number;
+      };
+      message: string;
+    }>('/api/v1/rewards/cash/redeem', {
+      method: 'POST',
+      body: JSON.stringify({ child_id: childId, fruits_spent: fruitsSpent }),
+    }),
+
   redemptions: (childId: string) =>
     request<{ data: RedemptionData[] }>(`/api/v1/rewards/children/${childId}/redemptions`),
 
@@ -487,6 +530,12 @@ export const rewardsApi = {
 
   cancelRedemption: (redemptionId: string) =>
     request<{ message: string }>(`/api/v1/rewards/redemptions/${redemptionId}/cancel`, { method: 'PUT' }),
+
+  confirmCashRedemption: (redemptionId: string) =>
+    request<{ message: string }>(`/api/v1/rewards/cash/redemptions/${redemptionId}/complete`, { method: 'PUT' }),
+
+  cancelCashRedemption: (redemptionId: string) =>
+    request<{ message: string }>(`/api/v1/rewards/cash/redemptions/${redemptionId}/cancel`, { method: 'PUT' }),
 
   listAll: () =>
     request<{ data: (RewardData & { is_active: boolean })[] }>('/api/v1/rewards/all'),

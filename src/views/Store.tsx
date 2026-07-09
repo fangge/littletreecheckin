@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
-import { rewardsApi, RewardData, Child } from '../services/api';
+import { rewardsApi, RewardData, Child, CashExchangeSetting } from '../services/api';
 import PullToRefresh from '../components/PullToRefresh';
 
 import Icon from '../components/Icon';
@@ -25,6 +25,15 @@ export default function Store() {
   const [showRedeemModal, setShowRedeemModal] = useState(false);
   const [selectedReward, setSelectedReward] = useState<RewardData | null>(null);
   const [isRedeeming, setIsRedeeming] = useState(false);
+  const [cashSetting, setCashSetting] = useState<CashExchangeSetting | null>(null);
+  const [cashFruitsInput, setCashFruitsInput] = useState('');
+  const [showCashModal, setShowCashModal] = useState(false);
+  const [isCashRedeeming, setIsCashRedeeming] = useState(false);
+
+  const cashFruits = parseInt(cashFruitsInput, 10);
+  const cashPreview = cashSetting && !isNaN(cashFruits)
+    ? (cashFruits / cashSetting.fruits_per_yuan) * (cashSetting.yuan_amount ?? 1)
+    : 0;
 
   const handleSelectChild = (child: Child) => {
     setSelectedChild(child);
@@ -34,8 +43,12 @@ export default function Store() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const rewardsRes = await rewardsApi.list(activeCategory || undefined);
+      const [rewardsRes, cashSettingRes] = await Promise.all([
+        rewardsApi.list(activeCategory || undefined),
+        rewardsApi.getCashSetting(),
+      ]);
       setRewards(rewardsRes.data);
+      setCashSetting(cashSettingRes.data);
 
       if (selectedChild) {
         const fruitsRes = await rewardsApi.getFruits(selectedChild.id);
@@ -95,6 +108,51 @@ export default function Store() {
     if (isRedeeming) return; // 兑换中不允许关闭
     setShowRedeemModal(false);
     setSelectedReward(null);
+  };
+
+  const handleOpenCashModal = () => {
+    if (!selectedChild) {
+      alert('请先选择要兑换的孩子');
+      return;
+    }
+    if (!cashSetting?.is_enabled) {
+      alert('现金兑换暂未开启');
+      return;
+    }
+    if (!cashFruitsInput || isNaN(cashFruits) || cashFruits <= 0) {
+      alert('请输入要兑换的果实数');
+      return;
+    }
+    if (cashFruits > fruitsBalance) {
+      alert(`果实余额不足！当前余额：${fruitsBalance}`);
+      return;
+    }
+    setShowCashModal(true);
+  };
+
+  const handleConfirmCashRedeem = async () => {
+    if (!selectedChild || !cashSetting || isNaN(cashFruits)) return;
+
+    setIsCashRedeeming(true);
+    try {
+      const res = await rewardsApi.redeemCash(selectedChild.id, cashFruits);
+      setFruitsBalance(res.data.remaining_balance);
+      setCashFruitsInput('');
+      await refreshUser();
+      setShowCashModal(false);
+      setTimeout(() => {
+        alert(res.message || '现金兑换申请已提交！');
+      }, 100);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '现金兑换失败');
+    } finally {
+      setIsCashRedeeming(false);
+    }
+  };
+
+  const handleCloseCashModal = () => {
+    if (isCashRedeeming) return;
+    setShowCashModal(false);
   };
 
   return (
@@ -169,6 +227,69 @@ export default function Store() {
             </div>
           </div>
           <div className="absolute -right-8 -top-8 size-32 rounded-full bg-white/20 blur-2xl" />
+        </div>
+
+        {/* 果实换人民币 */}
+        <div className="mt-4 overflow-hidden rounded-2xl border border-primary/10 bg-white dark:bg-[var(--bg-surface)] shadow-sm">
+          <div className="relative p-4">
+            <div className="absolute -right-6 -top-8 size-28 rounded-full bg-emerald-100/80 blur-2xl dark:bg-emerald-900/20" />
+            <div className="relative z-10">
+              <div className="flex items-start gap-3">
+                <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <Icon name="diamond" className="text-2xl" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-slate-900 dark:text-[var(--text-primary)]">果实换人民币</h3>
+                    {cashSetting?.is_enabled === false && (
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500 dark:bg-[var(--bg-card)] dark:text-[var(--text-muted)]">
+                        暂未开启
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-[var(--text-secondary)]">
+                    当前比例：{cashSetting ? `${cashSetting.fruits_per_yuan} 🍎 = ¥${Number(cashSetting.yuan_amount ?? 1).toFixed(2)}` : '读取中...'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-[1fr_auto] gap-2">
+                <label className="sr-only" htmlFor="cash-fruits-input">兑换果实数</label>
+                <input
+                  id="cash-fruits-input"
+                  className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-primary focus:bg-white dark:border-[var(--border-color)] dark:bg-[var(--bg-card)] dark:text-[var(--text-primary)]"
+                  type="number"
+                  min="1"
+                  max={fruitsBalance}
+                  inputMode="numeric"
+                  placeholder="输入果实数"
+                  value={cashFruitsInput}
+                  onChange={e => setCashFruitsInput(e.target.value)}
+                  disabled={!cashSetting?.is_enabled || !selectedChild}
+                />
+                <button
+                  className="rounded-2xl bg-primary px-5 text-sm font-bold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={handleOpenCashModal}
+                  disabled={!cashSetting?.is_enabled || !selectedChild || !cashFruitsInput || isNaN(cashFruits) || cashFruits <= 0 || cashFruits > fruitsBalance}
+                >
+                  换钱
+                </button>
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className="font-semibold text-slate-500 dark:text-[var(--text-secondary)]">
+                  预计到账 <span className="text-base font-extrabold text-primary">¥{Math.max(0, cashPreview).toFixed(2)}</span>
+                </span>
+                <button
+                  className="rounded-full bg-primary/10 px-3 py-1 font-bold text-primary disabled:opacity-50"
+                  onClick={() => setCashFruitsInput(String(fruitsBalance))}
+                  disabled={!cashSetting?.is_enabled || fruitsBalance <= 0}
+                >
+                  全部兑换
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* 分类筛选 */}
@@ -290,6 +411,84 @@ export default function Store() {
                       </>
                     ) : (
                       '确认兑换'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 现金兑换确认弹窗 */}
+      <AnimatePresence>
+        {showCashModal && cashSetting && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+            onClick={handleCloseCashModal}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl dark:bg-[var(--bg-surface)]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex flex-col items-center gap-4">
+                <div className="flex size-20 items-center justify-center rounded-2xl bg-primary/10">
+                  <Icon name="diamond" className="text-5xl text-primary" />
+                </div>
+                <div className="text-center">
+                  <h3 className="mb-2 text-xl font-bold text-slate-900 dark:text-[var(--text-primary)]">确认兑换人民币</h3>
+                  <p className="text-sm text-slate-600 dark:text-[var(--text-secondary)]">
+                    {cashFruits.toLocaleString()} 个果实将兑换为
+                  </p>
+                  <p className="mt-1 text-3xl font-extrabold text-primary">¥{cashPreview.toFixed(2)}</p>
+                </div>
+
+                <div className="w-full rounded-xl bg-slate-50 p-3 text-sm dark:bg-[var(--bg-card)]">
+                  <div className="mb-1 flex justify-between">
+                    <span className="text-slate-600 dark:text-[var(--text-secondary)]">当前余额</span>
+                    <span className="font-bold text-slate-900 dark:text-[var(--text-primary)]">{fruitsBalance} 🍎</span>
+                  </div>
+                  <div className="mb-1 flex justify-between">
+                    <span className="text-slate-600 dark:text-[var(--text-secondary)]">兑换消耗</span>
+                    <span className="font-bold text-red-500">-{cashFruits} 🍎</span>
+                  </div>
+                  <div className="my-2 border-t border-slate-200 dark:border-[var(--border-color)]" />
+                  <div className="flex justify-between">
+                    <span className="text-slate-600 dark:text-[var(--text-secondary)]">剩余余额</span>
+                    <span className="font-bold text-primary">{fruitsBalance - cashFruits} 🍎</span>
+                  </div>
+                </div>
+
+                <p className="text-center text-xs leading-5 text-slate-400 dark:text-[var(--text-muted)]">
+                  提交后会进入待发放记录，由家长线下确认付款。
+                </p>
+
+                <div className="flex w-full gap-3">
+                  <button
+                    className="flex-1 rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-[var(--bg-card)] dark:text-[var(--text-secondary)] dark:hover:bg-[var(--bg-surface)]"
+                    onClick={handleCloseCashModal}
+                    disabled={isCashRedeeming}
+                  >
+                    取消
+                  </button>
+                  <button
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={handleConfirmCashRedeem}
+                    disabled={isCashRedeeming}
+                  >
+                    {isCashRedeeming ? (
+                      <>
+                        <Icon name="progress_activity" className="text-base animate-spin" />
+                        提交中...
+                      </>
+                    ) : (
+                      '确认提交'
                     )}
                   </button>
                 </div>

@@ -35,11 +35,28 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
               </button>
             </div>
             <div className="overflow-y-auto max-h-[60vh] px-6 py-4 space-y-4">
-              {/* v4.2 */}
+              {/* v4.3 */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v4.2</span>
+                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v4.3</span>
                   <span className="text-sm text-slate-500 dark:text-[var(--text-muted)]">最新</span>
+                </div>
+                <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">果实兑换人民币与兑换比例配置</h4>
+                <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
+                  新增果实兑换人民币能力，孩子可在商店提交现金兑换申请；家长可配置“多少果实 = 多少人民币”，并统一确认发放或撤回兑换。
+                </p>
+                <ul className="text-xs text-slate-500 dark:text-[var(--text-muted)] space-y-1 ml-2">
+                  <li>• 商店新增果实换人民币入口，输入果实数即可预估到账金额</li>
+                  <li>• 家长可同时配置兑换果实数和人民币金额</li>
+                  <li>• 兑换记录统一展示奖品兑换和现金兑换</li>
+                  <li>• 待发放现金兑换可确认完成，也可撤回并返还果实</li>
+                  <li>• 历史记录保存当次兑换比例，后续改比例不影响旧记录</li>
+                </ul>
+              </div>
+              {/* v4.2 */}
+              <div className="space-y-2 pt-4 border-t border-primary/5 dark:border-[var(--border-color)]">
+                <div className="flex items-center gap-2">
+                  <span className="bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-xs font-bold px-2 py-0.5 rounded">v4.2</span>
                 </div>
                 <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">家长审核批量操作与共享任务体验优化</h4>
                 <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
