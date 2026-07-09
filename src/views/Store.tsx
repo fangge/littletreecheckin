@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
-import { rewardsApi, RewardData, Child, CashExchangeSetting } from '../services/api';
+import { rewardsApi, RewardData, Child, CashExchangeSetting, RedemptionData } from '../services/api';
 import PullToRefresh from '../components/PullToRefresh';
 
 import Icon from '../components/Icon';
@@ -12,6 +12,12 @@ const CATEGORIES = [
   { key: 'toy', label: '玩具' },
   { key: 'snack', label: '零食' },
 ];
+
+const getCompletedCashAmount = (items: RedemptionData[]) =>
+  items.reduce((total, item) => {
+    if (item.redemption_type !== 'cash' || item.status !== 'completed') return total;
+    return total + Number(item.cash_amount || 0);
+  }, 0);
 
 export default function Store() {
   const navigate = useNavigate();
@@ -29,6 +35,7 @@ export default function Store() {
   const [cashFruitsInput, setCashFruitsInput] = useState('');
   const [showCashModal, setShowCashModal] = useState(false);
   const [isCashRedeeming, setIsCashRedeeming] = useState(false);
+  const [completedCashAmount, setCompletedCashAmount] = useState(0);
 
   const cashFruits = parseInt(cashFruitsInput, 10);
   const cashPreview = cashSetting && !isNaN(cashFruits)
@@ -43,16 +50,30 @@ export default function Store() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [rewardsRes, cashSettingRes] = await Promise.all([
-        rewardsApi.list(activeCategory || undefined),
-        rewardsApi.getCashSetting(),
+      const rewardsPromise = rewardsApi.list(activeCategory || undefined);
+      const cashSettingPromise = rewardsApi.getCashSetting();
+      const childDataPromise = selectedChild
+        ? Promise.all([
+            rewardsApi.getFruits(selectedChild.id),
+            rewardsApi.redemptions(selectedChild.id),
+          ])
+        : Promise.resolve(null);
+
+      const [rewardsRes, cashSettingRes, childData] = await Promise.all([
+        rewardsPromise,
+        cashSettingPromise,
+        childDataPromise,
       ]);
       setRewards(rewardsRes.data);
       setCashSetting(cashSettingRes.data);
 
-      if (selectedChild) {
-        const fruitsRes = await rewardsApi.getFruits(selectedChild.id);
+      if (childData) {
+        const [fruitsRes, redemptionsRes] = childData;
         setFruitsBalance(fruitsRes.data.fruits_balance);
+        setCompletedCashAmount(getCompletedCashAmount(redemptionsRes.data));
+      } else {
+        setFruitsBalance(0);
+        setCompletedCashAmount(0);
       }
     } catch (err) {
       console.error('获取数据失败:', err);
@@ -138,6 +159,7 @@ export default function Store() {
       const res = await rewardsApi.redeemCash(selectedChild.id, cashFruits);
       setFruitsBalance(res.data.remaining_balance);
       setCashFruitsInput('');
+      await fetchData();
       await refreshUser();
       setShowCashModal(false);
       setTimeout(() => {
@@ -162,7 +184,7 @@ export default function Store() {
         animate={{ opacity: 1, y: 0 }}
         className="flex-1 pb-32 lg:pb-8"
       >
-      <div className="sticky top-0 z-10 bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md transition-colors">
+      <div className="sticky top-0 z-99 bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md transition-colors">
         <div className="flex items-center px-6 pb-2 pt-6 lg:max-w-2xl lg:mx-auto">
           <button
             onClick={() => navigate('/')}
@@ -206,6 +228,12 @@ export default function Store() {
             <div className="flex items-end gap-2">
               <span className="text-4xl font-extrabold">{fruitsBalance.toLocaleString()}</span>
               <span className="mb-1 text-2xl">🍎</span>
+            </div>
+            <div className="mt-2 flex items-center justify-between rounded-2xl bg-white/15 px-3 py-2 backdrop-blur-sm">
+              <span className="text-xs font-semibold opacity-90">
+                {selectedChild ? `${selectedChild.name}已发放人民币` : '已发放人民币'}
+              </span>
+              <span className="text-lg font-extrabold">¥{completedCashAmount.toFixed(2)}</span>
             </div>
             <div className="flex gap-2 mt-1">
               <button
