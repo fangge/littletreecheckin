@@ -505,9 +505,9 @@ export default function RewardsManagement() {
 
               <div>
                 <span className="text-xs font-bold text-slate-500 dark:text-[var(--text-secondary)]">兑换比例</span>
-                <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
                   <input
-                    className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-primary focus:bg-white dark:border-[var(--border-color)] dark:bg-[var(--bg-card)] dark:text-[var(--text-primary)]"
+                    className="h-12 min-w-0 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-primary focus:bg-white dark:border-[var(--border-color)] dark:bg-[var(--bg-card)] dark:text-[var(--text-primary)]"
                     type="number"
                     min="1"
                     inputMode="numeric"
@@ -519,7 +519,7 @@ export default function RewardsManagement() {
                   />
                   <span className="text-sm font-bold text-slate-500 dark:text-[var(--text-secondary)]">🍎 = ¥</span>
                   <input
-                    className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-primary focus:bg-white dark:border-[var(--border-color)] dark:bg-[var(--bg-card)] dark:text-[var(--text-primary)]"
+                    className="h-12 min-w-0 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-primary focus:bg-white dark:border-[var(--border-color)] dark:bg-[var(--bg-card)] dark:text-[var(--text-primary)]"
                     type="number"
                     min="0.01"
                     step="0.01"
