@@ -231,12 +231,20 @@ CREATE INDEX IF NOT EXISTS idx_child_medals_child_id ON child_medals(child_id);
 -- 九、奖励表
 -- ============================================================
 CREATE TABLE IF NOT EXISTS rewards (
-  id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name       VARCHAR(100) NOT NULL,
-  price      INTEGER NOT NULL CHECK (price > 0),
-  category   VARCHAR(20) NOT NULL CHECK (category IN ('activity', 'toy', 'snack')),
-  is_active  BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id                          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name                        VARCHAR(100) NOT NULL,
+  price                       INTEGER NOT NULL CHECK (price > 0),
+  category                    VARCHAR(20) NOT NULL CHECK (category IN ('activity', 'toy', 'snack')),
+  max_redemptions             INTEGER CHECK (max_redemptions > 0),
+  max_consecutive_redemptions INTEGER CHECK (max_consecutive_redemptions > 0),
+  cooldown_days               INTEGER CHECK (cooldown_days > 0),
+  is_active                   BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT rewards_consecutive_cooldown_pair_check CHECK (
+    (max_consecutive_redemptions IS NULL AND cooldown_days IS NULL)
+    OR
+    (max_consecutive_redemptions IS NOT NULL AND cooldown_days IS NOT NULL)
+  )
 );
 
 -- RLS
@@ -258,6 +266,7 @@ CREATE TABLE IF NOT EXISTS reward_redemptions (
   id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   child_id    UUID NOT NULL REFERENCES children(id) ON DELETE CASCADE,
   reward_id   UUID NOT NULL REFERENCES rewards(id) ON DELETE CASCADE,
+  quantity    INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0),
   redeemed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   status      VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed'))
 );

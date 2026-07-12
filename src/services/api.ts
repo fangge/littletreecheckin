@@ -183,11 +183,21 @@ export interface RewardData {
   name: string;
   price: number;
   category: 'activity' | 'toy' | 'snack';
+  max_redemptions?: number | null;
+  max_consecutive_redemptions?: number | null;
+  cooldown_days?: number | null;
+  redeemed_quantity?: number;
+  remaining_redemptions?: number | null;
+  consecutive_redeemed_quantity?: number;
+  consecutive_remaining?: number | null;
+  cooldown_until?: string | null;
+  available_quantity?: number | null;
 }
 
 export interface RedemptionData {
   id: string;
   child_id?: string;
+  quantity?: number;
   redeemed_at: string;
   status: 'pending' | 'completed';
   redemption_type?: 'reward' | 'cash';
@@ -477,18 +487,21 @@ export const medalsApi = {
 // 奖励商店 API
 // ============================================================
 export const rewardsApi = {
-  list: (category?: string) =>
-    request<{ data: RewardData[] }>(
-      `/api/v1/rewards${category ? `?category=${category}` : ''}`
-    ),
+  list: (category?: string, childId?: string) => {
+    const params = new URLSearchParams();
+    if (category) params.set('category', category);
+    if (childId) params.set('child_id', childId);
+    const query = params.toString();
+    return request<{ data: RewardData[] }>(`/api/v1/rewards${query ? `?${query}` : ''}`);
+  },
 
   getFruits: (childId: string) =>
     request<{ data: { fruits_balance: number } }>(`/api/v1/rewards/children/${childId}/fruits`),
 
-  redeem: (rewardId: string, childId: string) =>
+  redeem: (rewardId: string, childId: string, quantity = 1) =>
     request<{ data: { remaining_balance: number }; message: string }>(
       `/api/v1/rewards/${rewardId}/redeem`,
-      { method: 'POST', body: JSON.stringify({ child_id: childId }) }
+      { method: 'POST', body: JSON.stringify({ child_id: childId, quantity }) }
     ),
 
   getCashSetting: () =>
@@ -540,13 +553,28 @@ export const rewardsApi = {
   listAll: () =>
     request<{ data: (RewardData & { is_active: boolean })[] }>('/api/v1/rewards/all'),
 
-  create: (data: { name: string; price: number; category: string }) =>
+  create: (data: {
+    name: string;
+    price: number;
+    category: string;
+    max_redemptions?: number | null;
+    max_consecutive_redemptions?: number | null;
+    cooldown_days?: number | null;
+  }) =>
     request<{ data: RewardData }>('/api/v1/rewards', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
-  update: (rewardId: string, data: { name?: string; price?: number; category?: string; is_active?: boolean }) =>
+  update: (rewardId: string, data: {
+    name?: string;
+    price?: number;
+    category?: string;
+    is_active?: boolean;
+    max_redemptions?: number | null;
+    max_consecutive_redemptions?: number | null;
+    cooldown_days?: number | null;
+  }) =>
     request<{ data: RewardData & { is_active: boolean } }>(`/api/v1/rewards/${rewardId}`, {
       method: 'PUT',
       body: JSON.stringify(data),

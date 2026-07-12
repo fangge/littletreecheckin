@@ -62,10 +62,12 @@ const getItemCategory = (item: RedemptionData) =>
 const getItemTitle = (item: RedemptionData) =>
   item.redemption_type === 'cash'
     ? `人民币 ¥${Number(item.cash_amount || 0).toFixed(2)}`
-    : item.rewards?.name || '未知奖励';
+    : `${item.rewards?.name || '未知奖励'}${(item.quantity || 1) > 1 ? ` × ${item.quantity}` : ''}`;
 
 const getItemFruits = (item: RedemptionData) =>
-  item.redemption_type === 'cash' ? item.fruits_spent || 0 : item.rewards?.price || 0;
+  item.redemption_type === 'cash'
+    ? item.fruits_spent || 0
+    : (item.rewards?.price || 0) * (item.quantity || 1);
 
 const formatExchangeRate = (fruits?: number, amount?: number) =>
   `${Number(fruits || 0).toLocaleString()} 🍎 = ¥${Number(amount ?? 1).toFixed(2)}`;
@@ -105,7 +107,10 @@ export default function RedemptionHistory() {
   }, [fetchData]);
 
   const cashCount = items.filter(item => item.redemption_type === 'cash').length;
-  const rewardCount = items.length - cashCount;
+  const rewardCount = items.reduce(
+    (total, item) => total + (item.redemption_type === 'cash' ? 0 : item.quantity || 1),
+    0,
+  );
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
@@ -143,7 +148,7 @@ export default function RedemptionHistory() {
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <div className="inline-flex items-center gap-1.5 bg-white/20 rounded-full px-3 py-1 backdrop-blur-sm">
                   <Icon name="shopping_bag" className="text-sm leading-none" />
-                  <span className="text-xs font-semibold">奖品 {rewardCount} 次</span>
+                  <span className="text-xs font-semibold">奖品 {rewardCount} 件</span>
                 </div>
                 <div className="inline-flex items-center gap-1.5 bg-white/20 rounded-full px-3 py-1 backdrop-blur-sm">
                   <Icon name="diamond" className="text-sm leading-none" />

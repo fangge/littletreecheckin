@@ -2,6 +2,11 @@ import { Router, Response } from 'express';
 import { supabase } from '../config/supabase.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { AuthRequest } from '../types.js';
+import {
+  calculateRewardRedemptionAvailability,
+  RewardRedemptionRecord,
+  RewardRedemptionRules,
+} from '../utils/rewardRedemptionLimits.js';
 
 const router: Router = Router();
 
@@ -12,6 +17,51 @@ const toCashAmount = (value: unknown): number => Number(Number(value || 0).toFix
 
 const sortByRedeemedAtDesc = <T extends { redeemed_at: string }>(items: T[]): T[] =>
   items.sort((a, b) => new Date(b.redeemed_at).getTime() - new Date(a.redeemed_at).getTime());
+
+type RewardLimitSettings = {
+  max_redemptions: number | null;
+  max_consecutive_redemptions: number | null;
+  cooldown_days: number | null;
+};
+
+const parseRewardLimitSettings = (
+  body: Record<string, unknown>,
+  current: RewardLimitSettings = {
+    max_redemptions: null,
+    max_consecutive_redemptions: null,
+    cooldown_days: null,
+  },
+): { settings: RewardLimitSettings; error?: never } | { settings?: never; error: string } => {
+  const settings = { ...current };
+  const fields: Array<[keyof RewardLimitSettings, string]> = [
+    ['max_redemptions', '最高可兑换数'],
+    ['max_consecutive_redemptions', '连续兑换上限'],
+    ['cooldown_days', '冷静期天数'],
+  ];
+
+  for (const [field, label] of fields) {
+    const value = body[field];
+    if (value === undefined) continue;
+    if (value === null || value === '') {
+      settings[field] = null;
+      continue;
+    }
+
+    const parsed = Number(value);
+    if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+      return { error: `${label}必须是大于0的整数` };
+    }
+    settings[field] = parsed;
+  }
+
+  const hasConsecutiveLimit = settings.max_consecutive_redemptions != null;
+  const hasCooldown = settings.cooldown_days != null;
+  if (hasConsecutiveLimit !== hasCooldown) {
+    return { error: '连续兑换上限和冷静期天数必须同时设置' };
+  }
+
+  return { settings };
+};
 
 const getOwnedChildIds = async (parentId: string, requestedChildIds: string[]) => {
   const { data, error } = await supabase
@@ -52,11 +102,31 @@ const getCashSettingForParent = async (parentId: string) => {
 
 // GET /api/v1/rewards
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
-  const { category } = req.query;
+  const { category, child_id } = req.query;
+
+  if (child_id !== undefined && typeof child_id !== 'string') {
+    res.status(400).json({ error: '孩子ID格式不正确' });
+    return;
+  }
+
+  if (child_id) {
+    const { data: child } = await supabase
+      .from('children')
+      .select('id')
+      .eq('id', child_id)
+      .eq('parent_id', req.user?.id)
+      .eq('is_deleted', false)
+      .single();
+
+    if (!child) {
+      res.status(403).json({ error: '无权查看该孩子的兑换信息' });
+      return;
+    }
+  }
 
   let query = supabase
     .from('rewards')
-    .select('id, name, price, category')
+    .select('id, name, price, category, max_redemptions, max_consecutive_redemptions, cooldown_days')
     .eq('is_active', true)
     .order('price', { ascending: true });
 
@@ -71,7 +141,39 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response): Promise
     return;
   }
 
-  res.json({ data: data || [] });
+  const rewards = data || [];
+  if (!child_id || rewards.length === 0) {
+    res.json({ data: rewards });
+    return;
+  }
+
+  const { data: redemptions, error: redemptionError } = await supabase
+    .from('reward_redemptions')
+    .select('reward_id, quantity, redeemed_at')
+    .eq('child_id', child_id)
+    .in('reward_id', rewards.map(reward => reward.id));
+
+  if (redemptionError) {
+    res.status(500).json({ error: '获取奖品兑换限制失败' });
+    return;
+  }
+
+  const recordsByRewardId = new Map<string, RewardRedemptionRecord[]>();
+  for (const redemption of redemptions || []) {
+    const records = recordsByRewardId.get(redemption.reward_id) || [];
+    records.push(redemption);
+    recordsByRewardId.set(redemption.reward_id, records);
+  }
+
+  res.json({
+    data: rewards.map(reward => ({
+      ...reward,
+      ...calculateRewardRedemptionAvailability(
+        reward as RewardRedemptionRules,
+        recordsByRewardId.get(reward.id) || [],
+      ),
+    })),
+  });
 });
 
 // GET /api/v1/children/:childId/fruits
@@ -222,16 +324,22 @@ router.post('/cash/redeem', authMiddleware, async (req: AuthRequest, res: Respon
 router.post('/:rewardId/redeem', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { rewardId } = req.params;
   const { child_id } = req.body;
+  const quantity = Number(req.body.quantity ?? 1);
 
   if (!child_id) {
     res.status(400).json({ error: '孩子ID不能为空' });
     return;
   }
 
+  if (!Number.isSafeInteger(quantity) || quantity <= 0) {
+    res.status(400).json({ error: '兑换数量必须是大于0的整数' });
+    return;
+  }
+
   // 获取奖励信息
   const { data: reward } = await supabase
     .from('rewards')
-    .select('id, name, price, is_active')
+    .select('id, name, price, is_active, max_redemptions, max_consecutive_redemptions, cooldown_days')
     .eq('id', rewardId)
     .single();
 
@@ -245,23 +353,68 @@ router.post('/:rewardId/redeem', authMiddleware, async (req: AuthRequest, res: R
     return;
   }
 
+  const totalPrice = reward.price * quantity;
+  if (!Number.isSafeInteger(totalPrice)) {
+    res.status(400).json({ error: '兑换数量过大' });
+    return;
+  }
+
   // 获取孩子果实余额
   const { data: child } = await supabase
     .from('children')
     .select('id, fruits_balance')
     .eq('id', child_id)
+    .eq('parent_id', req.user?.id)
     .eq('is_deleted', false)
     .single();
 
   if (!child) {
-    res.status(404).json({ error: '孩子不存在' });
+    res.status(403).json({ error: '无权为该孩子兑换奖励' });
     return;
   }
 
-  if (child.fruits_balance < reward.price) {
+  const { data: existingRedemptions, error: redemptionQueryError } = await supabase
+    .from('reward_redemptions')
+    .select('quantity, redeemed_at')
+    .eq('child_id', child_id)
+    .eq('reward_id', rewardId);
+
+  if (redemptionQueryError) {
+    res.status(500).json({ error: '检查兑换限制失败' });
+    return;
+  }
+
+  const availability = calculateRewardRedemptionAvailability(reward, existingRedemptions || []);
+  if (availability.remaining_redemptions === 0) {
+    res.status(400).json({ error: '该奖品已达到最高可兑换数' });
+    return;
+  }
+
+  if (availability.cooldown_until) {
+    const cooldownUntil = new Date(availability.cooldown_until).toLocaleString('zh-CN', {
+      timeZone: 'Asia/Shanghai',
+    });
+    res.status(400).json({ error: `该奖品正在冷静期，${cooldownUntil} 后可继续兑换` });
+    return;
+  }
+
+  if (availability.available_quantity != null && quantity > availability.available_quantity) {
+    if (availability.remaining_redemptions != null && quantity > availability.remaining_redemptions) {
+      res.status(400).json({ error: `该奖品最多还可兑换 ${availability.remaining_redemptions} 个` });
+    } else if (availability.consecutive_remaining != null) {
+      res.status(400).json({
+        error: `本轮最多还可连续兑换 ${availability.consecutive_remaining} 个，达到上限后需冷静 ${reward.cooldown_days} 天`,
+      });
+    } else {
+      res.status(400).json({ error: '兑换数量超过当前可兑换上限' });
+    }
+    return;
+  }
+
+  if (child.fruits_balance < totalPrice) {
     res.status(400).json({
       error: '果实余额不足',
-      data: { current_balance: child.fruits_balance, required: reward.price },
+      data: { current_balance: child.fruits_balance, required: totalPrice },
     });
     return;
   }
@@ -269,7 +422,7 @@ router.post('/:rewardId/redeem', authMiddleware, async (req: AuthRequest, res: R
   // 扣除果实并创建兑换记录
   const { error: updateError } = await supabase
     .from('children')
-    .update({ fruits_balance: child.fruits_balance - reward.price })
+    .update({ fruits_balance: child.fruits_balance - totalPrice })
     .eq('id', child_id);
 
   if (updateError) {
@@ -279,8 +432,8 @@ router.post('/:rewardId/redeem', authMiddleware, async (req: AuthRequest, res: R
 
   const { data: redemption, error: redemptionError } = await supabase
     .from('reward_redemptions')
-    .insert({ child_id, reward_id: rewardId, status: 'pending' })
-    .select('id, redeemed_at, status')
+    .insert({ child_id, reward_id: rewardId, quantity, status: 'pending' })
+    .select('id, quantity, redeemed_at, status')
     .single();
 
   if (redemptionError || !redemption) {
@@ -297,10 +450,10 @@ router.post('/:rewardId/redeem', authMiddleware, async (req: AuthRequest, res: R
     data: {
       redemption,
       reward_name: reward.name,
-      fruits_spent: reward.price,
-      remaining_balance: child.fruits_balance - reward.price,
+      fruits_spent: totalPrice,
+      remaining_balance: child.fruits_balance - totalPrice,
     },
-    message: `成功兑换"${reward.name}"，消耗 ${reward.price} 个果实`,
+    message: `成功兑换"${reward.name}"${quantity > 1 ? ` × ${quantity}` : ''}，消耗 ${totalPrice} 个果实`,
   });
 });
 
@@ -312,7 +465,7 @@ router.get('/children/:childId/redemptions', authMiddleware, async (req: AuthReq
     supabase
       .from('reward_redemptions')
       .select(`
-        id, child_id, redeemed_at, status,
+        id, child_id, quantity, redeemed_at, status,
         rewards(name, price, category)
       `)
       .eq('child_id', childId),
@@ -371,7 +524,7 @@ router.get('/redemptions/batch', authMiddleware, async (req: AuthRequest, res: R
     supabase
       .from('reward_redemptions')
       .select(`
-        id, child_id, redeemed_at, status,
+        id, child_id, quantity, redeemed_at, status,
         rewards(name, price, category),
         children(name)
       `)
@@ -463,7 +616,7 @@ router.put('/redemptions/:redemptionId/cancel', authMiddleware, async (req: Auth
   // 1. 获取兑换记录信息
   const { data: redemption, error: fetchError } = await supabase
     .from('reward_redemptions')
-    .select('child_id, rewards(price), status')
+    .select('child_id, quantity, rewards(price), status')
     .eq('id', redemptionId)
     .single();
 
@@ -479,6 +632,7 @@ router.put('/redemptions/:redemptionId/cancel', authMiddleware, async (req: Auth
   }
 
   const price = (redemption.rewards as any)?.price || 0;
+  const fruitsToRefund = price * (redemption.quantity || 1);
 
   // 3. 获取当前孩子的果实余额
   const { data: child, error: childError } = await supabase
@@ -495,7 +649,7 @@ router.put('/redemptions/:redemptionId/cancel', authMiddleware, async (req: Auth
   // 4. 返还果实给孩子
   const { error: updateError } = await supabase
     .from('children')
-    .update({ fruits_balance: child.fruits_balance + price })
+    .update({ fruits_balance: child.fruits_balance + fruitsToRefund })
     .eq('id', redemption.child_id);
 
   if (updateError) {
@@ -595,10 +749,16 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
     return;
   }
 
+  const limitResult = parseRewardLimitSettings(req.body);
+  if (limitResult.error) {
+    res.status(400).json({ error: limitResult.error });
+    return;
+  }
+
   const { data, error } = await supabase
     .from('rewards')
-    .insert({ name, price, category, is_active: true })
-    .select('id, name, price, category, is_active')
+    .insert({ name, price, category, is_active: true, ...limitResult.settings })
+    .select('id, name, price, category, max_redemptions, max_consecutive_redemptions, cooldown_days, is_active')
     .single();
 
   if (error || !data) {
@@ -616,7 +776,7 @@ router.put('/:rewardId', authMiddleware, async (req: AuthRequest, res: Response)
 
   const { data: existing } = await supabase
     .from('rewards')
-    .select('id')
+    .select('id, max_redemptions, max_consecutive_redemptions, cooldown_days')
     .eq('id', rewardId)
     .single();
 
@@ -625,7 +785,17 @@ router.put('/:rewardId', authMiddleware, async (req: AuthRequest, res: Response)
     return;
   }
 
-  const updateData: Record<string, unknown> = {};
+  const limitResult = parseRewardLimitSettings(req.body, {
+    max_redemptions: existing.max_redemptions,
+    max_consecutive_redemptions: existing.max_consecutive_redemptions,
+    cooldown_days: existing.cooldown_days,
+  });
+  if (limitResult.error) {
+    res.status(400).json({ error: limitResult.error });
+    return;
+  }
+
+  const updateData: Record<string, unknown> = { ...limitResult.settings };
   if (name !== undefined) updateData.name = name;
   if (price !== undefined) updateData.price = price;
   if (category !== undefined) updateData.category = category;
@@ -635,7 +805,7 @@ router.put('/:rewardId', authMiddleware, async (req: AuthRequest, res: Response)
     .from('rewards')
     .update(updateData)
     .eq('id', rewardId)
-    .select('id, name, price, category, is_active')
+    .select('id, name, price, category, max_redemptions, max_consecutive_redemptions, cooldown_days, is_active')
     .single();
 
   if (error || !data) {
@@ -678,7 +848,7 @@ router.delete('/:rewardId', authMiddleware, async (req: AuthRequest, res: Respon
 router.get('/all', authMiddleware, async (_req: AuthRequest, res: Response): Promise<void> => {
   const { data, error } = await supabase
     .from('rewards')
-    .select('id, name, price, category, is_active')
+    .select('id, name, price, category, max_redemptions, max_consecutive_redemptions, cooldown_days, is_active')
     .order('created_at', { ascending: false });
 
   if (error) {

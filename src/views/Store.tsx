@@ -19,6 +19,33 @@ const getCompletedCashAmount = (items: RedemptionData[]) =>
     return total + Number(item.cash_amount || 0);
   }, 0);
 
+const formatCooldownUntil = (value: string) => new Date(value).toLocaleString('zh-CN', {
+  month: 'numeric',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+const getRewardUnavailableMessage = (reward: RewardData) => {
+  if (reward.remaining_redemptions === 0) return '已达最高可兑换数';
+  if (reward.cooldown_until) return `冷静期至 ${formatCooldownUntil(reward.cooldown_until)}`;
+  if (reward.available_quantity === 0) return '当前不可兑换';
+  return null;
+};
+
+const getRewardLimitSummary = (reward: RewardData) => {
+  if (reward.cooldown_until) return `冷静期至 ${formatCooldownUntil(reward.cooldown_until)}`;
+
+  const summaries: string[] = [];
+  if (reward.max_redemptions != null) {
+    summaries.push(`总剩余 ${reward.remaining_redemptions ?? reward.max_redemptions}`);
+  }
+  if (reward.max_consecutive_redemptions != null) {
+    summaries.push(`本轮剩余 ${reward.consecutive_remaining ?? reward.max_consecutive_redemptions}`);
+  }
+  return summaries.join(' · ');
+};
+
 export default function Store() {
   const navigate = useNavigate();
   const { user, currentChild, setCurrentChild, refreshUser } = useAuth();
@@ -30,6 +57,7 @@ export default function Store() {
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [showRedeemModal, setShowRedeemModal] = useState(false);
   const [selectedReward, setSelectedReward] = useState<RewardData | null>(null);
+  const [redeemQuantity, setRedeemQuantity] = useState(1);
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [cashSetting, setCashSetting] = useState<CashExchangeSetting | null>(null);
   const [cashFruitsInput, setCashFruitsInput] = useState('');
@@ -41,6 +69,13 @@ export default function Store() {
   const cashPreview = cashSetting && !isNaN(cashFruits)
     ? (cashFruits / cashSetting.fruits_per_yuan) * (cashSetting.yuan_amount ?? 1)
     : 0;
+  const maxRedeemQuantity = selectedReward
+    ? Math.max(0, Math.min(
+        Math.floor(fruitsBalance / selectedReward.price),
+        selectedReward.available_quantity ?? Number.POSITIVE_INFINITY,
+      ))
+    : 0;
+  const redeemTotal = selectedReward ? selectedReward.price * redeemQuantity : 0;
 
   const handleSelectChild = (child: Child) => {
     setSelectedChild(child);
@@ -50,7 +85,7 @@ export default function Store() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const rewardsPromise = rewardsApi.list(activeCategory || undefined);
+      const rewardsPromise = rewardsApi.list(activeCategory || undefined, selectedChild?.id);
       const cashSettingPromise = rewardsApi.getCashSetting();
       const childDataPromise = selectedChild
         ? Promise.all([
@@ -96,24 +131,39 @@ export default function Store() {
       alert('请先选择要兑换的孩子');
       return;
     }
+    const unavailableMessage = getRewardUnavailableMessage(reward);
+    if (unavailableMessage) {
+      alert(unavailableMessage);
+      return;
+    }
     if (fruitsBalance < reward.price) {
       alert(`果实余额不足！当前余额：${fruitsBalance}，需要：${reward.price}`);
       return;
     }
     setSelectedReward(reward);
+    setRedeemQuantity(1);
     setShowRedeemModal(true);
   };
 
   const handleConfirmRedeem = async () => {
     if (!selectedReward || !selectedChild) return;
+    if (redeemTotal > fruitsBalance) {
+      alert(`果实余额不足！当前余额：${fruitsBalance}，需要：${redeemTotal}`);
+      return;
+    }
+    if (maxRedeemQuantity <= 0 || redeemQuantity > maxRedeemQuantity) {
+      alert('兑换数量超过当前可兑换上限');
+      return;
+    }
     
     setIsRedeeming(true);
     try {
-      const res = await rewardsApi.redeem(selectedReward.id, selectedChild.id);
+      const res = await rewardsApi.redeem(selectedReward.id, selectedChild.id, redeemQuantity);
       setFruitsBalance(res.data.remaining_balance);
-      await refreshUser();
       setShowRedeemModal(false);
       setSelectedReward(null);
+      setRedeemQuantity(1);
+      await Promise.all([fetchData(), refreshUser()]);
       // 显示成功提示
       setTimeout(() => {
         alert(res.message || '兑换成功！');
@@ -129,6 +179,7 @@ export default function Store() {
     if (isRedeeming) return; // 兑换中不允许关闭
     setShowRedeemModal(false);
     setSelectedReward(null);
+    setRedeemQuantity(1);
   };
 
   const handleOpenCashModal = () => {
@@ -344,27 +395,38 @@ export default function Store() {
           </div>
         ) : (
           <div className="mt-6 grid grid-cols-2 gap-4">
-            {rewards.map((reward) => (
-              <div key={reward.id} className="group flex flex-col rounded-xl bg-white dark:bg-[var(--bg-surface)] p-3 shadow-sm transition-all hover:shadow-md">
-                <div className="flex flex-col">
-                  <h4 className="text-sm font-bold text-slate-900 text-ellipsis overflow-hidden whitespace-nowrap">{reward.name}</h4>
-                  <div className="mt-1 flex items-center gap-1">
-                    <span className="text-xs font-bold text-primary">{reward.price} 🍎</span>
-                    {fruitsBalance < reward.price && (
-                      <span className="text-[10px] text-red-400">余额不足</span>
+            {rewards.map((reward) => {
+              const unavailableMessage = getRewardUnavailableMessage(reward);
+              const limitSummary = getRewardLimitSummary(reward);
+              const isUnavailable = Boolean(unavailableMessage);
+
+              return (
+                <div key={reward.id} className="group flex flex-col rounded-xl bg-white dark:bg-[var(--bg-surface)] p-3 shadow-sm transition-all hover:shadow-md">
+                  <div className="flex h-full flex-col">
+                    <h4 className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-bold text-slate-900 dark:text-[var(--text-primary)]">{reward.name}</h4>
+                    <div className="mt-1 flex items-center gap-1">
+                      <span className="text-xs font-bold text-primary">{reward.price} 🍎</span>
+                      {fruitsBalance < reward.price && !isUnavailable && (
+                        <span className="text-[10px] text-red-400">余额不足</span>
+                      )}
+                    </div>
+                    {(unavailableMessage || limitSummary) && (
+                      <p className={`mt-1 min-h-8 text-[10px] leading-4 ${isUnavailable ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400 dark:text-[var(--text-muted)]'}`}>
+                        {unavailableMessage || limitSummary}
+                      </p>
                     )}
+                    <button
+                      className="mt-auto rounded-full bg-primary/20 py-2 text-xs font-bold text-slate-900 transition-colors hover:bg-primary hover:text-white disabled:cursor-not-allowed disabled:opacity-50 dark:text-[var(--text-primary)]"
+                      onClick={() => handleOpenRedeemModal(reward)}
+                      disabled={fruitsBalance < reward.price || !selectedChild || isUnavailable}
+                      aria-label={`兑换${reward.name}`}
+                    >
+                      {reward.cooldown_until ? '冷静中' : reward.remaining_redemptions === 0 ? '已达上限' : '兑换'}
+                    </button>
                   </div>
-                  <button
-                    className="mt-3 rounded-full bg-primary/20 py-2 text-xs font-bold text-slate-900 transition-colors hover:bg-primary hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                    onClick={() => handleOpenRedeemModal(reward)}
-                    disabled={fruitsBalance < reward.price || !selectedChild}
-                    aria-label={`兑换${reward.name}`}
-                  >
-                    兑换
-                  </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -399,8 +461,47 @@ export default function Store() {
                     {selectedReward.name}
                   </p>
                   <p className="text-lg font-bold text-primary">
-                    {selectedReward.price} 🍎
+                    {selectedReward.price} 🍎 / 个
                   </p>
+                </div>
+
+                <div className="w-full">
+                  <div className="mb-2 flex items-center justify-between text-sm">
+                    <span className="font-bold text-slate-700 dark:text-[var(--text-primary)]">兑换数量</span>
+                    <span className="text-xs text-slate-400 dark:text-[var(--text-muted)]">最多 {maxRedeemQuantity} 个</span>
+                  </div>
+                  <div className="grid h-12 grid-cols-[3rem_1fr_3rem] overflow-hidden rounded-xl border border-slate-200 dark:border-[var(--border-color)]">
+                    <button
+                      className="flex items-center justify-center bg-slate-50 text-slate-500 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-[var(--bg-card)] dark:text-[var(--text-secondary)]"
+                      onClick={() => setRedeemQuantity(quantity => Math.max(1, quantity - 1))}
+                      disabled={redeemQuantity <= 1}
+                      aria-label="减少兑换数量"
+                    >
+                      <Icon name="remove_circle" className="text-xl" />
+                    </button>
+                    <input
+                      className="min-w-0 border-x border-slate-200 bg-white text-center text-base font-bold text-slate-900 outline-none dark:border-[var(--border-color)] dark:bg-[var(--bg-surface)] dark:text-[var(--text-primary)]"
+                      type="number"
+                      min="1"
+                      max={maxRedeemQuantity}
+                      step="1"
+                      inputMode="numeric"
+                      value={redeemQuantity}
+                      onChange={event => {
+                        const quantity = Number.parseInt(event.target.value, 10);
+                        setRedeemQuantity(Math.min(maxRedeemQuantity, Math.max(1, Number.isNaN(quantity) ? 1 : quantity)));
+                      }}
+                      aria-label="兑换数量"
+                    />
+                    <button
+                      className="flex items-center justify-center bg-slate-50 text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-[var(--bg-card)]"
+                      onClick={() => setRedeemQuantity(quantity => Math.min(maxRedeemQuantity, quantity + 1))}
+                      disabled={redeemQuantity >= maxRedeemQuantity}
+                      aria-label="增加兑换数量"
+                    >
+                      <Icon name="add_circle" className="text-xl" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="w-full bg-slate-50 dark:bg-[var(--bg-card)] rounded-xl p-3 text-sm">
@@ -410,12 +511,12 @@ export default function Store() {
                   </div>
                   <div className="flex justify-between mb-1">
                     <span className="text-slate-600 dark:text-[var(--text-secondary)]">兑换消耗</span>
-                    <span className="font-bold text-red-500">-{selectedReward.price} 🍎</span>
+                    <span className="font-bold text-red-500">-{redeemTotal} 🍎</span>
                   </div>
                   <div className="border-t border-slate-200 dark:border-[var(--border-color)] my-2"></div>
                   <div className="flex justify-between">
                     <span className="text-slate-600 dark:text-[var(--text-secondary)]">剩余余额</span>
-                    <span className="font-bold text-primary">{fruitsBalance - selectedReward.price} 🍎</span>
+                    <span className="font-bold text-primary">{fruitsBalance - redeemTotal} 🍎</span>
                   </div>
                 </div>
 
@@ -430,7 +531,7 @@ export default function Store() {
                   <button
                     className="flex-1 py-3 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     onClick={handleConfirmRedeem}
-                    disabled={isRedeeming}
+                    disabled={isRedeeming || redeemTotal > fruitsBalance || maxRedeemQuantity <= 0}
                   >
                     {isRedeeming ? (
                       <>

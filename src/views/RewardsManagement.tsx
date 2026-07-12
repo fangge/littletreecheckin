@@ -11,6 +11,9 @@ interface RewardForm {
   name: string;
   price: string;
   category: 'activity' | 'toy' | 'snack';
+  maxRedemptions: string;
+  maxConsecutiveRedemptions: string;
+  cooldownDays: string;
 }
 
 type ActiveTab = 'rewards' | 'redemptions' | 'cash';
@@ -20,7 +23,14 @@ type ManagementRedemption = RedemptionData & {
   childId?: string;
 };
 
-const EMPTY_FORM: RewardForm = { name: '', price: '', category: 'activity' };
+const EMPTY_FORM: RewardForm = {
+  name: '',
+  price: '',
+  category: 'activity',
+  maxRedemptions: '',
+  maxConsecutiveRedemptions: '',
+  cooldownDays: '',
+};
 const CATEGORY_LABELS = { activity: '活动', toy: '玩具', snack: '零食' };
 
 const formatMoney = (value?: number) => `¥${Number(value || 0).toFixed(2)}`;
@@ -29,11 +39,11 @@ const formatExchangeRate = (fruits?: number, amount?: number) =>
 const getSpentFruits = (redemption: ManagementRedemption) =>
   redemption.redemption_type === 'cash'
     ? redemption.fruits_spent || 0
-    : redemption.rewards?.price || 0;
+    : (redemption.rewards?.price || 0) * (redemption.quantity || 1);
 const getRedemptionName = (redemption: ManagementRedemption) =>
   redemption.redemption_type === 'cash'
     ? `人民币 ${formatMoney(redemption.cash_amount)}`
-    : redemption.rewards?.name || '未知奖品';
+    : `${redemption.rewards?.name || '未知奖品'}${(redemption.quantity || 1) > 1 ? ` × ${redemption.quantity}` : ''}`;
 
 export default function RewardsManagement() {
   const navigate = useNavigate();
@@ -133,7 +143,16 @@ export default function RewardsManagement() {
 
   const handleOpenEdit = (reward: RewardData & { is_active: boolean }) => {
     setEditingReward(reward);
-    setForm({ name: reward.name, price: String(reward.price), category: reward.category as 'activity' | 'toy' | 'snack' });
+    setForm({
+      name: reward.name,
+      price: String(reward.price),
+      category: reward.category,
+      maxRedemptions: reward.max_redemptions == null ? '' : String(reward.max_redemptions),
+      maxConsecutiveRedemptions: reward.max_consecutive_redemptions == null
+        ? ''
+        : String(reward.max_consecutive_redemptions),
+      cooldownDays: reward.cooldown_days == null ? '' : String(reward.cooldown_days),
+    });
     setFormError('');
     setShowForm(true);
   };
@@ -142,13 +161,44 @@ export default function RewardsManagement() {
     if (!form.name.trim()) { setFormError('请输入奖品名称'); return; }
     const price = parseInt(form.price, 10);
     if (!form.price || isNaN(price) || price <= 0) { setFormError('请输入有效的价格'); return; }
+    const maxRedemptions = form.maxRedemptions.trim() === '' ? null : Number(form.maxRedemptions);
+    const maxConsecutiveRedemptions = form.maxConsecutiveRedemptions.trim() === ''
+      ? null
+      : Number(form.maxConsecutiveRedemptions);
+    const cooldownDays = form.cooldownDays.trim() === '' ? null : Number(form.cooldownDays);
+
+    if (maxRedemptions != null && (!Number.isSafeInteger(maxRedemptions) || maxRedemptions <= 0)) {
+      setFormError('最高可兑换数必须是大于0的整数');
+      return;
+    }
+    if (maxConsecutiveRedemptions != null && (!Number.isSafeInteger(maxConsecutiveRedemptions) || maxConsecutiveRedemptions <= 0)) {
+      setFormError('连续兑换上限必须是大于0的整数');
+      return;
+    }
+    if (cooldownDays != null && (!Number.isSafeInteger(cooldownDays) || cooldownDays <= 0)) {
+      setFormError('冷静期必须是大于0的整数天');
+      return;
+    }
+    if ((maxConsecutiveRedemptions == null) !== (cooldownDays == null)) {
+      setFormError('连续兑换上限和冷静期必须同时填写');
+      return;
+    }
+
+    const rewardData = {
+      name: form.name.trim(),
+      price,
+      category: form.category,
+      max_redemptions: maxRedemptions,
+      max_consecutive_redemptions: maxConsecutiveRedemptions,
+      cooldown_days: cooldownDays,
+    };
     setIsSaving(true);
     setFormError('');
     try {
       if (editingReward) {
-        await rewardsApi.update(editingReward.id, { name: form.name.trim(), price, category: form.category });
+        await rewardsApi.update(editingReward.id, rewardData);
       } else {
-        await rewardsApi.create({ name: form.name.trim(), price, category: form.category });
+        await rewardsApi.create(rewardData);
       }
       setShowForm(false);
       await fetchRewards();
@@ -315,9 +365,38 @@ export default function RewardsManagement() {
           <>
             <AnimatePresence>
               {showForm && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                  <div className="bg-primary/5 dark:bg-[var(--bg-card)] rounded-2xl p-4 border border-primary/10 dark:border-[var(--border-color)] space-y-3">
-                    <p className="text-xs font-bold text-primary uppercase tracking-wider">{editingReward ? '编辑奖品' : '新增奖品'}</p>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6"
+                  onClick={() => { if (!isSaving) setShowForm(false); }}
+                >
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.96, y: 16 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.96, y: 16 }}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="reward-form-title"
+                    className="max-h-[90vh] w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-[var(--bg-surface)]"
+                    onClick={event => event.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between border-b border-primary/10 px-5 py-4 dark:border-[var(--border-color)]">
+                      <h2 id="reward-form-title" className="text-base font-bold text-slate-900 dark:text-[var(--text-primary)]">
+                        {editingReward ? '编辑奖品' : '新增奖品'}
+                      </h2>
+                      <button
+                        type="button"
+                        className="flex size-9 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:opacity-50 dark:hover:bg-[var(--bg-card)] dark:hover:text-[var(--text-primary)]"
+                        onClick={() => setShowForm(false)}
+                        disabled={isSaving}
+                        aria-label="关闭"
+                      >
+                        <Icon name="close" className="text-lg" />
+                      </button>
+                    </div>
+                    <div className="max-h-[calc(90vh-4.5rem)] space-y-3 overflow-y-auto p-5">
                     {formError && <p className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{formError}</p>}
                     <input className="form-input w-full rounded-xl border-slate-200 dark:border-[var(--border-color)] bg-white dark:bg-[var(--bg-card)] text-slate-900 dark:text-[var(--text-primary)] h-11 text-sm placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary px-3 transition-colors" placeholder="奖品名称 *" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
                     <div className="grid grid-cols-2 gap-3">
@@ -328,11 +407,26 @@ export default function RewardsManagement() {
                         ))}
                       </div>
                     </div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <label className="space-y-1">
+                        <span className="text-[11px] font-bold text-slate-500 dark:text-[var(--text-secondary)]">最高可兑换数</span>
+                        <input className="form-input h-11 w-full rounded-xl border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary dark:border-[var(--border-color)] dark:bg-[var(--bg-card)] dark:text-[var(--text-primary)]" placeholder="不限" type="number" min="1" step="1" inputMode="numeric" value={form.maxRedemptions} onChange={e => setForm(p => ({ ...p, maxRedemptions: e.target.value }))} />
+                      </label>
+                      <label className="space-y-1">
+                        <span className="text-[11px] font-bold text-slate-500 dark:text-[var(--text-secondary)]">连续兑换上限</span>
+                        <input className="form-input h-11 w-full rounded-xl border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary dark:border-[var(--border-color)] dark:bg-[var(--bg-card)] dark:text-[var(--text-primary)]" placeholder="不限" type="number" min="1" step="1" inputMode="numeric" value={form.maxConsecutiveRedemptions} onChange={e => setForm(p => ({ ...p, maxConsecutiveRedemptions: e.target.value }))} />
+                      </label>
+                      <label className="space-y-1">
+                        <span className="text-[11px] font-bold text-slate-500 dark:text-[var(--text-secondary)]">冷静期（天）</span>
+                        <input className="form-input h-11 w-full rounded-xl border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary dark:border-[var(--border-color)] dark:bg-[var(--bg-card)] dark:text-[var(--text-primary)]" placeholder="不限" type="number" min="1" step="1" inputMode="numeric" value={form.cooldownDays} onChange={e => setForm(p => ({ ...p, cooldownDays: e.target.value }))} />
+                      </label>
+                    </div>
                     <div className="flex gap-2">
                       <button className="flex-1 py-2.5 bg-primary text-white text-sm font-bold rounded-xl disabled:opacity-60" onClick={handleSave} disabled={isSaving}>{isSaving ? '保存中...' : '保存'}</button>
-                      <button className="px-4 py-2.5 bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-sm font-bold rounded-xl" onClick={() => setShowForm(false)}>取消</button>
+                      <button className="px-4 py-2.5 bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-sm font-bold rounded-xl disabled:opacity-50" onClick={() => setShowForm(false)} disabled={isSaving}>取消</button>
                     </div>
                   </div>
+                  </motion.div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -357,6 +451,20 @@ export default function RewardsManagement() {
                       </div>
                       <p className="text-sm text-primary font-bold">{reward.price} 🍎</p>
                       <p className="text-xs text-slate-400 dark:text-[var(--text-muted)]">{CATEGORY_LABELS[reward.category as keyof typeof CATEGORY_LABELS]}</p>
+                      {(reward.max_redemptions != null || reward.max_consecutive_redemptions != null) && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {reward.max_redemptions != null && (
+                            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                              总上限 {reward.max_redemptions}
+                            </span>
+                          )}
+                          {reward.max_consecutive_redemptions != null && reward.cooldown_days != null && (
+                            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-600 dark:bg-amber-900/20 dark:text-amber-400">
+                              连续 {reward.max_consecutive_redemptions} / 冷静 {reward.cooldown_days}天
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="flex gap-1 shrink-0">
                       <button className="p-2 text-slate-400 dark:text-[var(--text-muted)] hover:text-primary transition-colors rounded-lg hover:bg-primary/10" onClick={() => handleOpenEdit(reward)} aria-label="编辑">
