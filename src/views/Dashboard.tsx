@@ -103,6 +103,7 @@ export default function Dashboard() {
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [showMonthlySummary, setShowMonthlySummary] = useState(false);
   const [summaryCalendarData, setSummaryCalendarData] = useState<CalendarData | null>(null);
+  const [showCompletedTrees, setShowCompletedTrees] = useState(false);
 
   // 初始化已解锁勋章基准集合，避免误判历史勋章为新解锁
   useEffect(() => {
@@ -234,6 +235,11 @@ export default function Dashboard() {
     return goals.find(g => g.id === tree.goal_id);
   };
 
+  const completedTrees = trees.filter(tree => tree.status === 'completed');
+  const growingTrees = trees
+    .filter(tree => tree.status !== 'completed')
+    .sort((a, b) => Number(a.checked_in_today ?? false) - Number(b.checked_in_today ?? false));
+
   const handleEditTree = (tree: TreeData) => {
     const goal = getGoalForTree(tree);
     if (!goal) return;
@@ -361,8 +367,18 @@ export default function Dashboard() {
           </div>
           <div className="flex gap-3">
             <div className="flex-1">
-              <p className="text-xl font-extrabold dark:text-[var(--text-primary)] leading-tight">{stats?.completedTrees ?? '--'}</p>
-              <p className="text-slate-500 dark:text-[var(--text-muted)] text-[10px]">已长成树木</p>
+              <button
+                onClick={() => setShowCompletedTrees(true)}
+                disabled={completedTrees.length === 0}
+                className="text-left disabled:cursor-default"
+                aria-label="查看已长成树木"
+              >
+                <p className="text-xl font-extrabold dark:text-[var(--text-primary)] leading-tight">{stats?.completedTrees ?? '--'}</p>
+                <p className="text-slate-500 dark:text-[var(--text-muted)] text-[10px] flex items-center gap-0.5">
+                  已长成树木
+                  {completedTrees.length > 0 && <Icon name="chevron_right" className="text-xs text-primary" />}
+                </p>
+              </button>
             </div>
             <div className="flex-1 border-x border-primary/20 dark:border-[var(--border-color)] px-3">
               <p className="text-xl font-extrabold text-primary leading-tight">{stats?.totalApprovedTasks ?? '--'}</p>
@@ -406,21 +422,16 @@ export default function Dashboard() {
         </div>
       ) : (
         <div className="flex flex-col gap-3 px-4 lg:max-w-4xl lg:mx-auto">
-          {trees.map((tree) => {
+          {growingTrees.map((tree) => {
             const goal = getGoalForTree(tree);
             const checkedInToday = tree.checked_in_today ?? false;
-            const isCompleted = tree.status === 'completed';
-            const isDone = checkedInToday && !isCompleted;
+            const isDone = checkedInToday;
             const category = goal?.icon ? (CATEGORY_MAP[goal.icon] ?? DEFAULT_CATEGORY) : null;
 
             return (
               <div
                 key={tree.id}
-                className={`rounded-2xl px-4 py-4 shadow-sm border flex items-center justify-between gap-3 transition-colors ${
-                  isCompleted
-                    ? 'bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-emerald-200 dark:border-emerald-800'
-                    : 'bg-white dark:bg-[var(--bg-surface)] border-slate-100 dark:border-[var(--border-color)]'
-                }`}
+                className="rounded-2xl px-4 py-4 shadow-sm border flex items-center justify-between gap-3 transition-colors bg-white dark:bg-[var(--bg-surface)] border-slate-100 dark:border-[var(--border-color)]"
               >
                 {/* 左侧：分类标签 + 树木名称 */}
                 <div className="flex flex-col gap-1.5 min-w-0">
@@ -430,7 +441,7 @@ export default function Dashboard() {
                     </span>
                   )}
                   <div className="flex items-center gap-2">
-                    <span className="text-xl shrink-0">{isCompleted ? '🌳' : '🍎'}</span>
+                    <span className="text-xl shrink-0">🍎</span>
                     <p className="text-slate-900 dark:text-[var(--text-primary)] text-lg font-bold leading-tight truncate">{tree.name}</p>
                     {goal?.is_shared && (
                       <button
@@ -450,12 +461,6 @@ export default function Dashboard() {
                   {goal?.fruits_per_task && goal.fruits_per_task > 0 && (
                     <span className="bg-primary/10 text-primary text-sm font-bold px-3 py-1 rounded-full whitespace-nowrap">
                       +{goal.fruits_per_task} 果实
-                    </span>
-                  )}
-                  {isCompleted && (
-                    <span className="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap flex items-center gap-1">
-                      <Icon name="check_circle" filled className="text-sm" />
-                      已长成
                     </span>
                   )}
                   {isDone && (
@@ -494,6 +499,62 @@ export default function Dashboard() {
       <div className="px-4 pb-8 text-center lg:max-w-4xl lg:mx-auto">
         <p className="text-slate-500 dark:text-[var(--text-muted)] text-sm">继续完成任务，解锁更多果实！</p>
       </div>
+
+      {showCompletedTrees && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowCompletedTrees(false)}
+          />
+          <motion.div
+            initial={{ opacity: 0, y: '100%' }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="relative z-10 w-full sm:max-w-md bg-[var(--bg-surface)] dark:bg-[var(--bg-primary)] rounded-t-3xl sm:rounded-3xl max-h-[80vh] flex flex-col shadow-xl"
+          >
+            <div className="flex items-center justify-between px-5 pt-5 pb-3">
+              <div className="flex items-center gap-2">
+                <Icon name="park" filled className="text-primary text-xl" />
+                <div>
+                  <p className="text-slate-900 dark:text-[var(--text-primary)] text-lg font-bold">已长成树木</p>
+                  <p className="text-xs text-slate-500 dark:text-[var(--text-muted)] mt-0.5">共 {completedTrees.length} 棵</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCompletedTrees(false)}
+                className="size-9 flex items-center justify-center rounded-full bg-slate-100 dark:bg-[var(--bg-card)] text-slate-400"
+                aria-label="关闭已长成树木列表"
+              >
+                <Icon name="close" className="text-lg" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-2">
+              {completedTrees.map(tree => {
+                const goal = getGoalForTree(tree);
+                return (
+                  <div
+                    key={tree.id}
+                    className="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-2xl shrink-0">🌳</span>
+                      <div className="min-w-0">
+                        <p className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold truncate">{tree.name}</p>
+                        <p className="text-xs text-slate-500 dark:text-[var(--text-muted)] truncate">{goal?.title || '成长目标'}</p>
+                      </div>
+                    </div>
+                    <span className="text-emerald-700 dark:text-emerald-400 text-xs font-bold shrink-0 flex items-center gap-1">
+                      <Icon name="check_circle" filled className="text-sm" />
+                      已长成
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* 打卡详情浮层 */}
       <CheckinDetailPopup

@@ -4,7 +4,6 @@ import { useMemo, useRef, useEffect } from 'react';
 import Icon from '../components/Icon';
 interface TaskSummary {
   taskName: string;
-  goalTitle?: string;
   count: number;
 }
 
@@ -66,14 +65,17 @@ export default function MonthlySummaryModal({
 
     Object.values(calendarData.tasks_by_date).forEach(tasks => {
       tasks.forEach(task => {
-        const key = task.title;
+        // 目标可能经历多个阶段，但只要最终展示名称相同，就应累计为同一个任务。
+        const taskName = (task.goal_title || task.title).trim();
+        if (!taskName) return;
+
+        const key = taskName;
         const existing = taskCountMap.get(key);
         if (existing) {
           existing.count += 1;
         } else {
           taskCountMap.set(key, {
-            taskName: task.title,
-            goalTitle: task.goal_title,
+            taskName,
             count: 1,
           });
         }
@@ -184,13 +186,8 @@ export default function MonthlySummaryModal({
                       >
                         <div className="flex-1 min-w-0">
                           <p className="font-bold text-slate-900 dark:text-[var(--text-primary)] truncate">
-                            {task.goalTitle || task.taskName}
+                            {task.taskName}
                           </p>
-                          {task.goalTitle && task.goalTitle !== task.taskName && (
-                            <p className="text-xs text-slate-500 dark:text-[var(--text-muted)] truncate">
-                              {task.taskName}
-                            </p>
-                          )}
                         </div>
                         <div className="flex items-center gap-1 ml-3 shrink-0">
                           <Icon name="sentiment_very_satisfied" filled className="text-primary text-lg" />
@@ -219,13 +216,8 @@ export default function MonthlySummaryModal({
                         >
                           <div className="flex-1 min-w-0">
                             <p className="font-bold text-slate-900 dark:text-[var(--text-primary)] truncate">
-                              {task.goalTitle || task.taskName}
+                              {task.taskName}
                             </p>
-                            {task.goalTitle && task.goalTitle !== task.taskName && (
-                              <p className="text-xs text-slate-500 dark:text-[var(--text-muted)] truncate">
-                                {task.taskName}
-                              </p>
-                            )}
                           </div>
                           <div className="flex items-center gap-1 ml-3 shrink-0">
                             <Icon name="sentiment_content" className="text-orange-500 text-lg" />
@@ -267,13 +259,8 @@ export default function MonthlySummaryModal({
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-slate-900 dark:text-[var(--text-primary)] truncate text-sm">
-                              {task.goalTitle || task.taskName}
+                              {task.taskName}
                             </p>
-                            {task.goalTitle && task.goalTitle !== task.taskName && (
-                              <p className="text-xs text-slate-500 dark:text-[var(--text-muted)] truncate">
-                                {task.taskName}
-                              </p>
-                            )}
                           </div>
                         </div>
                         <div className="flex items-center gap-1 ml-3 shrink-0">

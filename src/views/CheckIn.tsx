@@ -24,6 +24,12 @@ export default function CheckIn() {
   const { user, currentChild, setCurrentChild } = useAuth();
   const { isDark } = useTheme();
   const { refreshPendingCount } = usePendingTasks();
+  // 获取 UTC+8 今天的日期字符串 YYYY-MM-DD
+  const getUTC8Today = (): string => {
+    const utc8Offset = 8 * 60 * 60 * 1000;
+    return new Date(Date.now() + utc8Offset).toISOString().split('T')[0];
+  };
+
   const [trees, setTrees] = useState<TreeData[]>([]);
   const [selectedTree, setSelectedTree] = useState<TreeData | null>(null);
   const [goals, setGoals] = useState<GoalData[]>([]);
@@ -45,16 +51,15 @@ export default function CheckIn() {
   const [newMedals, setNewMedals] = useState<MedalData[]>([]);
   const prevUnlockedMedalIdsRef = useRef<Set<string>>(new Set());
   const [showCheckinHistory, setShowCheckinHistory] = useState(false);
+  const [showBatchCheckin, setShowBatchCheckin] = useState(false);
+  const [batchDateInput, setBatchDateInput] = useState(getUTC8Today());
+  const [batchDates, setBatchDates] = useState<string[]>([]);
+  const [isBatchChecking, setIsBatchChecking] = useState(false);
+  const [batchError, setBatchError] = useState('');
   // 果实余额
   const [fruitsBalance, setFruitsBalance] = useState(0);
   // 打卡后待展示的新勋章（等 CelebrationPopup 关闭后再展示）
   const pendingNewMedalsRef = useRef<MedalData[]>([]);
-
-  // 获取 UTC+8 今天的日期字符串 YYYY-MM-DD
-  const getUTC8Today = (): string => {
-    const utc8Offset = 8 * 60 * 60 * 1000;
-    return new Date(Date.now() + utc8Offset).toISOString().split('T')[0];
-  };
 
   const [selectedDate, setSelectedDate] = useState<string>(getUTC8Today());
 
@@ -69,15 +74,18 @@ export default function CheckIn() {
         treesApi.listGoals(currentChild.id)
       ]);
 
-      setTrees(treesRes.data);
+      const activeTrees = treesRes.data.filter(tree => tree.status !== 'completed');
+      setTrees(activeTrees);
       setGoals(goalsRes.data);
       // 保存全量任务数据，供切换树时复用（避免重复网络请求）
       setAllTasks(tasksRes.data);
-      if (treesRes.data.length > 0) {
+      if (activeTrees.length > 0) {
         setSelectedTree((prev) => {
-          const stillExists = treesRes.data.find((t) => t.id === prev?.id);
-          return stillExists || treesRes.data[0];
+          const stillExists = activeTrees.find((t) => t.id === prev?.id);
+          return stillExists || activeTrees[0];
         });
+      } else {
+        setSelectedTree(null);
       }
 
       // 按 "日期_goal_id" 建立任务映射（只保留最新的一条，因为列表已按时间倒序）
@@ -265,6 +273,15 @@ export default function CheckIn() {
   const today = getUTC8Today();
   const isBackfillDate = selectedDate !== today;
 
+  // 未打卡目标优先展示，已打卡目标排在后面。
+  const sortedTrees = [...trees].sort((a, b) => {
+    const getSortRank = (tree: TreeData) => {
+      const status = getTaskForTreeOnDate(tree, selectedDate)?.status;
+      return status === 'pending' || status === 'approved' ? 1 : 0;
+    };
+    return getSortRank(a) - getSortRank(b);
+  });
+
   // 格式化日期为中文显示
   const formatDateDisplay = (dateStr: string): string => {
     if (dateStr === today) return '今天';
@@ -305,6 +322,71 @@ export default function CheckIn() {
 
   const statusInfo = getStatusText();
   const canCheckin = (!hasCheckedInToday || taskStatus === 'rejected') && selectedTree?.status !== 'completed';
+
+  const addBatchDate = () => {
+    if (!batchDateInput || batchDateInput > today) return;
+    const existingTask = getTaskForTreeOnDate(selectedTree, batchDateInput);
+    if (existingTask && existingTask.status !== 'rejected') return;
+    setBatchDates(prev => prev.includes(batchDateInput) ? prev : [...prev, batchDateInput].sort());
+  };
+
+  const handleBatchCheckin = async () => {
+    if (!selectedTree?.goal_id || !currentChild || batchDates.length === 0) return;
+
+    setIsBatchChecking(true);
+    setBatchError('');
+    const results = await Promise.all(batchDates.map(async date => {
+      try {
+        await tasksApi.checkin(selectedTree.goal_id!, currentChild.id, undefined, date);
+        return { date, success: true, message: '' };
+      } catch (err) {
+        return {
+          date,
+          success: false,
+          message: err instanceof Error ? err.message : '打卡失败'
+        };
+      }
+    }));
+    const failedDates = results
+      .filter(result => !result.success)
+      .map(result => `${formatDateDisplay(result.date)}：${result.message}`);
+    const successCount = results.filter(result => result.success).length;
+
+    if (successCount > 0) {
+      const currentGoalData = goals.find(g => g.id === selectedTree.goal_id);
+      sharedGoalIdRef.current = currentGoalData?.is_shared ? selectedTree.goal_id : null;
+      invalidateChildDataCache(currentChild.id);
+      const refreshedTreesRes = await treesApi.list(currentChild.id);
+      const refreshedTree = refreshedTreesRes.data.find(t => t.id === selectedTree.id);
+      setCelebrationData({
+        treeProgress: refreshedTree?.progress ?? selectedTree.progress,
+        treeName: refreshedTree?.name ?? selectedTree.name,
+        isTreeCompleted: refreshedTree?.status === 'completed'
+      });
+      await fetchData();
+      await refreshPendingCount();
+      try {
+        const medalRes = await medalsApi.list(currentChild.id);
+        const freshUnlocked = medalRes.data.filter(m => m.unlocked);
+        const freshIds = new Set(freshUnlocked.map(m => m.id));
+        const newly = freshUnlocked.filter(m => !prevUnlockedMedalIdsRef.current.has(m.id));
+        prevUnlockedMedalIdsRef.current = freshIds;
+        if (newly.length > 0) pendingNewMedalsRef.current = newly;
+      } catch (medalErr) {
+        console.error('检查勋章失败:', medalErr);
+      }
+      setIsCelebrationOpen(true);
+      setShowBatchCheckin(false);
+      setBatchDates([]);
+      if (failedDates.length > 0) {
+        setError(`已完成 ${successCount} 个日期的打卡，以下日期未完成：${failedDates.join('；')}`);
+      }
+    } else {
+      setBatchError(failedDates.join('；') || '没有可提交的日期');
+    }
+
+    setIsBatchChecking(false);
+  };
 
   // 下拉刷新处理函数（清除缓存后强制刷新）
   const handleRefresh = useCallback(async () => {
@@ -401,8 +483,15 @@ export default function CheckIn() {
           ) : trees.length === 0 ? (
             <div className="text-center py-12 px-3 text-slate-400 dark:text-[var(--text-muted)] space-y-4">
               <Icon name="park" className="text-6xl block" />
-              <p className="text-lg font-semibold">还没有任何目标</p>
-              <p className="text-sm">去首页添加一个新目标吧！</p>
+              <p className="text-lg font-semibold">暂无可打卡目标</p>
+              <p className="text-sm">已长成的树木可以在森林主页查看。</p>
+              <button
+                onClick={() => navigate('/forest')}
+                className="mx-auto flex items-center gap-1.5 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-bold"
+              >
+                <Icon name="forest" className="text-base" />
+                查看森林
+              </button>
             </div>
           ) : (
             <div className="w-full space-y-4 pb-4 px-3">
@@ -450,7 +539,7 @@ export default function CheckIn() {
                       className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
                       aria-label="选择目标"
                     >
-                      {trees.map((tree) => {
+                      {sortedTrees.map((tree) => {
                         const treeTask = getTaskForTreeOnDate(
                           tree,
                           selectedDate
@@ -707,6 +796,20 @@ export default function CheckIn() {
                 </div>
 
                 <button
+                  onClick={() => {
+                    setBatchDates([]);
+                    setBatchDateInput(today);
+                    setBatchError('');
+                    setShowBatchCheckin(true);
+                  }}
+                  disabled={!selectedTree || isChecking || isBatchChecking}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-primary/30 text-primary font-bold text-sm hover:bg-primary/5 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Icon name="calendar_month" className="text-lg" />
+                  批量补打卡
+                </button>
+
+                <button
                   className="w-full py-6 bg-primary text-background-dark text-xl font-extrabold rounded-2xl shadow-lg shadow-primary/30 active:scale-95 transition-transform flex items-center justify-center gap-3 disabled:opacity-60 disabled:cursor-not-allowed"
                   onClick={handleCheckin}
                   disabled={isChecking || !canCheckin}
@@ -837,6 +940,89 @@ export default function CheckIn() {
                     })}
                 </div>
               )}
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {showBatchCheckin && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => !isBatchChecking && setShowBatchCheckin(false)}
+          />
+          <motion.div
+            initial={{ opacity: 0, y: '100%' }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="relative z-10 w-full sm:max-w-sm bg-[var(--bg-surface)] dark:bg-[var(--bg-primary)] rounded-t-3xl sm:rounded-3xl max-h-[80vh] flex flex-col shadow-xl"
+          >
+            <div className="flex items-center justify-between px-5 pt-5 pb-3">
+              <div>
+                <p className="text-slate-900 dark:text-[var(--text-primary)] text-lg font-bold">批量补打卡</p>
+                <p className="text-xs text-slate-500 dark:text-[var(--text-muted)] mt-1">为「{selectedTree?.name || '当前目标'}」选择漏打卡日期</p>
+              </div>
+              <button
+                onClick={() => setShowBatchCheckin(false)}
+                disabled={isBatchChecking}
+                className="size-9 flex items-center justify-center rounded-full bg-slate-100 dark:bg-[var(--bg-card)] text-slate-400"
+                aria-label="关闭批量补打卡"
+              >
+                <Icon name="close" className="text-lg" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={batchDateInput}
+                  max={today}
+                  onChange={e => setBatchDateInput(e.target.value)}
+                  className="flex-1 rounded-xl border border-slate-200 dark:border-[var(--border-color)] bg-white dark:bg-[var(--bg-card)] px-3 py-2.5 text-sm text-slate-700 dark:text-[var(--text-primary)]"
+                  aria-label="选择补打卡日期"
+                />
+                <button
+                  onClick={addBatchDate}
+                  disabled={!batchDateInput || batchDateInput > today || !!(getTaskForTreeOnDate(selectedTree, batchDateInput) && getTaskForTreeOnDate(selectedTree, batchDateInput)?.status !== 'rejected')}
+                  className="flex items-center gap-1 px-3 py-2.5 rounded-xl bg-primary/10 text-primary text-sm font-bold disabled:opacity-40"
+                >
+                  <Icon name="add" className="text-base" />
+                  添加
+                </button>
+              </div>
+
+              {batchDates.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {batchDates.map(date => (
+                    <button
+                      key={date}
+                      onClick={() => setBatchDates(prev => prev.filter(item => item !== date))}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold"
+                      aria-label={`移除${formatDateDisplay(date)}`}
+                    >
+                      {formatDateDisplay(date)}
+                      <Icon name="close" className="text-xs" />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center py-5 text-sm text-slate-400 dark:text-[var(--text-muted)]">请选择一个或多个日期</p>
+              )}
+
+              {batchError && (
+                <p className="rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-600">{batchError}</p>
+              )}
+
+              <button
+                onClick={handleBatchCheckin}
+                disabled={isBatchChecking || batchDates.length === 0}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-primary text-white font-bold shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Icon name="check_circle" className="text-lg" />
+                {isBatchChecking ? '批量打卡中...' : `提交 ${batchDates.length} 个日期`}
+              </button>
             </div>
           </motion.div>
         </div>
