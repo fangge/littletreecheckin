@@ -8,6 +8,9 @@
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
+    "server:build": "pnpm --dir server build",
+    "db:import:tencent": "node server/scripts/import-backup.mjs",
+    "auth:import:tencent": "node server/scripts/import-auth-users.mjs",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
@@ -19,7 +22,6 @@
   },
   "dependencies": {
     "@dgreenheck/ez-tree": "^1.1.0",
-    "@supabase/supabase-js": "^2.108.2",
     "@tailwindcss/vite": "^4.3.1",
     "@types/react": "^19.2.17",
     "@types/three": "^0.184.1",

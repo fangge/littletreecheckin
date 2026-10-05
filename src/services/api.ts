@@ -1,30 +1,84 @@
 // ============================================================
 // 前端 API 服务层 - 统一封装所有后端 API 调用
-// 使用 Supabase Auth 管理 session，自动获取最新 access token
+// 使用本地 access token 和可轮换的 refresh token 维持登录状态
 // ============================================================
 
 import { cachedRequest, invalidateChildCache } from '../utils/requestCache';
-import { supabase } from '../lib/supabase';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const ACCESS_TOKEN_KEY = 'littletree_access_token';
+const REFRESH_TOKEN_KEY = 'littletree_refresh_token';
 
-/**
- * 获取当前 Supabase session 的 access token
- * Supabase 客户端会自动刷新过期的 token
- */
-const getToken = async (): Promise<string | null> => {
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token ?? null;
+export interface AuthTokens {
+  access_token: string;
+  refresh_token: string;
+}
+
+export interface AuthPayload {
+  access_token: string;
+  refresh_token: string;
+  user: User;
+  must_change_password: boolean;
+}
+
+export const getAccessToken = (): string | null => localStorage.getItem(ACCESS_TOKEN_KEY);
+export const getRefreshToken = (): string | null => localStorage.getItem(REFRESH_TOKEN_KEY);
+
+export const setAuthTokens = (tokens: AuthTokens): void => {
+  localStorage.setItem(ACCESS_TOKEN_KEY, tokens.access_token);
+  localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refresh_token);
 };
 
+export const clearAuthTokens = (): void => {
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+};
+
+let refreshPromise: Promise<boolean> | null = null;
+
+const refreshAccessToken = async (): Promise<boolean> => {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return false;
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.data?.access_token || !result.data?.refresh_token) {
+        clearAuthTokens();
+        return false;
+      }
+      setAuthTokens(result.data);
+      return true;
+    } catch {
+      clearAuthTokens();
+      return false;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+  return refreshPromise;
+};
+
+/**
+ * 获取当前本地 access token
+ */
+const getToken = (): string | null => getAccessToken();
+
 // ============================================================
-// HTTP 客户端基础封装（token 由 Supabase 自动管理）
+// HTTP 客户端基础封装（401 时自动轮换 refresh session）
 // ============================================================
-const request = async <T>(
+export const request = async <T>(
   endpoint: string,
   options: RequestInit = {},
+  hasRetried = false,
 ): Promise<T> => {
-  const token = await getToken();
+  const token = getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
@@ -39,11 +93,12 @@ const request = async <T>(
     headers,
   });
 
-  const data = await response.json();
+  const data = await response.json().catch(() => ({}));
 
-  // 处理 401：Supabase token 无效，触发登出
-  if (response.status === 401) {
-    await supabase.auth.signOut();
+  if (response.status === 401 && !hasRetried && !endpoint.endsWith('/auth/refresh')) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) return request<T>(endpoint, options, true);
+    clearAuthTokens();
     throw new Error('认证已过期，请重新登录');
   }
 
@@ -64,6 +119,52 @@ const request = async <T>(
   }
 
   return data;
+};
+
+export const authApi = {
+  login: (email: string, password: string) =>
+    request<{ data: AuthPayload }>('/api/v1/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    }),
+
+  register: (data: { email: string; username: string; password: string; phone?: string; children?: Array<{ name: string; age?: number; gender?: string }> }) =>
+    request<{ data: AuthPayload }>('/api/v1/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  me: () => request<{ data: User; must_change_password?: boolean }>('/api/v1/auth/me'),
+
+  logout: (refreshToken: string) =>
+    request<{ message: string }>('/api/v1/auth/logout', {
+      method: 'POST',
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    }),
+
+  verifyPassword: (password: string) =>
+    request<{ data: { valid: boolean } }>('/api/v1/auth/verify-password', {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    }),
+
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ message: string; must_change_password: boolean }>('/api/v1/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    }),
+
+  requestPasswordReset: (email: string) =>
+    request<{ message: string }>('/api/v1/auth/request-password-reset', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  resetPassword: (token: string, newPassword: string) =>
+    request<{ message: string }>('/api/v1/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, new_password: newPassword }),
+    }),
 };
 
 /**

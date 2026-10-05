@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { supabase } from '../config/supabase.js';
+import { database } from '../config/database.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { AuthRequest } from '../types.js';
 import {
@@ -64,7 +64,7 @@ const parseRewardLimitSettings = (
 };
 
 const getOwnedChildIds = async (parentId: string, requestedChildIds: string[]) => {
-  const { data, error } = await supabase
+  const { data, error } = await database
     .from('children')
     .select('id')
     .eq('parent_id', parentId)
@@ -76,7 +76,7 @@ const getOwnedChildIds = async (parentId: string, requestedChildIds: string[]) =
 };
 
 const getCashSettingForParent = async (parentId: string) => {
-  const { data: existing, error } = await supabase
+  const { data: existing, error } = await database
     .from('cash_exchange_settings')
     .select('id, parent_id, fruits_per_yuan, yuan_amount, is_enabled, updated_at')
     .eq('parent_id', parentId)
@@ -85,7 +85,7 @@ const getCashSettingForParent = async (parentId: string) => {
   if (error) throw error;
   if (existing) return existing;
 
-  const { data: created, error: createError } = await supabase
+  const { data: created, error: createError } = await database
     .from('cash_exchange_settings')
     .insert({
       parent_id: parentId,
@@ -110,7 +110,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response): Promise
   }
 
   if (child_id) {
-    const { data: child } = await supabase
+    const { data: child } = await database
       .from('children')
       .select('id')
       .eq('id', child_id)
@@ -124,7 +124,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response): Promise
     }
   }
 
-  let query = supabase
+  let query = database
     .from('rewards')
     .select('id, name, price, category, max_redemptions, max_consecutive_redemptions, cooldown_days')
     .eq('is_active', true)
@@ -147,7 +147,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response): Promise
     return;
   }
 
-  const { data: redemptions, error: redemptionError } = await supabase
+  const { data: redemptions, error: redemptionError } = await database
     .from('reward_redemptions')
     .select('reward_id, quantity, redeemed_at')
     .eq('child_id', child_id)
@@ -180,7 +180,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response): Promise
 router.get('/children/:childId/fruits', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { childId } = req.params;
 
-  const { data: child, error } = await supabase
+  const { data: child, error } = await database
     .from('children')
     .select('fruits_balance')
     .eq('id', childId)
@@ -237,7 +237,7 @@ router.put('/cash/settings', authMiddleware, async (req: AuthRequest, res: Respo
     return;
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await database
     .from('cash_exchange_settings')
     .upsert({
       parent_id: req.user.id,
@@ -271,7 +271,7 @@ router.post('/cash/redeem', authMiddleware, async (req: AuthRequest, res: Respon
     return;
   }
 
-  const { data: child, error: childError } = await supabase
+  const { data: child, error: childError } = await database
     .from('children')
     .select('id')
     .eq('id', child_id)
@@ -284,7 +284,7 @@ router.post('/cash/redeem', authMiddleware, async (req: AuthRequest, res: Respon
     return;
   }
 
-  const { data, error } = await supabase.rpc('redeem_cash_rpc', {
+  const { data, error } = await database.rpc('redeem_cash_rpc', {
     p_child_id: child_id,
     p_fruits_spent: fruitsSpent,
   });
@@ -337,7 +337,7 @@ router.post('/:rewardId/redeem', authMiddleware, async (req: AuthRequest, res: R
   }
 
   // 获取奖励信息
-  const { data: reward } = await supabase
+  const { data: reward } = await database
     .from('rewards')
     .select('id, name, price, is_active, max_redemptions, max_consecutive_redemptions, cooldown_days')
     .eq('id', rewardId)
@@ -360,7 +360,7 @@ router.post('/:rewardId/redeem', authMiddleware, async (req: AuthRequest, res: R
   }
 
   // 获取孩子果实余额
-  const { data: child } = await supabase
+  const { data: child } = await database
     .from('children')
     .select('id, fruits_balance')
     .eq('id', child_id)
@@ -373,7 +373,7 @@ router.post('/:rewardId/redeem', authMiddleware, async (req: AuthRequest, res: R
     return;
   }
 
-  const { data: existingRedemptions, error: redemptionQueryError } = await supabase
+  const { data: existingRedemptions, error: redemptionQueryError } = await database
     .from('reward_redemptions')
     .select('quantity, redeemed_at')
     .eq('child_id', child_id)
@@ -420,7 +420,7 @@ router.post('/:rewardId/redeem', authMiddleware, async (req: AuthRequest, res: R
   }
 
   // 扣除果实并创建兑换记录
-  const { error: updateError } = await supabase
+  const { error: updateError } = await database
     .from('children')
     .update({ fruits_balance: child.fruits_balance - totalPrice })
     .eq('id', child_id);
@@ -430,7 +430,7 @@ router.post('/:rewardId/redeem', authMiddleware, async (req: AuthRequest, res: R
     return;
   }
 
-  const { data: redemption, error: redemptionError } = await supabase
+  const { data: redemption, error: redemptionError } = await database
     .from('reward_redemptions')
     .insert({ child_id, reward_id: rewardId, quantity, status: 'pending' })
     .select('id, quantity, redeemed_at, status')
@@ -438,7 +438,7 @@ router.post('/:rewardId/redeem', authMiddleware, async (req: AuthRequest, res: R
 
   if (redemptionError || !redemption) {
     // 回滚果实
-    await supabase
+    await database
       .from('children')
       .update({ fruits_balance: child.fruits_balance })
       .eq('id', child_id);
@@ -462,14 +462,14 @@ router.get('/children/:childId/redemptions', authMiddleware, async (req: AuthReq
   const { childId } = req.params;
 
   const [rewardRes, cashRes] = await Promise.all([
-    supabase
+    database
       .from('reward_redemptions')
       .select(`
         id, child_id, quantity, redeemed_at, status,
         rewards(name, price, category)
       `)
       .eq('child_id', childId),
-    supabase
+    database
       .from('cash_redemptions')
       .select('id, child_id, redeemed_at, status, fruits_spent, fruits_per_yuan, yuan_amount, cash_amount')
       .eq('child_id', childId),
@@ -521,7 +521,7 @@ router.get('/redemptions/batch', authMiddleware, async (req: AuthRequest, res: R
   }
 
   const [rewardRes, cashRes] = await Promise.all([
-    supabase
+    database
       .from('reward_redemptions')
       .select(`
         id, child_id, quantity, redeemed_at, status,
@@ -529,7 +529,7 @@ router.get('/redemptions/batch', authMiddleware, async (req: AuthRequest, res: R
         children(name)
       `)
       .in('child_id', childIdArray),
-    supabase
+    database
       .from('cash_redemptions')
       .select('id, child_id, redeemed_at, status, fruits_spent, fruits_per_yuan, yuan_amount, cash_amount, children(name)')
       .in('child_id', childIdArray),
@@ -558,7 +558,7 @@ router.get('/redemptions/batch', authMiddleware, async (req: AuthRequest, res: R
 router.put('/redemptions/:redemptionId/complete', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { redemptionId } = req.params;
 
-  const { error } = await supabase
+  const { error } = await database
     .from('reward_redemptions')
     .update({ status: 'completed' })
     .eq('id', redemptionId);
@@ -575,7 +575,7 @@ router.put('/redemptions/:redemptionId/complete', authMiddleware, async (req: Au
 router.put('/cash/redemptions/:redemptionId/complete', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { redemptionId } = req.params;
 
-  const { data: redemption, error: fetchError } = await supabase
+  const { data: redemption, error: fetchError } = await database
     .from('cash_redemptions')
     .select('id, status, parent_id')
     .eq('id', redemptionId)
@@ -596,7 +596,7 @@ router.put('/cash/redemptions/:redemptionId/complete', authMiddleware, async (re
     return;
   }
 
-  const { error } = await supabase
+  const { error } = await database
     .from('cash_redemptions')
     .update({ status: 'completed', completed_at: new Date().toISOString() })
     .eq('id', redemptionId);
@@ -614,7 +614,7 @@ router.put('/redemptions/:redemptionId/cancel', authMiddleware, async (req: Auth
   const { redemptionId } = req.params;
 
   // 1. 获取兑换记录信息
-  const { data: redemption, error: fetchError } = await supabase
+  const { data: redemption, error: fetchError } = await database
     .from('reward_redemptions')
     .select('child_id, quantity, rewards(price), status')
     .eq('id', redemptionId)
@@ -635,7 +635,7 @@ router.put('/redemptions/:redemptionId/cancel', authMiddleware, async (req: Auth
   const fruitsToRefund = price * (redemption.quantity || 1);
 
   // 3. 获取当前孩子的果实余额
-  const { data: child, error: childError } = await supabase
+  const { data: child, error: childError } = await database
     .from('children')
     .select('fruits_balance')
     .eq('id', redemption.child_id)
@@ -647,7 +647,7 @@ router.put('/redemptions/:redemptionId/cancel', authMiddleware, async (req: Auth
   }
 
   // 4. 返还果实给孩子
-  const { error: updateError } = await supabase
+  const { error: updateError } = await database
     .from('children')
     .update({ fruits_balance: child.fruits_balance + fruitsToRefund })
     .eq('id', redemption.child_id);
@@ -658,7 +658,7 @@ router.put('/redemptions/:redemptionId/cancel', authMiddleware, async (req: Auth
   }
 
   // 5. 删除兑换记录
-  const { error: deleteError } = await supabase
+  const { error: deleteError } = await database
     .from('reward_redemptions')
     .delete()
     .eq('id', redemptionId);
@@ -675,7 +675,7 @@ router.put('/redemptions/:redemptionId/cancel', authMiddleware, async (req: Auth
 router.put('/cash/redemptions/:redemptionId/cancel', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { redemptionId } = req.params;
 
-  const { data: redemption, error: fetchError } = await supabase
+  const { data: redemption, error: fetchError } = await database
     .from('cash_redemptions')
     .select('child_id, parent_id, fruits_spent, status')
     .eq('id', redemptionId)
@@ -696,7 +696,7 @@ router.put('/cash/redemptions/:redemptionId/cancel', authMiddleware, async (req:
     return;
   }
 
-  const { data: child, error: childError } = await supabase
+  const { data: child, error: childError } = await database
     .from('children')
     .select('fruits_balance')
     .eq('id', redemption.child_id)
@@ -707,7 +707,7 @@ router.put('/cash/redemptions/:redemptionId/cancel', authMiddleware, async (req:
     return;
   }
 
-  const { error: updateError } = await supabase
+  const { error: updateError } = await database
     .from('children')
     .update({ fruits_balance: child.fruits_balance + redemption.fruits_spent })
     .eq('id', redemption.child_id);
@@ -717,7 +717,7 @@ router.put('/cash/redemptions/:redemptionId/cancel', authMiddleware, async (req:
     return;
   }
 
-  const { error: deleteError } = await supabase
+  const { error: deleteError } = await database
     .from('cash_redemptions')
     .delete()
     .eq('id', redemptionId);
@@ -755,7 +755,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
     return;
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await database
     .from('rewards')
     .insert({ name, price, category, is_active: true, ...limitResult.settings })
     .select('id, name, price, category, max_redemptions, max_consecutive_redemptions, cooldown_days, is_active')
@@ -774,7 +774,7 @@ router.put('/:rewardId', authMiddleware, async (req: AuthRequest, res: Response)
   const { rewardId } = req.params;
   const { name, price, category, is_active } = req.body;
 
-  const { data: existing } = await supabase
+  const { data: existing } = await database
     .from('rewards')
     .select('id, max_redemptions, max_consecutive_redemptions, cooldown_days')
     .eq('id', rewardId)
@@ -801,7 +801,7 @@ router.put('/:rewardId', authMiddleware, async (req: AuthRequest, res: Response)
   if (category !== undefined) updateData.category = category;
   if (is_active !== undefined) updateData.is_active = is_active;
 
-  const { data, error } = await supabase
+  const { data, error } = await database
     .from('rewards')
     .update(updateData)
     .eq('id', rewardId)
@@ -820,7 +820,7 @@ router.put('/:rewardId', authMiddleware, async (req: AuthRequest, res: Response)
 router.delete('/:rewardId', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { rewardId } = req.params;
 
-  const { data: existing } = await supabase
+  const { data: existing } = await database
     .from('rewards')
     .select('id')
     .eq('id', rewardId)
@@ -831,7 +831,7 @@ router.delete('/:rewardId', authMiddleware, async (req: AuthRequest, res: Respon
     return;
   }
 
-  const { error } = await supabase
+  const { error } = await database
     .from('rewards')
     .delete()
     .eq('id', rewardId);
@@ -846,7 +846,7 @@ router.delete('/:rewardId', authMiddleware, async (req: AuthRequest, res: Respon
 
 // GET /api/v1/rewards/all  (获取所有奖品，含已下架，供家长管理)
 router.get('/all', authMiddleware, async (_req: AuthRequest, res: Response): Promise<void> => {
-  const { data, error } = await supabase
+  const { data, error } = await database
     .from('rewards')
     .select('id, name, price, category, max_redemptions, max_consecutive_redemptions, cooldown_days, is_active')
     .order('created_at', { ascending: false });

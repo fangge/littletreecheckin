@@ -13,9 +13,9 @@
 | 前端 | React 19 + TypeScript + Vite 6 + TailwindCSS v4 + motion/react |
 | 路由 | React Router v7（路由级代码分割 + 懒加载） |
 | 后端 | Node.js + Express 4 + TypeScript |
-| 数据库 | Supabase (PostgreSQL) |
-| 认证 | Supabase Auth（邮箱登录 + 密码找回 + 自动 Token 续签） |
-| 部署 | Vercel Serverless Functions（前后端一体） |
+| 数据库 | Lighthouse MySQL 8（业务数据 + 认证数据） |
+| 认证 | Express 自建认证（bcrypt + JWT + MySQL 会话） |
+| 部署 | 腾讯云 Lighthouse（Nginx + PM2 + Express） |
 | 包管理 | pnpm |
 | PWA | Service Worker + Web App Manifest（可安装到主屏幕） |
 
@@ -52,12 +52,12 @@
 
 | 文档 | 说明 |
 |------|------|
-| [快速开始](docs/getting-started.md) | 安装依赖、配置 Supabase、初始化数据库、启动开发服务器 |
+| [快速开始](docs/getting-started.md) | 安装依赖、配置 MySQL、启动本地开发服务器 |
 | [项目结构](docs/project-structure.md) | 目录结构说明、前后端架构设计 |
 | [数据库设计](docs/database.md) | 业务表的字段说明和关系 |
 | [核心业务逻辑](docs/business-logic.md) | 树木成长、审核触发链、勋章系统、时间筛选统计 |
 | [API 参考](docs/api-reference.md) | 完整 API 端点列表（含请求/响应示例） |
-| [部署指南](docs/deployment.md) | Vercel + Supabase 一体化部署步骤 |
+| [部署指南](docs/deployment.md) | 腾讯云 Lighthouse + MySQL 8 部署步骤 |
 | [在线用户手册](/doc/) | 部署后可访问 /doc 查看功能介绍和使用指南 |
 
 ---
@@ -87,22 +87,82 @@
 
 ## 快速启动
 
+### 本地开发
+
 ```bash
 # 安装依赖
 pnpm install
 pnpm --prefix server install
 
-# 配置环境变量（参考 docs/getting-started.md）
-cp .env.example .env.local
+# 配置环境变量（参考 .env.tencent.example 和 docs/getting-started.md）
+cp .env.tencent.example .env.local
 
-# 初始化数据库（在 Supabase SQL Editor 中执行以下单一文件即可）
-# supabase/migrations/init.sql
+# 腾讯云分支初始化业务数据库（只对空库执行一次）
+chmod 600 .env.local
+pnpm db:import:tencent /path/to/littletreesql_backup
 
 # 启动开发服务器（前后端同时启动）
 pnpm start
 ```
 
-详细步骤请参阅 [快速开始文档](docs/getting-started.md)。
+本地前端地址为 `http://localhost:3000`，后端地址为 `http://localhost:3001`。Vite 会将 `/api` 请求代理到后端；浏览器不会直接连接 MySQL。
+
+详细的本地配置请参阅 [快速开始文档](docs/getting-started.md)。
+
+### 腾讯云 Lighthouse
+
+`tencent-cloud` 分支在腾讯云上的运行入口是 Lighthouse 上的 Nginx + PM2 + Express，不依赖 Supabase 或 Vercel 运行时：
+
+```text
+浏览器 → Nginx :8081 → dist 静态文件
+                    └→ /api/* → Express/PM2 :3002 → MySQL :3306（仅本机）
+```
+
+当前服务器配置如下：
+
+| 组件 | 配置 |
+|------|------|
+| 项目目录 | `/opt/littletreecheckin` |
+| 前端入口 | Nginx `8081`，静态文件位于 `/var/www/littletreecheckin` |
+| 后端进程 | PM2 `littletreecheckin-api`，Express 监听 `127.0.0.1:3002` |
+| 数据库 | Lighthouse 本机 MySQL 8，监听 `127.0.0.1:3306` |
+| 数据库备份 | `/opt/littletreecheckin/db-backup` |
+
+服务器首次初始化时，在项目根目录准备 `.env.local`（参考 [.env.tencent.example](.env.tencent.example)），只填写数据库连接、JWT 密钥和运行参数，并执行 `chmod 600 .env.local`。不要把密码、JWT 密钥或其他凭据提交到 Git。
+
+只在空数据库上执行一次业务数据导入；认证账号导入会保留原 UUID 和业务数据关联：
+
+```bash
+cd /opt/littletreecheckin
+pnpm db:import:tencent /opt/littletreecheckin/db-backup
+pnpm auth:import:tencent
+```
+
+`auth:import:tencent` 需要在服务器终端交互输入三个迁移账号的初始密码。初次登录后应立即修改密码。不要重复执行业务备份导入，否则可能产生主键冲突。
+
+每次发布或更新代码时执行部署脚本。脚本会安装依赖、运行类型检查和测试、构建前后端、更新 Nginx 配置并重载 PM2：
+
+```bash
+cd /opt/littletreecheckin
+LITTLETREE_ROOT=/opt/littletreecheckin \
+LITTLETREE_WEB_PORT=8081 \
+LITTLETREE_API_PORT=3002 \
+deploy/deploy.sh
+```
+
+部署后可用命令行检查服务：
+
+```bash
+curl -fsS http://127.0.0.1:3002/health
+curl -fsSI http://127.0.0.1:8081/
+curl -sS -i http://<Lighthouse公网IP>:8081/api/v1/auth/me
+pm2 list
+sudo nginx -t
+```
+
+未携带令牌访问 `/api/v1/auth/me` 时返回 `401` 是预期结果；这同时可以确认 Nginx 到 Express 的反向代理已接通。当前服务器已验证 HTTP 前端和 API 代理可用，但尚未配置 `443` HTTPS。正式对外使用前，需要备案域名、SSL 证书和 HTTPS Nginx 配置，并启用安全 Cookie；在此之前不要启用生产支付或依赖 HTTPS 的功能。
+
+完整的服务器初始化、数据库迁移、HTTPS 和故障排查步骤请参阅 [腾讯云部署指南](docs/deployment.md)。
 
 ---
 
@@ -139,19 +199,19 @@ pnpm start
 
 多个孩子可以共同参与同一个任务的竞争，先完成者获得奖励。
 
-- ✅ **新增** `supabase/migrations/011_add_shared_goals.sql`：`goals` 表新增 `is_shared` 和 `shared_child_ids` 字段
+- ✅ **新增** 共享目标数据库字段：`goals` 表新增 `is_shared` 和 `shared_child_ids`
 - ✅ **新增** `src/views/SharedTaskSummary.tsx`：共享任务总结页，展示所有参与孩子的进度排名
 - ✅ **新增** 后端接口 `GET /api/v1/goals/:goalId/shared-progress`
 - ✅ **修改** 目标创建/编辑支持共享任务模式，日历金色叶子高亮共享打卡日期
 
-**数据库迁移**：执行 `supabase/migrations/011_add_shared_goals.sql`
+**数据库迁移**：腾讯云分支初始化时由 `server/db/schema.sql` 一次性创建
 
-#### v3.4 — 认证系统全面升级（Supabase Auth）
+#### v3.4 — 认证系统全面升级（历史版本）
 
-将自定义 JWT 认证体系全面迁移至 Supabase Auth 原生方案。
+该版本曾将认证体系迁移至外部认证服务；`tencent-cloud` 分支现已改为 Express + MySQL 自建认证。
 
-- ✅ 登录/注册均使用真实邮箱，会话由 Supabase Auth 自动管理
-- ✅ 密码找回通过邮件链接完成
-- ✅ 后端使用 `service_role` 密钥，可绕过 RLS 直接访问数据
+- ✅ 登录/注册使用真实邮箱和 bcrypt 密码哈希
+- ✅ access token + refresh session 由 Express 和 MySQL 管理
+- ✅ 密码重置 token 只保存哈希，使用一次后失效
 
-**数据库迁移**：执行 `supabase/migrations/010_migrate_to_supabase_auth.sql`
+**数据库迁移**：腾讯云分支执行 `pnpm db:import:tencent`，认证表由 `server/db/schema.sql` 创建

@@ -1,10 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
-import { supabase } from '../config/supabase.js';
+import { verifyAccessToken } from '../services/authService.js';
+import { findAuthUserById } from '../services/authRepository.js';
 import { AuthRequest, AuthUser } from '../types.js';
 
 /**
- * 认证中间件 - 验证 Supabase JWT
- * 使用 supabase.auth.getUser(token) 验证令牌有效性
+ * 验证本地 JWT，并确认账号仍存在于 MySQL。
  */
 export const authMiddleware = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const authHeader = req.headers?.authorization;
@@ -17,23 +17,20 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
   const token = authHeader.substring(7);
 
   try {
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-
-    if (error || !user) {
+    const payload = verifyAccessToken(token);
+    const authUser = await findAuthUserById(payload.sub);
+    if (!authUser) {
       res.status(401).json({ error: '认证令牌无效', code: 'TOKEN_INVALID' });
       return;
     }
 
-    // 从 user_metadata 获取 username（注册时存入）
-    const username = (user.user_metadata?.username as string)
-      || user.email?.split('@')[0]
-      || '';
-
     (req as AuthRequest).user = {
-      id: user.id,
-      username,
-      role: 'parent',
-    } as AuthUser;
+      id: authUser.id,
+      username: authUser.username,
+      email: authUser.email,
+      must_change_password: Boolean(authUser.must_change_password),
+      role: payload.role,
+    } satisfies AuthUser;
 
     next();
   } catch {

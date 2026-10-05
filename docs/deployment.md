@@ -1,110 +1,106 @@
-# 线上部署
+# 腾讯云 Lighthouse 部署
 
-本项目使用 **Vercel Serverless Functions** 方案，前端静态文件和后端 API 全部部署在 Vercel，**只需要 Vercel + Supabase 两个平台**，无需额外的后端服务器。
+`tencent-cloud` 分支面向中国大陆访问场景：Vite 前端由 Lighthouse 上的 Nginx 托管，Express API 由 PM2 常驻运行，业务数据和认证数据写入已有 Lighthouse 上的 MySQL 8。
 
 | 服务 | 平台 | 说明 |
 |------|------|------|
-| 前端 + 后端 API | [Vercel](https://vercel.com) | 前端静态文件 + `/api/*` 由 Serverless Function 处理 |
-| 数据库 | [Supabase](https://supabase.com) | PostgreSQL，免费套餐 |
+| 前端 + API 入口 | 腾讯云 Lighthouse | Nginx 托管 `dist`，`/api/*` 反向代理到 Express |
+| API 服务 | Lighthouse PM2 | Express 默认监听 `127.0.0.1:3002`，可用 `LITTLETREE_API_PORT` 覆盖 |
+| 业务数据库 | Lighthouse MySQL 8 | 同机运行，只监听 `127.0.0.1:3306` |
+| 认证 | Express + MySQL | bcrypt 密码校验、JWT access token、可轮换 refresh session |
 
----
+## 运行架构
 
-## 工作原理
-
-```
-Vercel 部署后：
-  前端请求 /api/v1/auth/login
-       ↓
-  Vercel 路由匹配 /api/(.*) → api/[...path].ts（Serverless Function）
-       ↓
-  Express 应用处理请求 → 调用 Supabase 数据库
+```text
+浏览器 → Nginx → 静态 dist
+              └→ /api/* → PM2/Express → MySQL 8
+                                  └→ MySQL auth_users/auth_sessions
 ```
 
-本地开发时，Vite 代理将 `/api` 请求转发到 `localhost:3001`，行为与生产环境完全一致。
+## 前置条件
 
----
+- 已有 Lighthouse 实例，建议起步规格为 `2C4G`、系统盘至少 `60GB`。
+- 已在 Lighthouse 安装 MySQL 8，并创建空业务库和专用账号。
+- 已准备随机生成的 `JWT_SECRET`，只写入服务器环境变量，不提交 Git。
+- 正式对外服务前准备已备案域名和 HTTPS 证书。没有 HTTPS 时只做测试，不启用生产支付。
 
 ## 部署步骤
 
-### 1. 推送代码到 GitHub
+### 1. 准备环境变量
+
+在服务器项目根目录创建 `.env.local`，参考 [`.env.tencent.example`](../.env.tencent.example)，并限制权限：
 
 ```bash
-git add .
-git commit -m "feat: add backend with Supabase integration"
-git push origin main
+chmod 600 /opt/littletreecheckin/.env.local
 ```
 
-### 2. 在 Vercel 导入仓库
+至少需要配置：
 
-1. 访问 [vercel.com](https://vercel.com)，点击 **Add New Project**
-2. 选择你的 GitHub 仓库，点击 **Import**
-3. Vercel 会自动读取 [`vercel.json`](../vercel.json) 配置，无需手动设置构建命令
-
-### 3. 配置环境变量
-
-在 Vercel 项目设置 → **Environment Variables** 中添加以下变量：
-
-| 变量名 | 说明 | 示例 |
-|--------|------|------|
-| `SUPABASE_URL` | Supabase 项目 URL | `https://xxx.supabase.co` |
-| `SUPABASE_SERVICE_KEY` | Supabase service_role key（仅后端使用） | `eyJhbGci...` |
-| `JWT_SECRET` | JWT 签名密钥（至少 32 位随机字符串） | `a1b2c3d4...` |
-| `JWT_EXPIRES_IN` | JWT 有效期 | `7d` |
-| `NODE_ENV` | 运行环境 | `production` |
-
-> ⚠️ **无需设置 `VITE_API_URL`**：前端使用相对路径 `/api/...`，Vercel 自动路由到 Serverless Function。
-
-### 4. 部署
-
-点击 **Deploy**，等待约 1-2 分钟，前端和后端 API 同时上线。
-
----
-
-## 安全注意事项
-
-- **`JWT_SECRET`** 使用强随机密钥：
-  ```bash
-  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-  ```
-
-- **`SUPABASE_SERVICE_KEY`** 只在 Vercel 环境变量中设置，**绝对不要**提交到代码仓库
-
-- 确认 `.gitignore` 中包含 `.env`、`.env.local`，防止密钥泄露
-
----
-
-## 本地开发与生产环境对比
-
-| 项目 | 本地开发 | 生产（Vercel） |
-|------|----------|----------------|
-| 前端服务 | Vite dev server（端口 3000） | Vercel CDN 静态托管 |
-| 后端服务 | Express server（端口 3001） | Vercel Serverless Function |
-| API 路由 | Vite 代理 `/api` → `localhost:3001` | Vercel 路由 `/api/*` → `api/[...path].ts` |
-| 环境变量 | `.env.local` 文件 | Vercel 项目环境变量 |
-| 数据库 | 同一个 Supabase 项目（建议用独立测试项目） | 生产 Supabase 项目 |
-
----
-
-## vercel.json 配置说明
-
-```json
-{
-  "buildCommand": "pnpm build && pnpm --prefix server build",
-  "outputDirectory": "dist",
-  "functions": {
-    "api/[...path].ts": {
-      "memory": 512,
-      "maxDuration": 30
-    }
-  },
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/[...path]" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
-}
+```dotenv
+DATABASE_URL=mysql://<db-user>:<db-password>@127.0.0.1:3306/<database>
+DATABASE_POOL_MAX=10
+JWT_SECRET=<long-random-secret>
+BCRYPT_ROUNDS=12
+ACCESS_TOKEN_TTL=15m
+NODE_ENV=production
+PORT=3001
+VITE_API_URL=
 ```
 
-- `buildCommand`：同时构建前端（Vite）和后端（TypeScript 编译）
-- `outputDirectory`：前端静态文件输出目录
-- `functions`：声明 Serverless Function 入口及资源限制
-- `rewrites`：`/api/*` 路由到 Function，其余路由到前端 SPA 入口
+部署脚本默认使用 Web `8081`、API `3002`，用于与同机已有服务共存；如端口空闲，也可以在执行脚本时覆盖：
+
+```bash
+LITTLETREE_WEB_PORT=8081 LITTLETREE_API_PORT=3002 \
+  LITTLETREE_ROOT=/opt/littletreecheckin deploy/deploy.sh
+```
+
+### 2. 上传代码和备份
+
+将项目上传到 `/opt/littletreecheckin`，将 SQL 备份目录放到 `/opt/littletreecheckin/db-backup`。不要上传本地 `node_modules`、`.env.local` 或其他密钥文件。
+
+### 3. 初始化业务数据库
+
+只对空库执行一次。脚本会先创建 MySQL 8 业务表，再转换并按外键顺序导入 `profiles`、孩子、目标、树木、任务、勋章、奖品、兑换和消息数据。`push_subscriptions` 保留空表，不导入数据。
+
+```bash
+cd /opt/littletreecheckin
+pnpm install --frozen-lockfile
+pnpm --dir server install --frozen-lockfile
+chmod 600 .env.local
+pnpm db:import:tencent /opt/littletreecheckin/db-backup
+pnpm auth:import:tencent
+```
+
+重复导入同一批备份会产生主键冲突。导入失败时事务会回滚，修复连接或备份后再重试。
+
+### 4. 构建并启动
+
+```bash
+cd /opt/littletreecheckin
+LITTLETREE_ROOT=/opt/littletreecheckin deploy/deploy.sh
+```
+
+首次部署脚本会运行前端类型检查、后端测试、前后端构建，然后安装 Nginx 配置并启动 PM2。后续部署不再传入导入参数：
+
+```bash
+LITTLETREE_ROOT=/opt/littletreecheckin deploy/deploy.sh
+```
+
+### 5. 验证服务
+
+```bash
+curl -fsS http://127.0.0.1:3002/health
+curl -fsSI http://127.0.0.1:8081/
+pm2 list
+nginx -t
+```
+
+浏览器访问 Lighthouse 公网 IP，确认首页能打开；再使用三个迁移账号的初始密码登录，验证首次改密和 `/api/v1/auth/me` 返回的孩子数据。新注册账号会在 MySQL 中同时创建 `auth_users` 和 `profiles` 记录。
+
+## 正式 HTTPS
+
+域名解析和备案完成后，将证书配置到 Nginx，并把 `server_name _;` 改为实际域名。正式环境只开放 `80/443`，Express 和 MySQL 端口只监听本机。确认 HTTPS 登录成功后，再将 `VITE_API_URL` 保持为空以使用同源 API，并按需启用 COS、支付和其他外部服务。
+
+## 旧 Vercel 部署
+
+根目录的 [`vercel.json`](../vercel.json) 和 [`api/[...path].ts`](../api/%5B...path%5D.ts) 暂时保留，便于回滚和旧环境维护。腾讯云分支的正式入口是 Lighthouse 的 Nginx + PM2，不需要部署 Vercel Function。

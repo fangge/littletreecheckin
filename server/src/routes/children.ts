@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { supabase } from '../config/supabase.js';
+import { database } from '../config/database.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { AuthRequest } from '../types.js';
 
@@ -14,7 +14,7 @@ router.get('/:userId/children', authMiddleware, async (req: AuthRequest, res: Re
     return;
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await database
     .from('children')
     .select('id, name, age, gender, avatar, fruits_balance, created_at')
     .eq('parent_id', userId)
@@ -44,7 +44,7 @@ router.post('/:userId/children', authMiddleware, async (req: AuthRequest, res: R
     return;
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await database
     .from('children')
     .insert({ parent_id: userId, name, age: age || null, gender: gender || null, fruits_balance: 0 })
     .select('id, name, age, gender, avatar, fruits_balance, created_at')
@@ -69,7 +69,7 @@ router.put('/:userId/children/:childId', authMiddleware, async (req: AuthRequest
   }
 
   // 验证孩子属于该家长
-  const { data: child } = await supabase
+  const { data: child } = await database
     .from('children')
     .select('id')
     .eq('id', childId)
@@ -88,7 +88,7 @@ router.put('/:userId/children/:childId', authMiddleware, async (req: AuthRequest
   if (gender !== undefined) updateData.gender = gender;
   if (avatar !== undefined) updateData.avatar = avatar;
 
-  const { data, error } = await supabase
+  const { data, error } = await database
     .from('children')
     .update(updateData)
     .eq('id', childId)
@@ -112,7 +112,7 @@ router.delete('/:userId/children/:childId', authMiddleware, async (req: AuthRequ
     return;
   }
 
-  const { data: child } = await supabase
+  const { data: child } = await database
     .from('children')
     .select('id')
     .eq('id', childId)
@@ -125,7 +125,7 @@ router.delete('/:userId/children/:childId', authMiddleware, async (req: AuthRequ
     return;
   }
 
-  const { error } = await supabase
+  const { error } = await database
     .from('children')
     .update({ is_deleted: true })
     .eq('id', childId);
@@ -144,7 +144,7 @@ router.get('/:childId/stats', authMiddleware, async (req: AuthRequest, res: Resp
   const { period } = req.query; // 'month' | 'quarter' | 'year'，默认最近7天
 
   // 验证孩子属于当前家长
-  const { data: child } = await supabase
+  const { data: child } = await database
     .from('children')
     .select('id, fruits_balance')
     .eq('id', childId)
@@ -194,7 +194,7 @@ router.get('/:childId/stats', authMiddleware, async (req: AuthRequest, res: Resp
   }
 
   // 使用 SQL 聚合函数获取统计数据（替代拉全量数据到应用层过滤）
-  const { data: statsData, error: statsError } = await supabase
+  const { data: statsData, error: statsError } = await database
     .rpc('get_child_stats', {
       p_child_id: childId,
       p_start_date: startDate.toISOString(),
@@ -233,7 +233,7 @@ router.get('/:childId/checkin-calendar', authMiddleware, async (req: AuthRequest
   }
 
   // 验证孩子属于当前认证用户
-  const { data: child } = await supabase
+  const { data: child } = await database
     .from('children')
     .select('id, parent_id')
     .eq('id', childId)
@@ -260,7 +260,7 @@ router.get('/:childId/checkin-calendar', authMiddleware, async (req: AuthRequest
   let error: { message?: string } | null;
 
   try {
-    const result = await supabase
+    const result = await database
       .from('tasks')
       .select('id, title, status, checkin_time, goal_id, goals(title)')
       .eq('child_id', childId)
@@ -272,9 +272,9 @@ router.get('/:childId/checkin-calendar', authMiddleware, async (req: AuthRequest
     tasks = result.data;
     error = result.error;
   } catch (err: unknown) {
-    // 兼容性降级：Supabase v2.98 部分版本的 PostgREST filter builder 异常
+    // 兼容性降级：共享目标查询使用 JSON_CONTAINS 作为备用路径
     console.error('[checkin-calendar] 主查询异常，尝试降级查询:', err);
-    const fallbackResult = await supabase
+    const fallbackResult = await database
       .from('tasks')
       .select('id, title, status, checkin_time, goal_id, goals(title)')
       .eq('child_id', childId)
@@ -330,7 +330,7 @@ router.get('/:childId/checkin-calendar', authMiddleware, async (req: AuthRequest
   let sharedCompletedDates: string[] = [];
   try {
     // 先获取该孩子参与的共享目标 ID
-    const { data: sharedGoals } = await supabase
+    const { data: sharedGoals } = await database
       .from('goals')
       .select('id')
       .contains('shared_child_ids', [childId])
@@ -339,7 +339,7 @@ router.get('/:childId/checkin-calendar', authMiddleware, async (req: AuthRequest
     if (sharedGoals && sharedGoals.length > 0) {
       const sharedGoalIds = sharedGoals.map((g: { id: string }) => g.id);
       // 查询这些共享目标中，该孩子已 approved 的打卡记录
-      const { data: sharedTasks } = await supabase
+      const { data: sharedTasks } = await database
         .from('tasks')
         .select('checkin_time, goal_id')
         .eq('child_id', childId)
@@ -377,7 +377,7 @@ router.get('/:childId/fruits-history', authMiddleware, async (req: AuthRequest, 
   const { childId } = req.params;
 
   // 验证孩子属于当前认证用户
-  const { data: child } = await supabase
+  const { data: child } = await database
     .from('children')
     .select('id, parent_id, fruits_balance')
     .eq('id', childId)
@@ -394,7 +394,7 @@ router.get('/:childId/fruits-history', authMiddleware, async (req: AuthRequest, 
     return;
   }
 
-  const { data: tasks, error } = await supabase
+  const { data: tasks, error } = await database
     .from('tasks')
     .select('id, title, checkin_time, bonus_fruits, goal_id, goals(icon, fruits_per_task, is_shared), trees(status)')
     .eq('child_id', childId)

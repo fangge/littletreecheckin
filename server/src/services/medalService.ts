@@ -1,4 +1,4 @@
-import { supabase } from '../config/supabase.js';
+import { database } from '../config/database.js';
 
 interface MedalCondition {
   type: 'consecutive_days' | 'total_tasks' | 'trees_completed' | 'total_fruits' | 'early_checkin' | 'weekly_goals';
@@ -8,14 +8,14 @@ interface MedalCondition {
 // 检查并解锁符合条件的勋章
 export const checkAndUnlockMedals = async (childId: string): Promise<void> => {
   // 获取所有勋章定义
-  const { data: allMedals } = await supabase
+  const { data: allMedals } = await database
     .from('medals')
     .select('id, name, unlock_condition');
 
   if (!allMedals || allMedals.length === 0) return;
 
   // 获取已解锁的勋章 ID
-  const { data: unlockedMedals } = await supabase
+  const { data: unlockedMedals } = await database
     .from('child_medals')
     .select('medal_id')
     .eq('child_id', childId);
@@ -23,19 +23,19 @@ export const checkAndUnlockMedals = async (childId: string): Promise<void> => {
   const unlockedIds = new Set(unlockedMedals?.map((m: { medal_id: string }) => m.medal_id) || []);
 
   // 获取孩子统计数据
-  const { count: totalApproved } = await supabase
+  const { count: totalApproved } = await database
     .from('tasks')
     .select('id', { count: 'exact' })
     .eq('child_id', childId)
     .eq('status', 'approved');
 
-  const { count: completedTrees } = await supabase
+  const { count: completedTrees } = await database
     .from('trees')
     .select('id', { count: 'exact' })
     .eq('child_id', childId)
     .eq('status', 'completed');
 
-  const { data: childData } = await supabase
+  const { data: childData } = await database
     .from('children')
     .select('fruits_balance')
     .eq('id', childId)
@@ -91,7 +91,7 @@ export const checkAndUnlockMedals = async (childId: string): Promise<void> => {
 
   // 批量解锁勋章
   if (toUnlock.length > 0) {
-    await supabase.from('child_medals').insert(
+    await database.from('child_medals').insert(
       toUnlock.map(medalId => ({ child_id: childId, medal_id: medalId }))
     );
   }
@@ -100,7 +100,7 @@ export const checkAndUnlockMedals = async (childId: string): Promise<void> => {
 // 计算连续打卡天数（只按日期，不判断具体时间）
 const getConsecutiveDays = async (childId: string): Promise<number> => {
   // 使用 SQL 直接查询，获取所有有打卡的日期（去重）
-  const { data: dates, error } = await supabase
+  const { data: dates, error } = await database
     .from('tasks')
     .select('checkin_time')
     .eq('child_id', childId)
@@ -152,7 +152,7 @@ const getWeeklyGoalsCount = async (childId: string): Promise<number> => {
   const oneWeekAgo = new Date();
   oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-  const { data: tasks } = await supabase
+  const { data: tasks } = await database
     .from('tasks')
     .select('goal_id, checkin_time')
     .eq('child_id', childId)

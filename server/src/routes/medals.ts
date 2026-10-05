@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { supabase } from '../config/supabase.js';
+import { database } from '../config/database.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { AuthRequest } from '../types.js';
 import { checkAndUnlockMedals } from '../services/medalService.js';
@@ -10,7 +10,7 @@ const router: Router = Router();
 router.get('/:childId/medals', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { childId } = req.params;
 
-  const { data: child } = await supabase
+  const { data: child } = await database
     .from('children')
     .select('id')
     .eq('id', childId)
@@ -27,7 +27,7 @@ router.get('/:childId/medals', authMiddleware, async (req: AuthRequest, res: Res
 
   // 获取所有勋章定义
   interface MedalRow { id: string; name: string; icon: string; color: string; description: string; unlock_condition: unknown }
-  const { data: allMedals, error } = await supabase
+  const { data: allMedals, error } = await database
     .from('medals')
     .select('id, name, icon, color, description, unlock_condition')
     .order('created_at', { ascending: true });
@@ -46,7 +46,7 @@ router.get('/:childId/medals', authMiddleware, async (req: AuthRequest, res: Res
   }));
 
   // 获取已解锁的勋章
-  const { data: unlockedMedals } = await supabase
+  const { data: unlockedMedals } = await database
     .from('child_medals')
     .select('medal_id, unlocked_at')
     .eq('child_id', childId);
@@ -67,7 +67,7 @@ router.get('/:childId/medals', authMiddleware, async (req: AuthRequest, res: Res
 
 // GET /api/v1/medals - 获取所有勋章定义（管理用）
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
-  const { data: allMedals, error } = await supabase
+  const { data: allMedals, error } = await database
     .from('medals')
     .select('id, name, icon, color, description, unlock_condition, created_at')
     .order('created_at', { ascending: true });
@@ -96,7 +96,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
     return;
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await database
     .from('medals')
     .insert([{ name, icon, color, description, unlock_condition }])
     .select()
@@ -122,7 +122,7 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response): Prom
   if (description !== undefined) updateData.description = description;
   if (unlock_condition !== undefined) updateData.unlock_condition = unlock_condition;
 
-  const { data, error } = await supabase
+  const { data, error } = await database
     .from('medals')
     .update(updateData)
     .eq('id', id)
@@ -142,9 +142,9 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response): P
   const { id } = req.params;
 
   // 先删除关联的 child_medals 记录
-  await supabase.from('child_medals').delete().eq('medal_id', id);
+  await database.from('child_medals').delete().eq('medal_id', id);
 
-  const { error } = await supabase
+  const { error } = await database
     .from('medals')
     .delete()
     .eq('id', id);

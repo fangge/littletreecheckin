@@ -13,13 +13,19 @@ Base URL（生产）：与前端同域，使用相对路径 `/api/v1/...`
 |------|------|------|------|
 | POST | `/api/v1/auth/register` | ✗ | 家长注册（含孩子信息） |
 | POST | `/api/v1/auth/login` | ✗ | 家长登录，返回 JWT |
+| POST | `/api/v1/auth/refresh` | ✗ | 轮换 refresh session 并返回新的 access token |
 | GET | `/api/v1/auth/me` | ✓ | 获取当前用户和孩子列表 |
 | POST | `/api/v1/auth/logout` | ✓ | 登出 |
+| POST | `/api/v1/auth/verify-password` | ✓ | 儿童模式或敏感操作的密码确认 |
+| POST | `/api/v1/auth/change-password` | ✓ | 修改密码并清除首次改密标记 |
+| POST | `/api/v1/auth/request-password-reset` | ✗ | 创建一次性重置令牌请求 |
+| POST | `/api/v1/auth/reset-password` | ✗ | 使用一次性令牌设置新密码 |
 
 ### 注册请求体示例
 
 ```json
 {
+  "email": "parent@example.com",
   "username": "parent01",
   "password": "securepassword",
   "phone": "13800138000",

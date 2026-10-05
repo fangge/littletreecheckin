@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { supabase } from '../config/supabase.js';
+import { database } from '../config/database.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { AuthRequest } from '../types.js';
 
@@ -12,7 +12,7 @@ router.get('/:childId/messages', authMiddleware, async (req: AuthRequest, res: R
   const limit = parseInt(req.query.limit as string) || 20;
   const offset = (page - 1) * limit;
 
-  const { data: child } = await supabase
+  const { data: child } = await database
     .from('children')
     .select('id')
     .eq('id', childId)
@@ -24,7 +24,7 @@ router.get('/:childId/messages', authMiddleware, async (req: AuthRequest, res: R
     return;
   }
 
-  const { data, error, count } = await supabase
+  const { data, error, count } = await database
     .from('messages')
     .select('id, sender_type, text, type, content, is_read, created_at', { count: 'exact' })
     .eq('child_id', childId)
@@ -46,7 +46,7 @@ router.get('/:childId/messages', authMiddleware, async (req: AuthRequest, res: R
 router.get('/:childId/messages/unread-count', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { childId } = req.params;
 
-  const { count, error } = await supabase
+  const { count, error } = await database
     .from('messages')
     .select('id', { count: 'exact' })
     .eq('child_id', childId)
@@ -79,7 +79,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
     return;
   }
 
-  const { data: child } = await supabase
+  const { data: child } = await database
     .from('children')
     .select('id')
     .eq('id', child_id)
@@ -91,7 +91,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
     return;
   }
 
-  const { data: message, error } = await supabase
+  const { data: message, error } = await database
     .from('messages')
     .insert({
       child_id,
@@ -117,7 +117,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
 router.put('/:messageId/read', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { messageId } = req.params;
 
-  const { error } = await supabase
+  const { error } = await database
     .from('messages')
     .update({ is_read: true })
     .eq('id', messageId);
@@ -134,7 +134,7 @@ router.put('/:messageId/read', authMiddleware, async (req: AuthRequest, res: Res
 router.put('/:childId/messages/read-all', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { childId } = req.params;
 
-  const { error } = await supabase
+  const { error } = await database
     .from('messages')
     .update({ is_read: true })
     .eq('child_id', childId)

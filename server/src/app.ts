@@ -1,6 +1,7 @@
 import express, { Express } from 'express';
 import cors from 'cors';
 import { errorHandler } from './middleware/errorHandler.js';
+import { pool } from './config/database.js';
 import { requireParentRole } from './middleware/auth.js';
 import authRouter from './routes/auth.js';
 import childrenRouter from './routes/children.js';
@@ -31,8 +32,14 @@ app.use(express.urlencoded({ extended: true }));
 // ============================================================
 // 健康检查
 // ============================================================
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/health', async (_req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok', database: 'ok', timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.error('[health] MySQL 连接失败:', error);
+    res.status(503).json({ status: 'degraded', database: 'unavailable', timestamp: new Date().toISOString() });
+  }
 });
 
 // ============================================================

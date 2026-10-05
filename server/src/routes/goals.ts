@@ -1,19 +1,19 @@
 import { Router, Response } from 'express';
-import { supabase } from '../config/supabase.js';
+import { database } from '../config/database.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { AuthRequest } from '../types.js';
 
 // 删除目标后重新校验并清理不再满足条件的勋章
 const revokeInvalidMedals = async (childId: string): Promise<void> => {
   // 获取所有勋章定义
-  const { data: allMedals } = await supabase
+  const { data: allMedals } = await database
     .from('medals')
     .select('id, unlock_condition');
 
   if (!allMedals || allMedals.length === 0) return;
 
   // 获取孩子已解锁的勋章
-  const { data: unlockedMedals } = await supabase
+  const { data: unlockedMedals } = await database
     .from('child_medals')
     .select('id, medal_id')
     .eq('child_id', childId);
@@ -21,26 +21,26 @@ const revokeInvalidMedals = async (childId: string): Promise<void> => {
   if (!unlockedMedals || unlockedMedals.length === 0) return;
 
   // 重新计算孩子统计数据
-  const { count: totalApproved } = await supabase
+  const { count: totalApproved } = await database
     .from('tasks')
     .select('id', { count: 'exact' })
     .eq('child_id', childId)
     .eq('status', 'approved');
 
-  const { count: completedTrees } = await supabase
+  const { count: completedTrees } = await database
     .from('trees')
     .select('id', { count: 'exact' })
     .eq('child_id', childId)
     .eq('status', 'completed');
 
-  const { data: childData } = await supabase
+  const { data: childData } = await database
     .from('children')
     .select('fruits_balance')
     .eq('id', childId)
     .single();
 
   // 计算连续打卡天数
-  const { data: recentTasks } = await supabase
+  const { data: recentTasks } = await database
     .from('tasks')
     .select('checkin_time')
     .eq('child_id', childId)
@@ -99,7 +99,7 @@ const revokeInvalidMedals = async (childId: string): Promise<void> => {
 
   // 批量删除不再满足条件的勋章
   if (toRevoke.length > 0) {
-    await supabase.from('child_medals').delete().in('id', toRevoke);
+    await database.from('child_medals').delete().in('id', toRevoke);
   }
 };
 
@@ -116,7 +116,7 @@ router.put('/:goalId', authMiddleware, async (req: AuthRequest, res: Response): 
   }
 
   // 验证目标存在
-  const { data: goal } = await supabase
+  const { data: goal } = await database
     .from('goals')
     .select('id, child_id, reward_tree_name')
     .eq('id', goalId)
@@ -129,7 +129,7 @@ router.put('/:goalId', authMiddleware, async (req: AuthRequest, res: Response): 
 
   // 如果要修改归属孩子，验证新孩子存在
   if (child_id && child_id !== goal.child_id) {
-    const { data: childData } = await supabase
+    const { data: childData } = await database
       .from('children')
       .select('id')
       .eq('id', child_id)
@@ -151,7 +151,7 @@ router.put('/:goalId', authMiddleware, async (req: AuthRequest, res: Response): 
   if (child_id !== undefined) updateData.child_id = child_id;
   if (fruits_per_task !== undefined && fruits_per_task > 0) updateData.fruits_per_task = Math.round(fruits_per_task);
 
-  const { data: updatedGoal, error: goalError } = await supabase
+  const { data: updatedGoal, error: goalError } = await database
     .from('goals')
     .update(updateData)
     .eq('id', goalId)
@@ -165,13 +165,13 @@ router.put('/:goalId', authMiddleware, async (req: AuthRequest, res: Response): 
 
   // 同步更新关联树木的名称（如果 reward_tree_name 有变化）
   if (reward_tree_name !== undefined && reward_tree_name !== goal.reward_tree_name) {
-    await supabase.from('trees').update({ name: reward_tree_name }).eq('goal_id', goalId);
+    await database.from('trees').update({ name: reward_tree_name }).eq('goal_id', goalId);
   }
 
   // 同步更新关联树木和任务的 child_id（如果归属孩子变化）
   if (child_id && child_id !== goal.child_id) {
-    await supabase.from('trees').update({ child_id }).eq('goal_id', goalId);
-    await supabase.from('tasks').update({ child_id }).eq('goal_id', goalId);
+    await database.from('trees').update({ child_id }).eq('goal_id', goalId);
+    await database.from('tasks').update({ child_id }).eq('goal_id', goalId);
   }
 
   res.json({ data: updatedGoal, message: '目标更新成功' });
@@ -181,7 +181,7 @@ router.put('/:goalId', authMiddleware, async (req: AuthRequest, res: Response): 
 router.delete('/:goalId', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { goalId } = req.params;
 
-  const { data: goal } = await supabase
+  const { data: goal } = await database
     .from('goals')
     .select('id, child_id')
     .eq('id', goalId)
@@ -193,10 +193,10 @@ router.delete('/:goalId', authMiddleware, async (req: AuthRequest, res: Response
   }
 
   // 依次删除关联数据
-  await supabase.from('tasks').delete().eq('goal_id', goalId);
-  await supabase.from('trees').delete().eq('goal_id', goalId);
+  await database.from('tasks').delete().eq('goal_id', goalId);
+  await database.from('trees').delete().eq('goal_id', goalId);
 
-  const { error } = await supabase.from('goals').delete().eq('id', goalId);
+  const { error } = await database.from('goals').delete().eq('id', goalId);
 
   if (error) {
     res.status(500).json({ error: '删除目标失败' });

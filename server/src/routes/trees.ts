@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { supabase } from '../config/supabase.js';
+import { database } from '../config/database.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { AuthRequest } from '../types.js';
 
@@ -7,7 +7,7 @@ const router: Router = Router();
 
 // 辅助：验证孩子属于当前家长
 const verifyChildOwnership = async (childId: string): Promise<boolean> => {
-  const { data } = await supabase
+  const { data } = await database
     .from('children')
     .select('id')
     .eq('id', childId)
@@ -25,7 +25,7 @@ router.get('/:childId/dashboard-data', authMiddleware, async (req: AuthRequest, 
   const { period } = req.query; // 'month' | 'quarter' | 'year'，默认最近7天
 
   // 验证孩子存在
-  const { data: child } = await supabase
+  const { data: child } = await database
     .from('children')
     .select('id, fruits_balance')
     .eq('id', childId)
@@ -72,21 +72,21 @@ router.get('/:childId/dashboard-data', authMiddleware, async (req: AuthRequest, 
   // 并行获取树木、目标、统计数据
   const [treesResult, goalsResult, statsResult] = await Promise.all([
     // 树木列表（基础信息）
-    supabase
+    database
       .from('trees')
       .select('id, name, image, status, progress, goal_id, created_at')
       .eq('child_id', childId)
       .order('created_at', { ascending: false }),
 
     // 目标列表（包含共享任务）
-    supabase
+    database
       .from('goals')
       .select(`id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, fruits_per_task, is_shared, shared_child_ids, created_at`)
       .or(`child_id.eq.${childId},shared_child_ids.cs.{${childId}}`)
       .order('created_at', { ascending: false }),
 
     // 统计数据（使用 SQL 聚合函数）
-    supabase.rpc('get_child_stats', {
+    database.rpc('get_child_stats', {
       p_child_id: childId,
       p_start_date: startDate.toISOString(),
       p_end_date: endDate.toISOString(),
@@ -141,19 +141,19 @@ router.get('/:childId/dashboard-data', authMiddleware, async (req: AuthRequest, 
       (() => {
         const utc8Offset = 8 * 60 * 60 * 1000;
         const today = new Date(Date.now() + utc8Offset).toISOString().split('T')[0];
-        return supabase.from('tasks').select('goal_id')
+        return database.from('tasks').select('goal_id')
           .eq('child_id', childId)
           .in('goal_id', uniqueGoalIds).neq('status', 'rejected')
           .gte('checkin_time', `${today}T00:00:00+08:00`)
           .lte('checkin_time', `${today}T23:59:59.999+08:00`);
       })(),
-      supabase.from('goals').select('id, duration_days').in('id', uniqueGoalIds),
+      database.from('goals').select('id, duration_days').in('id', uniqueGoalIds),
     ]);
 
     // 构建 completedDaysMap（统计每个 goal 下已批准任务的不同日期数，UTC+8 时区）
     // 使用 Set 去重，避免同一天多次打卡重复计算
     if (uniqueGoalIds.length > 0) {
-      const { data: approvedWithDates } = await supabase
+      const { data: approvedWithDates } = await database
         .from('tasks')
         .select('goal_id, checkin_time')
         .in('goal_id', uniqueGoalIds)
@@ -196,7 +196,7 @@ router.get('/:childId/dashboard-data', authMiddleware, async (req: AuthRequest, 
   let sharedCompletedGoalIdsDash = new Set<string>();
   const sharedCompletedByChildMapDash = new Map<string, string>();
   if (sharedGoalIdsDash.length > 0) {
-    const { data: sharedCompletedTreesDash } = await supabase
+    const { data: sharedCompletedTreesDash } = await database
       .from('trees')
       .select('goal_id, child_id')
       .in('goal_id', sharedGoalIdsDash)
@@ -260,7 +260,7 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
   const { status } = req.query;
 
   // 验证孩子属于当前家长
-  const { data: child } = await supabase
+  const { data: child } = await database
     .from('children')
     .select('id')
     .eq('id', childId)
@@ -272,7 +272,7 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
     return;
   }
 
-  let query = supabase
+  let query = database
     .from('trees')
     .select('id, name, image, status, progress, goal_id, created_at')
     .eq('child_id', childId)
@@ -298,7 +298,7 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
   }
 
   // 批量查询已完成天数（approved 任务数，仅限该孩子）
-  const { data: approvedTasks } = await supabase
+  const { data: approvedTasks } = await database
     .from('tasks')
     .select('goal_id')
     .eq('child_id', childId)
@@ -310,7 +310,7 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
   const utc8Offset = 8 * 60 * 60 * 1000;
   const today = new Date(Date.now() + utc8Offset).toISOString().split('T')[0];
   // 查询哪些 goal 是共享任务（共享任务任何孩子打卡都算当前孩子已完成）
-  const { data: sharedGoalsData } = await supabase
+  const { data: sharedGoalsData } = await database
     .from('goals')
     .select('id')
     .eq('is_shared', true)
@@ -318,7 +318,7 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
   const sharedGoalIdsSet = new Set((sharedGoalsData || []).map((g: { id: string }) => g.id));
 
   // 批量查询今日签到状态（非 rejected 的今日任务）
-  const { data: todayTasks } = await supabase
+  const { data: todayTasks } = await database
     .from('tasks')
     .select('goal_id')
     .eq('child_id', childId)
@@ -341,7 +341,7 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
   );
 
   // 批量查询 goal 的 duration_days 用于准确计算 progress
-  const { data: goalsData } = await supabase
+  const { data: goalsData } = await database
     .from('goals')
     .select('id, duration_days')
     .in('id', goalIds);
@@ -354,7 +354,7 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
   let sharedCompletedGoalIds = new Set<string>();
   const sharedCompletedByChildMap = new Map<string, string>(); // goal_id -> child_id
   if (sharedGoalIdsSet.size > 0) {
-    const { data: sharedCompletedTrees } = await supabase
+    const { data: sharedCompletedTrees } = await database
       .from('trees')
       .select('goal_id, child_id')
       .in('goal_id', [...sharedGoalIdsSet])
@@ -405,7 +405,7 @@ router.post('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Res
   }
 
   // 验证主孩子属于当前家长
-  const { data: child } = await supabase
+  const { data: child } = await database
     .from('children')
     .select('id')
     .eq('id', childId)
@@ -429,7 +429,7 @@ router.post('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Res
       return;
     }
     // 验证所有孩子都存在
-    const { data: childrenData } = await supabase
+    const { data: childrenData } = await database
       .from('children')
       .select('id')
       .in('id', allIds)
@@ -442,7 +442,7 @@ router.post('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Res
   }
 
   // 创建目标
-  const { data: goal, error: goalError } = await supabase
+  const { data: goal, error: goalError } = await database
     .from('goals')
     .insert({
       child_id: childId,
@@ -475,14 +475,14 @@ router.post('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Res
     progress: 0,
   }));
 
-  const { data: trees, error: treeError } = await supabase
+  const { data: trees, error: treeError } = await database
     .from('trees')
     .insert(treesToInsert)
     .select('id, name, image, status, progress, goal_id, child_id, created_at');
 
   if (treeError || !trees || trees.length === 0) {
     // 回滚：删除已创建的目标
-    await supabase.from('goals').delete().eq('id', goal.id);
+    await database.from('goals').delete().eq('id', goal.id);
     res.status(500).json({ error: '创建树木失败' });
     return;
   }
@@ -501,7 +501,7 @@ router.get('/goals/:goalId/shared-progress', authMiddleware, async (req: AuthReq
   const { goalId } = req.params;
 
   // 获取目标信息
-  const { data: goal } = await supabase
+  const { data: goal } = await database
     .from('goals')
     .select('id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, fruits_per_task, is_shared, shared_child_ids, child_id, created_at')
     .eq('id', goalId)
@@ -520,21 +520,21 @@ router.get('/goals/:goalId/shared-progress', authMiddleware, async (req: AuthReq
   const participantIds: string[] = goal.shared_child_ids || [goal.child_id];
 
   // 获取所有参与孩子的信息
-  const { data: children } = await supabase
+  const { data: children } = await database
     .from('children')
     .select('id, name, gender, avatar')
     .in('id', participantIds)
     .eq('is_deleted', false);
 
   // 获取所有参与孩子的树木
-  const { data: trees } = await supabase
+  const { data: trees } = await database
     .from('trees')
     .select('id, child_id, name, status, progress, created_at')
     .eq('goal_id', goalId)
     .in('child_id', participantIds);
 
   // 获取所有参与孩子的已批准任务数（用于计算完成天数）
-  const { data: approvedTasks } = await supabase
+  const { data: approvedTasks } = await database
     .from('tasks')
     .select('child_id, checkin_time')
     .eq('goal_id', goalId)
@@ -651,7 +651,7 @@ router.put('/:treeId', authMiddleware, async (req: AuthRequest, res: Response): 
   const { treeId } = req.params;
   const { name, image } = req.body;
 
-  const { data: tree } = await supabase
+  const { data: tree } = await database
     .from('trees')
     .select('id, child_id')
     .eq('id', treeId)
@@ -666,7 +666,7 @@ router.put('/:treeId', authMiddleware, async (req: AuthRequest, res: Response): 
   if (name !== undefined) updateData.name = name;
   if (image !== undefined) updateData.image = image;
 
-  const { data, error } = await supabase
+  const { data, error } = await database
     .from('trees')
     .update(updateData)
     .eq('id', treeId)
@@ -686,7 +686,7 @@ router.get('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Resp
   const { childId } = req.params;
   const { active } = req.query;
 
-  const { data: child } = await supabase
+  const { data: child } = await database
     .from('children')
     .select('id')
     .eq('id', childId)
@@ -699,7 +699,7 @@ router.get('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Resp
   }
 
   // 查询该孩子的目标：包括独立目标（child_id = childId）和共享目标（childId 在 shared_child_ids 中）
-  let query = supabase
+  let query = database
     .from('goals')
     .select(`
       id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, fruits_per_task, is_shared, shared_child_ids, created_at,
@@ -730,7 +730,7 @@ router.get('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Resp
   }
 
   // 批量查询已完成天数（approved 任务数，按 goal_id + child_id 分组）
-  const { data: approvedTasks } = await supabase
+  const { data: approvedTasks } = await database
     .from('tasks')
     .select('goal_id, child_id')
     .in('goal_id', goalIds)
@@ -746,7 +746,7 @@ router.get('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Resp
   }
 
   // 查询哪些 goal 是共享任务（共享任务任何孩子打卡都算当前孩子已完成）
-  const goalsSharedCheckRes = await supabase
+  const goalsSharedCheckRes = await database
     .from('goals')
     .select('id')
     .eq('is_shared', true)
@@ -756,7 +756,7 @@ router.get('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Resp
   // 批量查询今日签到状态（去掉 child_id 限制，后续按规则过滤）
   const utc8Offset = 8 * 60 * 60 * 1000;
   const today = new Date(Date.now() + utc8Offset).toISOString().split('T')[0];
-  const { data: todayTasks } = await supabase
+  const { data: todayTasks } = await database
     .from('tasks')
     .select('goal_id, child_id')
     .in('goal_id', goalIds)
@@ -778,7 +778,7 @@ router.get('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Resp
   let completedSharedGoalIdsGoals = new Set<string>();
   const completedByChildMapGoals = new Map<string, string>(); // goal_id -> child_id
   if (sharedGoalIdsForCompletion.length > 0) {
-    const { data: completedSharedTreesGoals } = await supabase
+    const { data: completedSharedTreesGoals } = await database
       .from('trees')
       .select('goal_id, child_id')
       .in('goal_id', sharedGoalIdsForCompletion)
@@ -830,7 +830,7 @@ router.put('/goals/:goalId', authMiddleware, async (req: AuthRequest, res: Respo
   }
 
   // 验证目标存在
-  const { data: goal } = await supabase
+  const { data: goal } = await database
     .from('goals')
     .select('id, child_id, reward_tree_name, is_shared, shared_child_ids')
     .eq('id', goalId)
@@ -867,7 +867,7 @@ router.put('/goals/:goalId', authMiddleware, async (req: AuthRequest, res: Respo
   if (child_id !== undefined) updateData.child_id = child_id;
   if (goal.is_shared && shared_child_ids !== undefined) updateData.shared_child_ids = shared_child_ids;
 
-  const { data: updatedGoal, error: goalError } = await supabase
+  const { data: updatedGoal, error: goalError } = await database
     .from('goals')
     .update(updateData)
     .eq('id', goalId)
@@ -881,7 +881,7 @@ router.put('/goals/:goalId', authMiddleware, async (req: AuthRequest, res: Respo
 
   // 同步更新关联树木的名称（如果 reward_tree_name 有变化）
   if (reward_tree_name !== undefined && reward_tree_name !== goal.reward_tree_name) {
-    await supabase
+    await database
       .from('trees')
       .update({ name: reward_tree_name })
       .eq('goal_id', goalId);
@@ -889,8 +889,8 @@ router.put('/goals/:goalId', authMiddleware, async (req: AuthRequest, res: Respo
 
   // 同步更新关联树木和任务的 child_id（如果归属孩子变化）
   if (child_id && child_id !== goal.child_id) {
-    await supabase.from('trees').update({ child_id }).eq('goal_id', goalId);
-    await supabase.from('tasks').update({ child_id }).eq('goal_id', goalId);
+    await database.from('trees').update({ child_id }).eq('goal_id', goalId);
+    await database.from('tasks').update({ child_id }).eq('goal_id', goalId);
   }
 
   // 共享任务：如果参与孩子列表有变化，为新增孩子创建树木，移除已退出孩子的树木
@@ -909,20 +909,20 @@ router.put('/goals/:goalId', authMiddleware, async (req: AuthRequest, res: Respo
         status: 'growing',
         progress: 0,
       }));
-      await supabase.from('trees').insert(newTrees);
+      await database.from('trees').insert(newTrees);
     }
 
     // 移除已退出孩子的树木（仅删除进度为0且无打卡记录的树木，避免误删）
     if (removedIds.length > 0) {
       for (const cid of removedIds) {
-        const { data: childTasks } = await supabase
+        const { data: childTasks } = await database
           .from('tasks')
           .select('id')
           .eq('goal_id', goalId)
           .eq('child_id', cid)
           .limit(1);
         if (!childTasks || childTasks.length === 0) {
-          await supabase.from('trees').delete().eq('goal_id', goalId).eq('child_id', cid);
+          await database.from('trees').delete().eq('goal_id', goalId).eq('child_id', cid);
         }
       }
     }
@@ -936,7 +936,7 @@ router.delete('/goals/:goalId', authMiddleware, async (req: AuthRequest, res: Re
   const { goalId } = req.params;
 
   // 验证目标存在
-  const { data: goal } = await supabase
+  const { data: goal } = await database
     .from('goals')
     .select('id, child_id')
     .eq('id', goalId)
@@ -948,13 +948,13 @@ router.delete('/goals/:goalId', authMiddleware, async (req: AuthRequest, res: Re
   }
 
   // 删除关联任务
-  await supabase.from('tasks').delete().eq('goal_id', goalId);
+  await database.from('tasks').delete().eq('goal_id', goalId);
 
   // 删除关联树木
-  await supabase.from('trees').delete().eq('goal_id', goalId);
+  await database.from('trees').delete().eq('goal_id', goalId);
 
   // 删除目标
-  const { error } = await supabase.from('goals').delete().eq('id', goalId);
+  const { error } = await database.from('goals').delete().eq('id', goalId);
 
   if (error) {
     res.status(500).json({ error: '删除目标失败' });

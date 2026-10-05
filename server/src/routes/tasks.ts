@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { supabase } from '../config/supabase.js';
+import { database } from '../config/database.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { AuthRequest } from '../types.js';
 import { checkAndUnlockMedals } from '../services/medalService.js';
@@ -12,7 +12,7 @@ router.get('/:childId/tasks', authMiddleware, async (req: AuthRequest, res: Resp
   const { childId } = req.params;
   const { status, goal_id, limit, offset } = req.query;
 
-  const { data: child } = await supabase
+  const { data: child } = await database
     .from('children')
     .select('id')
     .eq('id', childId)
@@ -28,7 +28,7 @@ router.get('/:childId/tasks', authMiddleware, async (req: AuthRequest, res: Resp
   const pageSize = Math.min(parseInt(limit as string) || 200, 500);
   const pageOffset = Math.max(parseInt(offset as string) || 0, 0);
 
-  let query = supabase
+  let query = database
     .from('tasks')
     .select(`
       id, goal_id, title, type, status, checkin_time, image_url, progress, reject_reason, created_at, updated_at,
@@ -49,7 +49,7 @@ router.get('/:childId/tasks', authMiddleware, async (req: AuthRequest, res: Resp
   }
 
   // 先获取带分页的数据和总数（用于前端判断是否有更多数据）
-  let countQuery = supabase
+  let countQuery = database
     .from('tasks')
     .select('id', { count: 'exact', head: true })
     .eq('child_id', childId);
@@ -96,7 +96,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
   }
 
   // 验证目标存在且属于该孩子（支持共享任务：child_id 匹配或在 shared_child_ids 中）
-  const { data: goal } = await supabase
+  const { data: goal } = await database
     .from('goals')
     .select('id, title, is_active, child_id, is_shared, shared_child_ids')
     .eq('id', goal_id)
@@ -121,7 +121,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
   }
 
   // 获取孩子姓名（用于 type 字段显示）
-  const { data: childInfo } = await supabase
+  const { data: childInfo } = await database
     .from('children')
     .select('name')
     .eq('id', child_id)
@@ -140,7 +140,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
     checkDate = getUTC8Today();
   }
 
-  const { data: existingTask } = await supabase
+  const { data: existingTask } = await database
     .from('tasks')
     .select('id, status')
     .eq('goal_id', goal_id)
@@ -161,7 +161,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
 
 
   // 获取关联树木（共享任务需要按 child_id 过滤，找到该孩子的树木）
-  const { data: tree } = await supabase
+  const { data: tree } = await database
     .from('trees')
     .select('id, progress')
     .eq('goal_id', goal_id)
@@ -170,7 +170,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
 
   const childName = childInfo?.name || '孩子';
 
-  const { data: task, error } = await supabase
+  const { data: task, error } = await database
     .from('tasks')
     .insert({
       goal_id,
@@ -206,7 +206,7 @@ router.put('/:taskId/approve', authMiddleware, async (req: AuthRequest, res: Res
   const bonusFruits = Math.max(0, parseInt(req.body?.bonus_fruits ?? '0', 10) || 0);
 
   // 调用 RPC 存储过程，所有操作在一个事务中完成
-  const { data: result, error } = await supabase
+  const { data: result, error } = await database
     .rpc('approve_task_rpc', {
       p_task_id: taskId,
       p_bonus_fruits: bonusFruits,
@@ -234,14 +234,14 @@ router.put('/:taskId/approve', authMiddleware, async (req: AuthRequest, res: Res
   }
 
   // 返回更新后的任务信息
-  const { data: updatedTask } = await supabase
+  const { data: updatedTask } = await database
     .from('tasks')
     .select('id, title, type, status, checkin_time, image_url, progress, created_at')
     .eq('id', taskId)
     .single();
 
   // 异步检查勋章解锁（不阻塞响应）
-  checkAndUnlockMedals((await supabase.from('tasks').select('child_id').eq('id', taskId).single())?.data?.child_id ?? '')
+  checkAndUnlockMedals((await database.from('tasks').select('child_id').eq('id', taskId).single())?.data?.child_id ?? '')
     .catch(console.error);
 
   res.json({
@@ -256,7 +256,7 @@ router.put('/:taskId/reject', authMiddleware, async (req: AuthRequest, res: Resp
   const { taskId } = req.params;
   const { reason } = req.body;
 
-  const { data: task, error: fetchError } = await supabase
+  const { data: task, error: fetchError } = await database
     .from('tasks')
     .select('id, status, child_id')
     .eq('id', taskId)
@@ -278,7 +278,7 @@ router.put('/:taskId/reject', authMiddleware, async (req: AuthRequest, res: Resp
     return;
   }
 
-  const { data: updatedTask, error } = await supabase
+  const { data: updatedTask, error } = await database
     .from('tasks')
     .update({ status: 'rejected', reject_reason: reason || null })
     .eq('id', taskId)
@@ -299,7 +299,7 @@ router.put('/:taskId/revoke', authMiddleware, async (req: AuthRequest, res: Resp
   const { taskId } = req.params;
 
   // 获取任务信息
-  const { data: task } = await supabase
+  const { data: task } = await database
     .from('tasks')
     .select('id, status, child_id, goal_id, tree_id, bonus_fruits')
     .eq('id', taskId)
@@ -316,7 +316,7 @@ router.put('/:taskId/revoke', authMiddleware, async (req: AuthRequest, res: Resp
   }
 
   // 获取孩子信息和当前果实余额
-  const { data: child } = await supabase
+  const { data: child } = await database
     .from('children')
     .select('id, fruits_balance')
     .eq('id', task.child_id)
@@ -330,7 +330,7 @@ router.put('/:taskId/revoke', authMiddleware, async (req: AuthRequest, res: Resp
   // 获取基础果实数
   let baseFruits = 10;
   if (task.goal_id) {
-    const { data: goalInfo } = await supabase
+    const { data: goalInfo } = await database
       .from('goals')
       .select('fruits_per_task')
       .eq('id', task.goal_id)
@@ -353,7 +353,7 @@ router.put('/:taskId/revoke', authMiddleware, async (req: AuthRequest, res: Resp
   }
 
   // 1. 将任务状态重置为 pending（而不是 deleted，保留打卡记录）
-  const { data: updatedTask, error: taskError } = await supabase
+  const { data: updatedTask, error: taskError } = await database
     .from('tasks')
     .update({ status: 'pending', bonus_fruits: 0 })
     .eq('id', taskId)
@@ -366,7 +366,7 @@ router.put('/:taskId/revoke', authMiddleware, async (req: AuthRequest, res: Resp
   }
 
   // 2. 扣除果实余额
-  await supabase
+  await database
     .from('children')
     .update({ fruits_balance: child.fruits_balance - totalFruitsToDeduct })
     .eq('id', task.child_id);
@@ -375,23 +375,23 @@ router.put('/:taskId/revoke', authMiddleware, async (req: AuthRequest, res: Resp
   if (task.tree_id) {
     // 使用 recalculate_tree_progress RPC 重新计算该树木的进度
     // 无论树之前是什么状态，撤销后都需要基于真实已批准数据重算
-    const { error: recalcError } = await supabase
+    const { error: recalcError } = await database
       .rpc('recalculate_tree_progress', { p_tree_id: task.tree_id });
 
     if (recalcError) {
       console.error('撤销后重新计算树木进度失败:', recalcError);
       // 降级：手动恢复目标为活跃（如果已完成被撤回）
-      const { data: tree } = await supabase
+      const { data: tree } = await database
         .from('trees')
         .select('status')
         .eq('id', task.tree_id)
         .single();
       if (tree?.status === 'completed') {
-        await supabase
+        await database
           .from('trees')
           .update({ progress: 99, status: 'growing' })
           .eq('id', task.tree_id);
-        await supabase
+        await database
           .from('goals')
           .update({ is_active: true })
           .eq('id', task.goal_id);
@@ -403,7 +403,7 @@ router.put('/:taskId/revoke', authMiddleware, async (req: AuthRequest, res: Resp
   const fruitMsg = bonusFruits > 0
     ? `扣除 ${totalFruitsToDeduct} 个果实（含额外奖励 ${bonusFruits} 个）`
     : `扣除 ${totalFruitsToDeduct} 个果实`;
-  await supabase.from('messages').insert({
+  await database.from('messages').insert({
     child_id: task.child_id,
     sender_type: 'system',
     text: `📝 家长撤回了任务"${updatedTask.title}"的审核，${fruitMsg}。请重新提交打卡~`,
@@ -432,7 +432,7 @@ router.put('/bulk-approve', authMiddleware, async (req: AuthRequest, res: Respon
   }
 
   // 验证所有任务都存在且状态为 pending
-  const { data: tasks, error: fetchError } = await supabase
+  const { data: tasks, error: fetchError } = await database
     .from('tasks')
     .select('id, status, child_id')
     .in('id', task_ids);
@@ -466,7 +466,7 @@ router.put('/bulk-approve', authMiddleware, async (req: AuthRequest, res: Respon
     const bonusFruits = Math.max(0, parseInt(notes_map?.[taskId]?.bonus_fruits ?? '0', 10) || 0);
 
     try {
-      const { data: result, error } = await supabase
+      const { data: result, error } = await database
         .rpc('approve_task_rpc', {
           p_task_id: taskId,
           p_bonus_fruits: bonusFruits,

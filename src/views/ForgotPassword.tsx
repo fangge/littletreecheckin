@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { supabase } from '../lib/supabase';
+import { authApi } from '../services/api';
 
 import Icon from '../components/Icon';
 type Step = 'request' | 'sent' | 'reset' | 'success';
@@ -10,19 +10,19 @@ export default function ForgotPassword() {
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>('request');
   const [email, setEmail] = useState('');
+  const [resetToken, setResetToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // 检测 Supabase 密码重置回调（URL hash 中包含 type=recovery）
+  // 重置链接由部署环境的邮件服务或管理员生成，token 通过 query 参数传入。
   useEffect(() => {
-    const hash = window.location.hash;
-    if (hash.includes('type=recovery')) {
+    const token = new URLSearchParams(window.location.search).get('token');
+    if (token) {
+      setResetToken(token);
       setStep('reset');
-      // 清除 URL hash，避免重复处理
-      window.history.replaceState(null, '', window.location.pathname);
     }
   }, []);
 
@@ -39,9 +39,7 @@ export default function ForgotPassword() {
     setIsLoading(true);
     setError('');
     try {
-      const redirectTo = `${window.location.origin}/forgot-password`;
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
-      if (resetError) throw resetError;
+      await authApi.requestPasswordReset(email.trim());
       setStep('sent');
     } catch (err) {
       setError(err instanceof Error ? err.message : '请求失败，请稍后重试');
@@ -52,6 +50,10 @@ export default function ForgotPassword() {
 
   // 第二步：设置新密码（用户通过邮件链接回到此页面后）
   const handleReset = async () => {
+    if (!resetToken) {
+      setError('请使用有效的重置链接打开此页面');
+      return;
+    }
     if (!newPassword) {
       setError('请输入新密码');
       return;
@@ -68,8 +70,7 @@ export default function ForgotPassword() {
     setIsLoading(true);
     setError('');
     try {
-      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
-      if (updateError) throw updateError;
+      await authApi.resetPassword(resetToken, newPassword);
       setStep('success');
     } catch (err) {
       setError(err instanceof Error ? err.message : '密码重置失败，请重试');
@@ -134,7 +135,7 @@ export default function ForgotPassword() {
                   <Icon name="lock_reset" filled className="text-amber-500 text-4xl" />
                 </div>
                 <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-3xl font-bold leading-tight mb-2">忘记密码？</h3>
-                <p className="text-slate-500 dark:text-[var(--text-secondary)] text-sm">请输入您的用户名，我们将发送重置链接</p>
+                <p className="text-slate-500 dark:text-[var(--text-secondary)] text-sm">请输入注册邮箱，申请一个密码重置链接</p>
               </div>
 
               {error && (
@@ -187,18 +188,18 @@ export default function ForgotPassword() {
               <div className="inline-flex items-center justify-center w-24 h-24 bg-blue-50 rounded-full mb-6">
                 <Icon name="mark_email_read" filled className="text-blue-500 text-5xl" />
               </div>
-              <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-2xl font-bold leading-tight mb-3">重置链接已发送</h3>
+              <h3 className="text-slate-900 dark:text-[var(--text-primary)] text-2xl font-bold leading-tight mb-3">重置请求已记录</h3>
               <p className="text-slate-500 dark:text-[var(--text-secondary)] text-sm mb-2">
-                重置链接已发送至 <strong className="text-slate-700 dark:text-[var(--text-primary)]">{email}</strong>，请检查收件箱。
+                如果 <strong className="text-slate-700 dark:text-[var(--text-primary)]">{email}</strong> 已注册，管理员或邮件服务将提供重置链接。
               </p>
-              <p className="text-slate-400 text-xs mb-8">请点击邮件中的链接完成密码重置。链接有效期为1小时。</p>
+              <p className="text-slate-400 text-xs mb-8">重置链接有效期为1小时。当前服务器未配置邮件服务时，请联系管理员获取链接。</p>
               <div className="space-y-3">
                 <button
                   onClick={handleRequest}
                   disabled={isLoading}
                   className="w-full border border-primary text-primary py-3 rounded-xl font-semibold text-sm active:scale-[0.98] transition-all disabled:opacity-60"
                 >
-                  {isLoading ? '发送中...' : '重新发送'}
+                  {isLoading ? '提交中...' : '重新提交'}
                 </button>
                 <button
                   onClick={() => navigate('/login')}

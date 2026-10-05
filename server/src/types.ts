@@ -3,6 +3,8 @@ import { Request } from 'express';
 export interface AuthUser {
   id: string;
   username: string;
+  email?: string;
+  must_change_password?: boolean;
   role?: 'parent' | 'child';  // 角色标识：parent=家长, child=儿童模式
 }
 

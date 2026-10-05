@@ -219,13 +219,13 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
                 <div className="flex items-center gap-2">
                   <span className="bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-xs font-bold px-2 py-0.5 rounded">v3.4</span>
                 </div>
-                <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">认证系统全面升级（Supabase Auth）</h4>
+                <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">认证系统全面升级（腾讯云自建认证）</h4>
                 <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
-                  将自定义 JWT 认证体系全面迁移至 Supabase Auth 原生方案，提升安全性、简化架构，并支持邮箱登录与密码找回。
+                  将认证体系迁移至 Express + MySQL，使用 bcrypt、JWT 和可轮换会话，适配腾讯云 Lighthouse 部署。
                 </p>
                 <ul className="text-xs text-slate-500 dark:text-[var(--text-muted)] space-y-1 ml-2">
                   <li>• 登录/注册均使用真实邮箱，不再生成虚构邮箱</li>
-                  <li>• 会话状态由 Supabase Auth 自动管理，无需手动维护 Token</li>
+                  <li>• 会话由 MySQL refresh session 管理，access token 失效时自动刷新</li>
                   <li>• 密码找回通过邮件链接完成，安全可靠</li>
                   <li>• 重写登录、注册、忘记密码页面，适配新认证流程</li>
                   <li>• 后端使用 service_role 密钥，可绕过 RLS 直接访问数据</li>
@@ -293,7 +293,7 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
                   <li>• React Router 路由系统：URL 导航、浏览器历史、深链接、PWA 快捷方式全部生效</li>
                   <li>• 后端角色权限中间件：家长/儿童角色分离，写操作需家长权限验证</li>
                   <li>• Vite 代码分割优化：React Vendor / Motion 独立打包，首屏加载更快</li>
-                  <li>• 移除 Vercel 不兼容的 better-sqlite3 依赖，纯 Supabase 架构</li>
+                  <li>• 业务和认证数据统一迁移到 Lighthouse MySQL 8</li>
                 </ul>
               </div>
 

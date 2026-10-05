@@ -1,13 +1,16 @@
 # 数据库设计
 
-共 10 张业务表，均使用 UUID 主键，部署在 Supabase（PostgreSQL）。
+当前 `tencent-cloud` 分支的业务库使用已有 Lighthouse 上的 MySQL 8，共 13 张业务表，认证数据也保存在同一个 MySQL 数据库中；UUID 以 `CHAR(36)` 存储，数组和 JSON 字段使用 MySQL `JSON`。旧 Supabase schema 仅作为历史回溯资料，迁移分支实际建表脚本请查看 [`server/db/schema.sql`](../server/db/schema.sql)。
 
 ## 表结构总览
 
 | 表名 | 说明 | 关键字段 |
 |------|------|----------|
-| `users` | 家长账户 | username, phone, password_hash |
-| `children` | 孩子信息 | parent_id→users, fruits_balance |
+| `auth_users` | 家长账户和密码认证 | id, email, username, password_hash, must_change_password |
+| `auth_sessions` | 刷新会话 | user_id, token_hash, expires_at, revoked_at |
+| `password_reset_tokens` | 一次性重置令牌 | user_id, token_hash, expires_at, used_at |
+| `profiles` | 用户档案 | id, username, phone |
+| `children` | 孩子信息 | parent_id→profiles, fruits_balance |
 | `goals` | 习惯目标 | child_id→children, duration_days, is_active |
 | `trees` | 虚拟树木 | child_id, goal_id→goals, status, level(1-5), progress(0-100) |
 | `tasks` | 每日打卡记录 | goal_id, child_id, status(pending/approved/rejected) |
@@ -19,16 +22,18 @@
 
 ## 详细字段说明
 
-### users（家长账户）
+### auth_users（家长账户）
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| id | uuid | 主键，自动生成 |
-| username | varchar(50) | 唯一，用于登录 |
-| phone | varchar(20) | 可选，唯一 |
+| id | char(36) | 主键；迁移账号保留原 UUID |
+| email | varchar(320) | 唯一，登录邮箱 |
+| username | varchar(50) | 唯一，用户名称 |
 | password_hash | varchar(255) | bcrypt 加密存储 |
-| created_at | timestamptz | 创建时间 |
-| updated_at | timestamptz | 更新时间（触发器自动维护） |
+| email_verified | boolean | 邮箱是否已验证 |
+| must_change_password | boolean | 是否要求首次登录修改密码 |
+| created_at | datetime(3) | 创建时间 |
+| updated_at | datetime(3) | 更新时间 |
 
 ### children（孩子信息）
 
@@ -94,7 +99,7 @@
 | icon | varchar(50) | Material Symbol 图标名 |
 | color | varchar(50) | Tailwind 颜色类名 |
 | description | text | 勋章描述 |
-| unlock_condition | jsonb | 解锁条件（见业务逻辑文档） |
+| unlock_condition | json | 解锁条件（见业务逻辑文档） |
 
 ### rewards（奖励商品）
 
@@ -115,5 +120,7 @@
 
 | 文件 | 说明 |
 |------|------|
+| [`server/db/schema.sql`](../server/db/schema.sql) | Lighthouse MySQL 8 业务表、索引和触发器 |
+| [`server/scripts/import-backup.mjs`](../server/scripts/import-backup.mjs) | 按外键顺序导入业务 SQL 备份 |
 | [`supabase/migrations/001_initial_schema.sql`](../supabase/migrations/001_initial_schema.sql) | 10 张业务表 + 索引 + updated_at 触发器 |
 | [`supabase/migrations/002_seed_data.sql`](../supabase/migrations/002_seed_data.sql) | 9 枚勋章 + 6 个奖励初始数据 |

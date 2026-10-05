@@ -26,16 +26,16 @@ littletreecheckin/
 │   ├── main.tsx                      # 入口（包裹 AuthProvider）
 │   └── types.ts                      # 前端视图类型定义
 │
-├── api/                              # Vercel Serverless Functions
+├── api/                              # 旧 Vercel Serverless 兼容入口
 │   └── [...path].ts                  # 捕获所有 /api/* 请求，转发给 Express 应用
 │
-├── server/                           # 后端源码（本地开发 + Vercel Function 共用）
+├── server/                           # 后端源码（本地开发 + Lighthouse PM2）
 │   ├── src/
 │   │   ├── app.ts                    # Express 应用配置（路由/中间件），导出 app
 │   │   ├── index.ts                  # 本地开发入口（加载 dotenv + 启动 listen）
 │   │   ├── types.ts                  # 后端类型定义（AuthRequest 等）
 │   │   ├── config/
-│   │   │   └── supabase.ts           # Supabase 客户端（Vercel 环境跳过 dotenv）
+│   │   │   ├── database.ts           # Lighthouse MySQL 查询适配器和事务
 │   │   ├── middleware/
 │   │   │   ├── auth.ts               # JWT Bearer Token 验证中间件
 │   │   │   └── errorHandler.ts       # 统一错误处理中间件
@@ -49,7 +49,11 @@ littletreecheckin/
 │   │   │   ├── rewards.ts            # 奖励商店 + 兑换 + 奖品 CRUD 路由
 │   │   │   └── messages.ts           # 消息发送/查询/已读路由
 │   │   └── services/
+│   │       ├── authRepository.ts     # MySQL auth_users 查询
+│   │       ├── authService.ts        # bcrypt、JWT、刷新和重置 token
 │   │       └── medalService.ts       # 勋章自动解锁 + 撤销业务逻辑
+│   ├── db/schema.sql                  # Lighthouse MySQL 8 业务 schema
+│   ├── scripts/import-backup.mjs      # SQL 备份导入脚本
 │   ├── package.json
 │   └── tsconfig.json
 │
@@ -64,10 +68,11 @@ littletreecheckin/
 │   ├── database.md                   # 数据库表结构设计
 │   ├── business-logic.md             # 核心业务逻辑
 │   ├── api-reference.md              # 完整 API 端点参考
-│   └── deployment.md                 # 线上部署指南（Vercel + Supabase）
+│   └── deployment.md                 # 线上部署指南（腾讯云 Lighthouse）
 │
 ├── .env.example                      # 环境变量模板
-├── vercel.json                       # Vercel 部署配置（构建 + 路由 + Function）
+├── deploy/                           # Lighthouse 部署脚本、PM2、Nginx 配置
+├── vercel.json                       # 旧 Vercel 部署配置（迁移期保留）
 ├── package.json                      # 前端 + 脚本入口
 ├── vite.config.ts                    # Vite 配置（含本地开发 /api 代理）
 └── tsconfig.json
@@ -75,19 +80,20 @@ littletreecheckin/
 
 ## 关键架构说明
 
-### 前后端一体化（Vercel Serverless）
+### Lighthouse 常驻服务
 
 ```
-api/[...path].ts          ← Vercel Function 入口（捕获所有 /api/* 请求）
+Nginx                     ← 托管 dist，并将 /api/* 反代到 127.0.0.1:3001
+      ↓
+server/src/index.ts       ← PM2 启动的 Express 常驻服务
       ↓ 导入
 server/src/app.ts         ← Express 应用（路由 + 中间件配置）
-      ↓ 使用
-server/src/routes/*.ts    ← 各业务路由模块
       ↓ 调用
-server/src/config/supabase.ts  ← Supabase 客户端
+server/src/config/database.ts  ← Lighthouse MySQL 8
+server/src/services/authService.ts ← 本地 bcrypt + JWT 认证
 ```
 
-本地开发时，`server/src/index.ts` 直接启动 Express 服务器，Vite 通过代理将 `/api` 请求转发到 `localhost:3001`，行为与生产环境完全一致。
+本地开发时，`server/src/index.ts` 直接启动 Express 服务器，Vite 通过代理将 `/api` 请求转发到 `localhost:3001`；生产环境由 Nginx 负责同源静态文件和 API 入口。
 
 ### 前端状态管理
 

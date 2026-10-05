@@ -1,148 +1,73 @@
 # 快速开始
 
-## 1. 克隆并安装依赖
+`tencent-cloud` 分支使用已有 Lighthouse 上的 MySQL 8 保存业务和认证数据。部署和公网访问请参阅 [`腾讯云 Lighthouse 部署指南`](deployment.md)。
+
+## 1. 安装依赖
 
 ```bash
-# 安装前端依赖
 pnpm install
-
-# 安装后端依赖
 pnpm --prefix server install
 ```
 
----
-
-## 2. 配置 Supabase
-
-### 2.1 创建 Supabase 项目
-
-1. 访问 [https://supabase.com](https://supabase.com)，点击 **Start your project** 注册/登录账号（支持 GitHub 登录）
-
-2. 登录后点击右上角 **New project**
-
-3. 填写项目信息：
-   - **Organization**：选择你的组织（默认为个人账号）
-   - **Name**：填写项目名称，例如 `achievement-jungle`
-   - **Database Password**：设置一个强密码（**务必保存好**，后续可能用到）
-   - **Region**：选择离你最近的区域，推荐 `Southeast Asia (Singapore)`
-   - **Pricing Plan**：选择 `Free`（免费套餐足够开发使用）
-
-4. 点击 **Create new project**，等待约 1-2 分钟项目初始化完成
-
-### 2.2 获取 API 配置
-
-项目创建完成后，进入项目控制台：
-
-1. 点击左侧菜单 **Project Settings**（齿轮图标）→ **API**
-
-2. 找到以下三个值并复制：
-
-   | 配置项 | 位置 | 用途 |
-   |--------|------|------|
-   | **Project URL** | `Project URL` 区域 | `SUPABASE_URL` |
-   | **anon public** | `Project API keys` → `anon public` | `SUPABASE_ANON_KEY` |
-   | **service_role secret** | `Project API keys` → `service_role` → 点击眼睛图标显示 | `SUPABASE_SERVICE_KEY` |
-
-   > ⚠️ **安全提示**：`service_role` key 拥有绕过所有 RLS 策略的权限，**只能在后端服务中使用**，绝对不能暴露在前端代码或公开仓库中。
-
-### 2.3 配置环境变量
+## 2. 配置环境变量
 
 ```bash
-# 推荐：使用 .env.local（不会被 git 追踪，优先级更高）
-cp .env.example .env.local
-
-# 或者使用 .env
-cp .env.example .env
+cp .env.tencent.example .env.local
+chmod 600 .env.local
 ```
 
-> 💡 后端同时支持 `.env.local`（优先）和 `.env`，推荐使用 `.env.local` 存放敏感配置。
+编辑 `.env.local`，至少填写：
 
-编辑 `.env.local` 文件，将上一步获取的值填入：
-
-```env
-# Supabase 配置
-SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co        # Project URL
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6...   # anon public key
-SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6... # service_role key
-
-# JWT 配置（自定义随机字符串，至少 32 位）
-JWT_SECRET=my-super-secret-key-change-this-in-production-32chars
-JWT_EXPIRES_IN=7d
-
-# 服务器配置
-PORT=3001
+```dotenv
+DATABASE_URL=mysql://<db-user>:<db-password>@127.0.0.1:3306/<database>
+DATABASE_POOL_MAX=10
+JWT_SECRET=<long-random-secret>
+BCRYPT_ROUNDS=12
+ACCESS_TOKEN_TTL=15m
 NODE_ENV=development
+PORT=3001
+VITE_API_URL=
 ```
 
-> 💡 **生成 JWT_SECRET**：运行 `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` 生成安全随机密钥
-
----
+`JWT_SECRET` 只用于后端签发和验证 access token，不要提交到 Git。浏览器不会直接连接 MySQL。
 
 ## 3. 初始化数据库
 
-### 3.1 执行建表脚本
+只对空库执行一次。脚本会创建 MySQL schema，再转换并导入业务 SQL 备份；`push_subscriptions` 为空表，不需要导入数据。
 
-1. 在 Supabase 控制台左侧菜单点击 **SQL Editor**
-
-2. 点击右上角 **New query**
-
-3. 复制 [`supabase/migrations/001_initial_schema.sql`](../supabase/migrations/001_initial_schema.sql) 的全部内容，粘贴到编辑器中
-
-4. 点击右下角 **Run**（或按 `Ctrl/Cmd + Enter`）执行
-
-5. 看到 `Success. No rows returned` 表示执行成功
-
-### 3.2 执行种子数据脚本
-
-1. 再次点击 **New query**
-
-2. 复制 [`supabase/migrations/002_seed_data.sql`](../supabase/migrations/002_seed_data.sql) 的全部内容，粘贴到编辑器中
-
-3. 点击 **Run** 执行
-
-4. 执行成功后，可在左侧 **Table Editor** 中查看 `medals` 和 `rewards` 表，确认数据已插入（9 枚勋章 + 6 个奖励）
-
-### 3.3 验证表结构
-
-执行完成后，在 **Table Editor** 中应能看到以下 10 张表：
-
-```
-users · children · goals · trees · tasks
-medals · child_medals · rewards · reward_redemptions · messages
+```bash
+pnpm db:import:tencent /path/to/littletreesql_backup
 ```
 
-### 3.4 配置 Storage（可选，用于任务打卡图片上传）
+如果需要迁移三个既有账号，在服务器终端交互执行账号导入脚本，输入用户确认的初始密码：
 
-如需支持图片上传功能：
+```bash
+pnpm auth:import:tencent
+```
 
-1. 左侧菜单点击 **Storage**
-
-2. 点击 **New bucket**，填写：
-   - **Name**：`task-images`
-   - **Public bucket**：开启（允许公开访问图片 URL）
-
-3. 点击 **Save** 创建
-
----
+账号首次登录后会被强制要求修改密码。
 
 ## 4. 启动开发服务器
 
 ```bash
-# 终端 1：启动前端（http://localhost:3000）
+# 终端 1
 pnpm dev
 
-# 终端 2：启动后端（http://localhost:3001）
+# 终端 2
 pnpm server:dev
 ```
 
-健康检查：`GET http://localhost:3001/health`
-
----
+前端地址为 `http://localhost:3000`，后端健康检查为 `http://localhost:3001/health`。Vite 会把 `/api` 请求代理到后端。
 
 ## 可用脚本
 
 ```bash
-pnpm dev              # 启动前端开发服务器（端口 3000）
-pnpm build            # 构建前端生产包（输出到 dist/）
-pnpm server:dev       # 启动后端开发服务器（端口 3001，热重载）
-pnpm server:start     # 启动后端生产服务器
+pnpm dev                # 前端开发服务器
+pnpm build              # 前端生产构建
+pnpm server:dev         # 后端热重载
+pnpm server:build       # 后端 TypeScript 构建
+pnpm server:start       # 后端生产服务器
+pnpm db:import:tencent  # 导入业务备份
+pnpm auth:import:tencent # 导入三个既有账号
+pnpm lint               # 前端类型检查
+```

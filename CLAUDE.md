@@ -13,8 +13,8 @@
 | 图标 | lucide-react (组件) + 自托管 Material SVG (`src/assets/icons/`) |
 | 3D 树 | @dgreenheck/ez-tree |
 | 后端 | Express 4 + TypeScript (`server/` 独立 pnpm 项目) |
-| 数据库 | Supabase PostgreSQL + Supabase Auth + RLS |
-| 部署 | Vercel Serverless（`api/[...path].ts` 代理到 Express） |
+| 数据库 | Lighthouse MySQL 8（业务数据 + 认证数据） |
+| 部署 | 腾讯云 Lighthouse（Nginx + PM2 + Express）；`vercel.json` 仅保留旧部署兼容 |
 | 包管理 | pnpm (root + server 各自独立 workspace) |
 | PWA | Service Worker (sw.js) + manifest + 版本缓存失效 |
 
@@ -27,7 +27,8 @@
   AGENTS.md / CLAUDE.md      # 项目全景文档（本文件，两个文件内容相同）
   DESIGN.md                   # Pure Sprout 设计系统定义（色彩/排版/圆角/间距）
   CHANGELOG.md                # 版本更新日志
-  vercel.json                 # Vercel 部署配置（路由 + PWA 头 + 构建指令）
+  deploy/                     # Lighthouse 的 Nginx、PM2 和部署脚本
+  vercel.json                 # 旧 Vercel 部署配置（迁移期保留）
   vite.config.ts              # Vite: 代码分割、别名 @/*、代理 /api → :3001
   tsconfig.json               # 前端 TS 配置（ES2022, react-jsx, paths @/*）
   package.json                # 根 pnpm workspace + 前端依赖
@@ -42,11 +43,8 @@
     types.ts                  # 前端类型定义（Tree/Task/Medal/Reward/Message）
     constants.ts              # Mock 数据常量（仅开发占位用，实际数据来自 API）
 
-    lib/
-      supabase.ts             # Supabase 客户端（auth: persistSession + autoRefresh）
-
     services/
-      api.ts                  # 统一 API 层：request() 自动注入 Bearer token + cachedGet 缓存
+      api.ts                  # 统一 API 层：本地 token、刷新会话 + cachedGet 缓存
 
     utils/
       requestCache.ts         # 内存缓存层：TTL 30s + 请求去重 + invalidateChildCache
@@ -96,7 +94,7 @@
     types.ts                   # 后端类型定义
 
     config/
-      supabase.ts              # Supabase 客户端（service_role key 绕过 RLS）
+      database.ts              # MySQL 查询适配器、事务和 RPC 兼容实现
 
     middleware/
       auth.ts                  # JWT 验证中间件 + requireParentRole（儿童模式 GET 放行，写操作拦截）
@@ -113,11 +111,12 @@
       messages.ts              # /api/v1/messages CRUD + mark read
 
     services/
+      authRepository.ts        # MySQL auth_users 查询
+      authService.ts           # bcrypt、JWT、刷新 token 和重置 token
       medalService.ts          # 勋章解锁引擎：连续打卡/总任务/树木完成/总果实/周目标
 
-  supabase/migrations/
-    init.sql                   # 完整初始化脚本（所有表 + RLS + RPC + 种子数据）
-    002_performance_indexes.sql  ... 014_fix_tree_progress_recalculation.sql
+  supabase/migrations/         # 旧 Supabase 部署历史，仅用于回溯
+    init.sql                   # PostgreSQL 旧版初始化脚本
 
   api/
     [...path].ts               # Vercel Serverless 入口：将请求代理到 Express
@@ -156,10 +155,10 @@
 
 ### 1. 认证流程
 ```
-注册: supabase.auth.signUp → (自动 trigger create profile) → POST /api/v1/auth/register-children (创建孩子)
-登录: supabase.auth.signInWithPassword → 自动获取 session → AuthContext fetchUserProfile (/api/v1/auth/me) → 恢复当前孩子
-登出: supabase.auth.signOut → AuthContext 监听 SIGNED_OUT → 清理状态 → 跳转 /login
-Token 刷新: supabase-js 自动处理；前端 request() 从不手动管理 token，每次从 getSession 获取最新
+注册: POST /api/v1/auth/register → MySQL auth_users + profiles → 返回 access/refresh token → 创建孩子
+登录: POST /api/v1/auth/login → bcrypt 校验 → 返回 JWT access token 和 MySQL refresh session → GET /api/v1/auth/me
+登出: POST /api/v1/auth/logout → 撤销 MySQL refresh session → 清理浏览器 token → 跳转 /login
+Token 刷新: access token 过期后，前端 request() 调用 POST /api/v1/auth/refresh 轮换 refresh session
 ```
 
 ### 2. 打卡 → 审核 → 奖励全链路
@@ -170,7 +169,7 @@ Token 刷新: supabase-js 自动处理；前端 request() 从不手动管理 tok
   → 共享任务：额外检查是否有其他孩子已打卡
 
 家长审核通过:
-  PUT /api/v1/tasks/:taskId/approve → approve_task_rpc (PL/pgSQL 事务)
+  PUT /api/v1/tasks/:taskId/approve → approve_task_rpc (Node.js/MySQL 事务)
     → UPDATE task status='approved' + bonus_fruits
     → UPDATE children.fruits_balance += (base_fruits + bonus_fruits)
     → recalculate_tree_progress (基于 approved distinct 日期数)
@@ -290,14 +289,13 @@ POST /api/v1/rewards/:rewardId/redeem { child_id }
 
 ```
 [浏览器] → React SPA → request() (src/services/api.ts)
-                        → supabase.auth.getSession() 获取 token
+                        → 本地 token 存储获取 access token
                         → Authorization: Bearer <token>
                         → fetch(/api/v1/...)
 
-[Vercel] → api/[...path].ts → import app (Express)
-                              → authMiddleware → supabase.auth.getUser(token) 验证 JWT
-                              → requireParentRole → 写操作拦截儿童
-                              → supabase (service_role key) → PostgreSQL
+[Nginx] → PM2/Express → authMiddleware → MySQL auth_users 验证本地 JWT
+                       → requireParentRole → 写操作拦截儿童
+                       → mysql2 Pool → Lighthouse MySQL 8
 ```
 
 ### 请求缓存层
@@ -315,8 +313,10 @@ POST /api/v1/rewards/:rewardId/redeem { child_id }
 pnpm start          # 同时启动前端(:3000) + 后端(:3001)
 pnpm dev            # 仅前端
 pnpm server:dev     # 仅后端 (tsx watch)
+pnpm server:build   # 构建后端 TypeScript
 pnpm build          # Vite 生产构建
 pnpm lint           # tsc --noEmit 类型检查
+pnpm db:import:tencent # 转换并导入 Lighthouse MySQL 8 业务备份
 pnpm docs:dev       # VitePress 文档
 ```
 
@@ -326,18 +326,19 @@ pnpm docs:dev       # VitePress 文档
 
 | 变量 | 用途 | 位置 |
 |------|------|------|
-| `VITE_SUPABASE_URL` | Supabase 项目 URL | 前端 `src/lib/supabase.ts` |
-| `VITE_SUPABASE_ANON_KEY` | Supabase 匿名 key | 前端 `src/lib/supabase.ts` |
-| `SUPABASE_URL` | Supabase 项目 URL | 后端 `server/src/config/supabase.ts` |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service_role key（绕过 RLS） | 后端 `server/src/config/supabase.ts` |
-| `VITE_API_URL` | API 基础路径（本地留空，生产填 Vercel 域名） | 前端 `src/services/api.ts` |
+| `DATABASE_URL` | Lighthouse MySQL 连接串 | 后端 `server/src/config/database.ts` |
+| `DATABASE_POOL_MAX` | MySQL 连接池大小 | 后端 `server/src/config/database.ts` |
+| `JWT_SECRET` | 本地 JWT 签名密钥 | 后端 `server/src/services/authService.ts` |
+| `BCRYPT_ROUNDS` | bcrypt 计算成本 | 后端 `server/src/services/authService.ts` |
+| `ACCESS_TOKEN_TTL` | access token 有效期 | 后端 `server/src/services/authService.ts` |
+| `VITE_API_URL` | API 基础路径（同域部署留空；跨域时填 Lighthouse HTTPS 域名） | 前端 `src/services/api.ts` |
 | `VITE_APP_VERSION` | 构建时注入时间戳用于 PWA 缓存失效 | `vite.config.ts` 自动生成 |
 
 ---
 
 ## 关键约定与注意事项
 
-1. **认证**：Supabase Auth JWT，由 `src/services/api.ts` 的 `request()` 自动从 `getSession()` 注入。后端 `authMiddleware` 用 `supabase.auth.getUser(token)` 验证。
+1. **认证**：Express 使用 bcrypt 校验密码，签发短时 JWT access token，并在 MySQL `auth_sessions` 中保存刷新 token 哈希；前端请求层在 access token 失效时自动轮换刷新会话。
 2. **儿童模式**：通过重新登录验证密码来切换（`enableChildMode`/`disableChildMode`）。前端路由重定向 `App.tsx` 中的受限路径；后端 `requireParentRole` 在写操作时拦截。
 3. **时区**：所有涉日期的逻辑统一使用 UTC+8（Asia/Shanghai）。`getUTC8Today()` 在后端多处使用。
 4. **共享任务果实发放**：非共享任务直接发放；共享任务只有树木完成后的最后一次打卡才显示果实（前端 `fruits-history` 接口处理）。

@@ -10,6 +10,7 @@ import Navigation from './components/Navigation';
 import ChildModeBanner from './components/ChildModeBanner';
 import TodayProgressModal from './components/TodayProgressModal';
 import UpdatePrompt from './components/UpdatePrompt';
+import ForcedPasswordChangeModal from './components/ForcedPasswordChangeModal';
 
 // 儿童模式下受限的路径列表
 const CHILD_MODE_RESTRICTED_PATHS = ['/parent-control', '/add-goal', '/rewards-management'];
@@ -46,6 +47,7 @@ export default function App() {
       </div>
       {/* 今日任务进度弹层 */}
       {isAuthenticated && <TodayProgressModal />}
+      {isAuthenticated && <ForcedPasswordChangeModal />}
       {/* PWA 更新提示 */}
       <UpdatePrompt />
     </div>
