@@ -128,7 +128,8 @@ router.delete('/:userId/children/:childId', authMiddleware, async (req: AuthRequ
   const { error } = await supabase
     .from('children')
     .update({ is_deleted: true })
-    .eq('id', childId);
+    .eq('id', childId)
+    .eq('parent_id', userId);
 
   if (error) {
     res.status(500).json({ error: '删除失败' });
@@ -148,6 +149,7 @@ router.get('/:childId/stats', authMiddleware, async (req: AuthRequest, res: Resp
     .from('children')
     .select('id, fruits_balance')
     .eq('id', childId)
+    .eq('parent_id', req.user!.id)
     .eq('is_deleted', false)
     .single();
 

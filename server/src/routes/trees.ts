@@ -6,14 +6,24 @@ import { AuthRequest } from '../types.js';
 const router: Router = Router();
 
 // 辅助：验证孩子属于当前家长
-const verifyChildOwnership = async (childId: string): Promise<boolean> => {
+const verifyChildOwnership = async (childId: string, parentId: string): Promise<boolean> => {
   const { data } = await supabase
     .from('children')
     .select('id')
     .eq('id', childId)
+    .eq('parent_id', parentId)
     .eq('is_deleted', false)
     .single();
   return !!data;
+};
+
+const getOwnedChildIds = async (parentId: string): Promise<string[]> => {
+  const { data } = await supabase
+    .from('children')
+    .select('id')
+    .eq('parent_id', parentId)
+    .eq('is_deleted', false);
+  return (data || []).map(child => child.id);
 };
 
 // GET /api/v1/children/:childId/dashboard-data
@@ -29,6 +39,7 @@ router.get('/:childId/dashboard-data', authMiddleware, async (req: AuthRequest, 
     .from('children')
     .select('id, fruits_balance')
     .eq('id', childId)
+    .eq('parent_id', req.user!.id)
     .eq('is_deleted', false)
     .single();
 
@@ -36,6 +47,9 @@ router.get('/:childId/dashboard-data', authMiddleware, async (req: AuthRequest, 
     res.status(404).json({ error: '孩子不存在' });
     return;
   }
+
+  const ownedChildIds = await getOwnedChildIds(req.user!.id);
+  const ownedChildIdSet = new Set(ownedChildIds);
 
   // 根据 period 计算时间范围（与原 stats 接口逻辑一致）
   const now = new Date();
@@ -81,7 +95,7 @@ router.get('/:childId/dashboard-data', authMiddleware, async (req: AuthRequest, 
     // 目标列表（包含共享任务）
     supabase
       .from('goals')
-      .select(`id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, fruits_per_task, is_shared, shared_child_ids, created_at`)
+      .select(`id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, fruits_per_task, is_shared, shared_child_ids, child_id, created_at`)
       .or(`child_id.eq.${childId},shared_child_ids.cs.{${childId}}`)
       .order('created_at', { ascending: false }),
 
@@ -103,8 +117,14 @@ router.get('/:childId/dashboard-data', authMiddleware, async (req: AuthRequest, 
     return;
   }
 
-  const trees = treesResult.data;
-  const goals = goalsResult.data;
+  const goals = goalsResult.data.filter(goal => {
+    const participantIds = goal.is_shared && Array.isArray(goal.shared_child_ids)
+      ? [...new Set([goal.child_id, ...goal.shared_child_ids])]
+      : [goal.child_id];
+    return participantIds.every(participantId => ownedChildIdSet.has(participantId));
+  });
+  const visibleGoalIds = new Set(goals.map(goal => goal.id));
+  const trees = treesResult.data.filter(tree => !tree.goal_id || visibleGoalIds.has(tree.goal_id));
 
   // 统计数据：优先使用 SQL 聚合函数，失败时降级为内联计算（保证接口可用性）
   let statsRow: Record<string, unknown> | undefined;
@@ -200,6 +220,7 @@ router.get('/:childId/dashboard-data', authMiddleware, async (req: AuthRequest, 
       .from('trees')
       .select('goal_id, child_id')
       .in('goal_id', sharedGoalIdsDash)
+      .in('child_id', ownedChildIds)
       .eq('status', 'completed');
     for (const t of (sharedCompletedTreesDash || [])) {
       if (t.goal_id) {
@@ -264,6 +285,7 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
     .from('children')
     .select('id')
     .eq('id', childId)
+    .eq('parent_id', req.user!.id)
     .eq('is_deleted', false)
     .single();
 
@@ -289,8 +311,24 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
     return;
   }
 
-  const trees = data || [];
-  const goalIds = trees.map(t => t.goal_id).filter(Boolean) as string[];
+  const rawTrees = data || [];
+  const goalIds = rawTrees.map(t => t.goal_id).filter(Boolean) as string[];
+
+  const ownedChildIds = await getOwnedChildIds(req.user!.id);
+  const { data: goalOwnership } = goalIds.length > 0
+    ? await supabase.from('goals').select('id, child_id, is_shared, shared_child_ids').in('id', goalIds)
+    : { data: [] };
+  const visibleGoalIds = new Set(
+    (goalOwnership || [])
+      .filter(goal => {
+        const participantIds = goal.is_shared && Array.isArray(goal.shared_child_ids)
+          ? [...new Set([goal.child_id, ...goal.shared_child_ids])]
+          : [goal.child_id];
+        return participantIds.every(participantId => ownedChildIds.includes(participantId));
+      })
+      .map(goal => goal.id)
+  );
+  const trees = rawTrees.filter(tree => !tree.goal_id || visibleGoalIds.has(tree.goal_id));
 
   if (goalIds.length === 0) {
     res.json({ data: trees.map(t => ({ ...t, completed_days: 0, checked_in_today: false })) });
@@ -358,6 +396,7 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
       .from('trees')
       .select('goal_id, child_id')
       .in('goal_id', [...sharedGoalIdsSet])
+      .in('child_id', ownedChildIds)
       .eq('status', 'completed');
     for (const t of (sharedCompletedTrees || [])) {
       if (t.goal_id) {
@@ -409,6 +448,7 @@ router.post('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Res
     .from('children')
     .select('id')
     .eq('id', childId)
+    .eq('parent_id', req.user!.id)
     .eq('is_deleted', false)
     .single();
 
@@ -433,6 +473,7 @@ router.post('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Res
       .from('children')
       .select('id')
       .in('id', allIds)
+      .eq('parent_id', req.user!.id)
       .eq('is_deleted', false);
     if (!childrenData || childrenData.length !== allIds.length) {
       res.status(404).json({ error: '部分孩子不存在' });
@@ -482,7 +523,7 @@ router.post('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Res
 
   if (treeError || !trees || trees.length === 0) {
     // 回滚：删除已创建的目标
-    await supabase.from('goals').delete().eq('id', goal.id);
+    await supabase.from('goals').delete().eq('id', goal.id).eq('child_id', childId);
     res.status(500).json({ error: '创建树木失败' });
     return;
   }
@@ -512,12 +553,29 @@ router.get('/goals/:goalId/shared-progress', authMiddleware, async (req: AuthReq
     return;
   }
 
+  if (!await verifyChildOwnership(goal.child_id, req.user!.id)) {
+    res.status(403).json({ error: '无权查看该目标' });
+    return;
+  }
+
   if (!goal.is_shared) {
     res.status(400).json({ error: '该目标不是共享任务' });
     return;
   }
 
   const participantIds: string[] = goal.shared_child_ids || [goal.child_id];
+
+  const { data: ownedParticipants } = await supabase
+    .from('children')
+    .select('id')
+    .in('id', participantIds)
+    .eq('parent_id', req.user!.id)
+    .eq('is_deleted', false);
+
+  if (!ownedParticipants || ownedParticipants.length !== participantIds.length) {
+    res.status(403).json({ error: '无权查看该目标' });
+    return;
+  }
 
   // 获取所有参与孩子的信息
   const { data: children } = await supabase
@@ -662,6 +720,11 @@ router.put('/:treeId', authMiddleware, async (req: AuthRequest, res: Response): 
     return;
   }
 
+  if (!await verifyChildOwnership(tree.child_id, req.user!.id)) {
+    res.status(403).json({ error: '无权更新该树木' });
+    return;
+  }
+
   const updateData: Record<string, unknown> = {};
   if (name !== undefined) updateData.name = name;
   if (image !== undefined) updateData.image = image;
@@ -670,6 +733,7 @@ router.put('/:treeId', authMiddleware, async (req: AuthRequest, res: Response): 
     .from('trees')
     .update(updateData)
     .eq('id', treeId)
+    .eq('child_id', tree.child_id)
     .select('id, name, image, status, progress, goal_id, created_at')
     .single();
 
@@ -690,6 +754,7 @@ router.get('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Resp
     .from('children')
     .select('id')
     .eq('id', childId)
+    .eq('parent_id', req.user!.id)
     .eq('is_deleted', false)
     .single();
 
@@ -702,7 +767,7 @@ router.get('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Resp
   let query = supabase
     .from('goals')
     .select(`
-      id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, fruits_per_task, is_shared, shared_child_ids, created_at,
+      id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, fruits_per_task, is_shared, shared_child_ids, child_id, created_at,
       trees(id, name, image, status, progress, goal_id, child_id)
     `)
     .or(`child_id.eq.${childId},shared_child_ids.cs.{${childId}}`)
@@ -719,7 +784,14 @@ router.get('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Resp
     return;
   }
 
-  const goals = data || [];
+  const ownedChildIds = await getOwnedChildIds(req.user!.id);
+  const ownedChildIdSet = new Set(ownedChildIds);
+  const goals = (data || []).filter(goal => {
+    const participantIds = goal.is_shared && Array.isArray(goal.shared_child_ids)
+      ? [...new Set([goal.child_id, ...goal.shared_child_ids])]
+      : [goal.child_id];
+    return participantIds.every(participantId => ownedChildIdSet.has(participantId));
+  });
   
   // 收集所有 goal_id
   const goalIds = goals.map(g => g.id).filter(Boolean) as string[];
@@ -782,6 +854,7 @@ router.get('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Resp
       .from('trees')
       .select('goal_id, child_id')
       .in('goal_id', sharedGoalIdsForCompletion)
+      .in('child_id', ownedChildIds)
       .eq('status', 'completed');
     for (const t of (completedSharedTreesGoals || [])) {
       if (t.goal_id) {
@@ -801,9 +874,7 @@ router.get('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Resp
     const durationDays = goal.duration_days || 30;
     const calculatedProgress = isSharedCompleted ? 100 : Math.min(100, Math.ceil((completedDays / durationDays) * 100));
     // 共享任务：只保留当前孩子的树木
-    const filteredTrees = (goal.trees || []).filter((tree: any) =>
-      !goal.is_shared || tree.child_id === childId
-    );
+    const filteredTrees = (goal.trees || []).filter((tree: any) => tree.child_id === childId);
     return {
       ...goal,
       trees: filteredTrees.map((tree: any) => ({
@@ -841,9 +912,28 @@ router.put('/goals/:goalId', authMiddleware, async (req: AuthRequest, res: Respo
     return;
   }
 
+  if (!await verifyChildOwnership(goal.child_id, req.user!.id)) {
+    res.status(403).json({ error: '无权操作该目标' });
+    return;
+  }
+
+  const currentParticipantIds = goal.is_shared
+    ? [...new Set([goal.child_id, ...(goal.shared_child_ids || [])])]
+    : [goal.child_id];
+  const { data: ownedCurrentParticipants } = await supabase
+    .from('children')
+    .select('id')
+    .in('id', currentParticipantIds)
+    .eq('parent_id', req.user!.id)
+    .eq('is_deleted', false);
+  if (!ownedCurrentParticipants || ownedCurrentParticipants.length !== currentParticipantIds.length) {
+    res.status(403).json({ error: '无权操作该目标' });
+    return;
+  }
+
   // 如果要修改归属孩子，验证新孩子存在
   if (child_id && child_id !== goal.child_id) {
-    const childExists = await verifyChildOwnership(child_id);
+    const childExists = await verifyChildOwnership(child_id, req.user!.id);
     if (!childExists) {
       res.status(404).json({ error: '目标孩子不存在' });
       return;
@@ -856,6 +946,21 @@ router.put('/goals/:goalId', authMiddleware, async (req: AuthRequest, res: Respo
       res.status(400).json({ error: '共享任务至少需要2个参与孩子' });
       return;
     }
+  }
+
+  const effectivePrimaryChildId = child_id || goal.child_id;
+  const effectiveParticipantIds = goal.is_shared
+    ? [...new Set([effectivePrimaryChildId, ...(shared_child_ids ?? goal.shared_child_ids ?? [])])]
+    : [effectivePrimaryChildId];
+  const { data: ownedParticipants } = await supabase
+    .from('children')
+    .select('id')
+    .in('id', effectiveParticipantIds)
+    .eq('parent_id', req.user!.id)
+    .eq('is_deleted', false);
+  if (!ownedParticipants || ownedParticipants.length !== effectiveParticipantIds.length) {
+    res.status(403).json({ error: '目标参与孩子必须属于当前用户' });
+    return;
   }
 
   const updateData: Record<string, unknown> = {};
@@ -871,6 +976,7 @@ router.put('/goals/:goalId', authMiddleware, async (req: AuthRequest, res: Respo
     .from('goals')
     .update(updateData)
     .eq('id', goalId)
+    .eq('child_id', goal.child_id)
     .select('id, title, icon, duration_days, duration_minutes, reward_tree_name, is_active, created_at, child_id, is_shared, shared_child_ids')
     .single();
 
@@ -884,13 +990,14 @@ router.put('/goals/:goalId', authMiddleware, async (req: AuthRequest, res: Respo
     await supabase
       .from('trees')
       .update({ name: reward_tree_name })
-      .eq('goal_id', goalId);
+      .eq('goal_id', goalId)
+      .in('child_id', currentParticipantIds);
   }
 
   // 同步更新关联树木和任务的 child_id（如果归属孩子变化）
   if (child_id && child_id !== goal.child_id) {
-    await supabase.from('trees').update({ child_id }).eq('goal_id', goalId);
-    await supabase.from('tasks').update({ child_id }).eq('goal_id', goalId);
+    await supabase.from('trees').update({ child_id }).eq('goal_id', goalId).in('child_id', currentParticipantIds);
+    await supabase.from('tasks').update({ child_id }).eq('goal_id', goalId).in('child_id', currentParticipantIds);
   }
 
   // 共享任务：如果参与孩子列表有变化，为新增孩子创建树木，移除已退出孩子的树木
@@ -902,6 +1009,17 @@ router.put('/goals/:goalId', authMiddleware, async (req: AuthRequest, res: Respo
 
     // 为新增孩子创建树木
     if (addedIds.length > 0) {
+      const { data: addedChildren } = await supabase
+        .from('children')
+        .select('id')
+        .in('id', addedIds)
+        .eq('parent_id', req.user!.id)
+        .eq('is_deleted', false);
+      if (!addedChildren || addedChildren.length !== addedIds.length) {
+        res.status(403).json({ error: '共享任务参与孩子必须属于当前用户' });
+        return;
+      }
+
       const newTrees = addedIds.map((cid: string) => ({
         child_id: cid,
         goal_id: goalId,
@@ -938,7 +1056,7 @@ router.delete('/goals/:goalId', authMiddleware, async (req: AuthRequest, res: Re
   // 验证目标存在
   const { data: goal } = await supabase
     .from('goals')
-    .select('id, child_id')
+    .select('id, child_id, is_shared, shared_child_ids')
     .eq('id', goalId)
     .single();
 
@@ -947,14 +1065,37 @@ router.delete('/goals/:goalId', authMiddleware, async (req: AuthRequest, res: Re
     return;
   }
 
+  if (!await verifyChildOwnership(goal.child_id, req.user!.id)) {
+    res.status(403).json({ error: '无权删除该目标' });
+    return;
+  }
+
+  const participantIds = goal.is_shared
+    ? [...new Set([goal.child_id, ...(goal.shared_child_ids || [])])]
+    : [goal.child_id];
+  const { data: ownedParticipants } = await supabase
+    .from('children')
+    .select('id')
+    .in('id', participantIds)
+    .eq('parent_id', req.user!.id)
+    .eq('is_deleted', false);
+  if (!ownedParticipants || ownedParticipants.length !== participantIds.length) {
+    res.status(403).json({ error: '无权删除该目标' });
+    return;
+  }
+
   // 删除关联任务
-  await supabase.from('tasks').delete().eq('goal_id', goalId);
+  await supabase.from('tasks').delete().eq('goal_id', goalId).in('child_id', participantIds);
 
   // 删除关联树木
-  await supabase.from('trees').delete().eq('goal_id', goalId);
+  await supabase.from('trees').delete().eq('goal_id', goalId).in('child_id', participantIds);
 
   // 删除目标
-  const { error } = await supabase.from('goals').delete().eq('id', goalId);
+  const { error } = await supabase
+    .from('goals')
+    .delete()
+    .eq('id', goalId)
+    .eq('child_id', goal.child_id);
 
   if (error) {
     res.status(500).json({ error: '删除目标失败' });

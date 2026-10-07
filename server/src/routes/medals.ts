@@ -14,6 +14,7 @@ router.get('/:childId/medals', authMiddleware, async (req: AuthRequest, res: Res
     .from('children')
     .select('id')
     .eq('id', childId)
+    .eq('parent_id', req.user!.id)
     .eq('is_deleted', false)
     .single();
 
@@ -27,9 +28,11 @@ router.get('/:childId/medals', authMiddleware, async (req: AuthRequest, res: Res
 
   // 获取所有勋章定义
   interface MedalRow { id: string; name: string; icon: string; color: string; description: string; unlock_condition: unknown }
+
   const { data: allMedals, error } = await supabase
     .from('medals')
     .select('id, name, icon, color, description, unlock_condition')
+    .eq('parent_id', req.user!.id)
     .order('created_at', { ascending: true });
 
   if (error || !allMedals) {
@@ -70,6 +73,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response): Promise
   const { data: allMedals, error } = await supabase
     .from('medals')
     .select('id, name, icon, color, description, unlock_condition, created_at')
+    .eq('parent_id', req.user!.id)
     .order('created_at', { ascending: true });
 
   if (error || !allMedals) {
@@ -98,7 +102,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
 
   const { data, error } = await supabase
     .from('medals')
-    .insert([{ name, icon, color, description, unlock_condition }])
+    .insert([{ name, icon, color, description, unlock_condition, parent_id: req.user!.id }])
     .select()
     .single();
 
@@ -122,10 +126,26 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response): Prom
   if (description !== undefined) updateData.description = description;
   if (unlock_condition !== undefined) updateData.unlock_condition = unlock_condition;
 
+  const { data: existing } = await supabase
+    .from('medals')
+    .select('id, parent_id')
+    .eq('id', id)
+    .single();
+
+  if (!existing) {
+    res.status(404).json({ error: '勋章不存在' });
+    return;
+  }
+  if (existing.parent_id !== req.user!.id) {
+    res.status(403).json({ error: '系统勋章不可修改' });
+    return;
+  }
+
   const { data, error } = await supabase
     .from('medals')
     .update(updateData)
     .eq('id', id)
+    .eq('parent_id', req.user!.id)
     .select()
     .single();
 
@@ -141,13 +161,36 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response): Prom
 router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { id } = req.params;
 
+  const { data: existing } = await supabase
+    .from('medals')
+    .select('id, parent_id')
+    .eq('id', id)
+    .single();
+
+  if (!existing) {
+    res.status(404).json({ error: '勋章不存在' });
+    return;
+  }
+  if (existing.parent_id !== req.user!.id) {
+    res.status(403).json({ error: '系统勋章不可删除' });
+    return;
+  }
+
   // 先删除关联的 child_medals 记录
-  await supabase.from('child_medals').delete().eq('medal_id', id);
+  const { data: ownedChildren } = await supabase
+    .from('children')
+    .select('id')
+    .eq('parent_id', req.user!.id);
+  const ownedChildIds = (ownedChildren || []).map(child => child.id);
+  if (ownedChildIds.length > 0) {
+    await supabase.from('child_medals').delete().eq('medal_id', id).in('child_id', ownedChildIds);
+  }
 
   const { error } = await supabase
     .from('medals')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .eq('parent_id', req.user!.id);
 
   if (error) {
     res.status(500).json({ error: '删除勋章失败' });

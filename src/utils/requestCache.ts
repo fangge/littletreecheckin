@@ -17,6 +17,7 @@ const cacheStore = new Map<string, CacheEntry<unknown>>();
 
 // 正在进行的请求（用于去重：同一 URL 并发时只发一次）
 const pendingRequests = new Map<string, Promise<unknown>>();
+let cacheGeneration = 0;
 
 /**
  * 带缓存的请求包装器
@@ -48,6 +49,7 @@ export async function cachedRequest<T>(
   }
 
   // 发起新请求
+  const requestGeneration = cacheGeneration;
   const promise = fetchFn().finally(() => {
     pendingRequests.delete(url);
   });
@@ -57,7 +59,9 @@ export async function cachedRequest<T>(
   try {
     const data = await promise;
     // 写入缓存
-    cacheStore.set(url, { data, ts: Date.now() });
+    if (requestGeneration === cacheGeneration) {
+      cacheStore.set(url, { data, ts: Date.now() });
+    }
     return data;
   } catch (error) {
     throw error;
@@ -69,7 +73,9 @@ export async function cachedRequest<T>(
  */
 export function invalidateCache(urlPattern?: string): void {
   if (!urlPattern) {
+    cacheGeneration += 1;
     cacheStore.clear();
+    pendingRequests.clear();
     return;
   }
   for (const key of cacheStore.keys()) {

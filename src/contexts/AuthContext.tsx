@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { User, Child, childrenApi } from '../services/api';
+import { invalidateCache } from '../utils/requestCache';
 
 interface AuthContextType {
   user: User | null;
@@ -90,12 +91,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_IN' && session) {
+          invalidateCache();
           const userData = await fetchUserProfile(session);
           if (userData) {
             setUser(userData);
             restoreChild(userData);
           }
         } else if (event === 'SIGNED_OUT') {
+          invalidateCache();
           setUser(null);
           setCurrentChildState(null);
           setIsChildMode(false);

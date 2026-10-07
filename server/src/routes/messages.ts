@@ -16,6 +16,7 @@ router.get('/:childId/messages', authMiddleware, async (req: AuthRequest, res: R
     .from('children')
     .select('id')
     .eq('id', childId)
+    .eq('parent_id', req.user!.id)
     .eq('is_deleted', false)
     .single();
 
@@ -45,6 +46,19 @@ router.get('/:childId/messages', authMiddleware, async (req: AuthRequest, res: R
 // GET /api/v1/children/:childId/messages/unread-count
 router.get('/:childId/messages/unread-count', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { childId } = req.params;
+
+  const { data: child } = await supabase
+    .from('children')
+    .select('id')
+    .eq('id', childId)
+    .eq('parent_id', req.user!.id)
+    .eq('is_deleted', false)
+    .single();
+
+  if (!child) {
+    res.status(404).json({ error: '孩子不存在' });
+    return;
+  }
 
   const { count, error } = await supabase
     .from('messages')
@@ -83,6 +97,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
     .from('children')
     .select('id')
     .eq('id', child_id)
+    .eq('parent_id', req.user!.id)
     .eq('is_deleted', false)
     .single();
 
@@ -117,10 +132,35 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
 router.put('/:messageId/read', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { messageId } = req.params;
 
+  const { data: message } = await supabase
+    .from('messages')
+    .select('id, child_id')
+    .eq('id', messageId)
+    .single();
+
+  if (!message) {
+    res.status(404).json({ error: '消息不存在' });
+    return;
+  }
+
+  const { data: child } = await supabase
+    .from('children')
+    .select('id')
+    .eq('id', message.child_id)
+    .eq('parent_id', req.user!.id)
+    .eq('is_deleted', false)
+    .single();
+
+  if (!child) {
+    res.status(404).json({ error: '消息不存在' });
+    return;
+  }
+
   const { error } = await supabase
     .from('messages')
     .update({ is_read: true })
-    .eq('id', messageId);
+    .eq('id', messageId)
+    .eq('child_id', message.child_id);
 
   if (error) {
     res.status(500).json({ error: '标记失败' });
@@ -133,6 +173,19 @@ router.put('/:messageId/read', authMiddleware, async (req: AuthRequest, res: Res
 // PUT /api/v1/children/:childId/messages/read-all
 router.put('/:childId/messages/read-all', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { childId } = req.params;
+
+  const { data: child } = await supabase
+    .from('children')
+    .select('id')
+    .eq('id', childId)
+    .eq('parent_id', req.user!.id)
+    .eq('is_deleted', false)
+    .single();
+
+  if (!child) {
+    res.status(404).json({ error: '孩子不存在' });
+    return;
+  }
 
   const { error } = await supabase
     .from('messages')

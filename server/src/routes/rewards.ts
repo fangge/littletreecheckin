@@ -104,6 +104,11 @@ const getCashSettingForParent = async (parentId: string) => {
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { category, child_id } = req.query;
 
+  if (!req.user?.id) {
+    res.status(401).json({ error: '认证已过期，请重新登录' });
+    return;
+  }
+
   if (child_id !== undefined && typeof child_id !== 'string') {
     res.status(400).json({ error: '孩子ID格式不正确' });
     return;
@@ -114,7 +119,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response): Promise
       .from('children')
       .select('id')
       .eq('id', child_id)
-      .eq('parent_id', req.user?.id)
+      .eq('parent_id', req.user.id)
       .eq('is_deleted', false)
       .single();
 
@@ -127,6 +132,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response): Promise
   let query = supabase
     .from('rewards')
     .select('id, name, price, category, max_redemptions, max_consecutive_redemptions, cooldown_days')
+    .eq('parent_id', req.user.id)
     .eq('is_active', true)
     .order('price', { ascending: true });
 
@@ -180,10 +186,16 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response): Promise
 router.get('/children/:childId/fruits', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { childId } = req.params;
 
+  if (!req.user?.id) {
+    res.status(401).json({ error: '认证已过期，请重新登录' });
+    return;
+  }
+
   const { data: child, error } = await supabase
     .from('children')
     .select('fruits_balance')
     .eq('id', childId)
+    .eq('parent_id', req.user.id)
     .eq('is_deleted', false)
     .single();
 
@@ -326,6 +338,11 @@ router.post('/:rewardId/redeem', authMiddleware, async (req: AuthRequest, res: R
   const { child_id } = req.body;
   const quantity = Number(req.body.quantity ?? 1);
 
+  if (!req.user?.id) {
+    res.status(401).json({ error: '认证已过期，请重新登录' });
+    return;
+  }
+
   if (!child_id) {
     res.status(400).json({ error: '孩子ID不能为空' });
     return;
@@ -341,6 +358,7 @@ router.post('/:rewardId/redeem', authMiddleware, async (req: AuthRequest, res: R
     .from('rewards')
     .select('id, name, price, is_active, max_redemptions, max_consecutive_redemptions, cooldown_days')
     .eq('id', rewardId)
+    .eq('parent_id', req.user.id)
     .single();
 
   if (!reward) {
@@ -423,7 +441,8 @@ router.post('/:rewardId/redeem', authMiddleware, async (req: AuthRequest, res: R
   const { error: updateError } = await supabase
     .from('children')
     .update({ fruits_balance: child.fruits_balance - totalPrice })
-    .eq('id', child_id);
+    .eq('id', child_id)
+    .eq('parent_id', req.user.id);
 
   if (updateError) {
     res.status(500).json({ error: '兑换失败' });
@@ -441,7 +460,8 @@ router.post('/:rewardId/redeem', authMiddleware, async (req: AuthRequest, res: R
     await supabase
       .from('children')
       .update({ fruits_balance: child.fruits_balance })
-      .eq('id', child_id);
+      .eq('id', child_id)
+      .eq('parent_id', req.user.id);
     res.status(500).json({ error: '兑换记录创建失败' });
     return;
   }
@@ -461,14 +481,33 @@ router.post('/:rewardId/redeem', authMiddleware, async (req: AuthRequest, res: R
 router.get('/children/:childId/redemptions', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { childId } = req.params;
 
+  if (!req.user?.id) {
+    res.status(401).json({ error: '认证已过期，请重新登录' });
+    return;
+  }
+
+  const { data: ownedChild } = await supabase
+    .from('children')
+    .select('id')
+    .eq('id', childId)
+    .eq('parent_id', req.user.id)
+    .eq('is_deleted', false)
+    .maybeSingle();
+
+  if (!ownedChild) {
+    res.status(403).json({ error: '无权查看该孩子的兑换记录' });
+    return;
+  }
+
   const [rewardRes, cashRes] = await Promise.all([
     supabase
       .from('reward_redemptions')
       .select(`
         id, child_id, quantity, redeemed_at, status,
-        rewards(name, price, category)
+        rewards!inner(name, price, category, parent_id)
       `)
-      .eq('child_id', childId),
+      .eq('child_id', childId)
+      .eq('rewards.parent_id', req.user.id),
     supabase
       .from('cash_redemptions')
       .select('id, child_id, redeemed_at, status, fruits_spent, fruits_per_yuan, yuan_amount, cash_amount')
@@ -525,10 +564,11 @@ router.get('/redemptions/batch', authMiddleware, async (req: AuthRequest, res: R
       .from('reward_redemptions')
       .select(`
         id, child_id, quantity, redeemed_at, status,
-        rewards(name, price, category),
+        rewards!inner(name, price, category, parent_id),
         children(name)
       `)
-      .in('child_id', childIdArray),
+      .in('child_id', childIdArray)
+      .eq('rewards.parent_id', req.user!.id),
     supabase
       .from('cash_redemptions')
       .select('id, child_id, redeemed_at, status, fruits_spent, fruits_per_yuan, yuan_amount, cash_amount, children(name)')
@@ -558,10 +598,29 @@ router.get('/redemptions/batch', authMiddleware, async (req: AuthRequest, res: R
 router.put('/redemptions/:redemptionId/complete', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { redemptionId } = req.params;
 
+  if (!req.user?.id) {
+    res.status(401).json({ error: '认证已过期，请重新登录' });
+    return;
+  }
+
+  const { data: redemption, error: fetchError } = await supabase
+    .from('reward_redemptions')
+    .select('child_id, children!inner(parent_id), rewards!inner(parent_id)')
+    .eq('id', redemptionId)
+    .eq('children.parent_id', req.user.id)
+    .eq('rewards.parent_id', req.user.id)
+    .maybeSingle();
+
+  if (fetchError || !redemption) {
+    res.status(404).json({ error: '兑换记录不存在' });
+    return;
+  }
+
   const { error } = await supabase
     .from('reward_redemptions')
     .update({ status: 'completed' })
-    .eq('id', redemptionId);
+    .eq('id', redemptionId)
+    .eq('child_id', redemption.child_id);
 
   if (error) {
     res.status(500).json({ error: '确认失败' });
@@ -575,6 +634,11 @@ router.put('/redemptions/:redemptionId/complete', authMiddleware, async (req: Au
 router.put('/cash/redemptions/:redemptionId/complete', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { redemptionId } = req.params;
 
+  if (!req.user?.id) {
+    res.status(401).json({ error: '认证已过期，请重新登录' });
+    return;
+  }
+
   const { data: redemption, error: fetchError } = await supabase
     .from('cash_redemptions')
     .select('id, status, parent_id')
@@ -586,7 +650,7 @@ router.put('/cash/redemptions/:redemptionId/complete', authMiddleware, async (re
     return;
   }
 
-  if (req.user?.id && redemption.parent_id !== req.user.id) {
+  if (redemption.parent_id !== req.user.id) {
     res.status(403).json({ error: '无权操作该兑换记录' });
     return;
   }
@@ -599,7 +663,8 @@ router.put('/cash/redemptions/:redemptionId/complete', authMiddleware, async (re
   const { error } = await supabase
     .from('cash_redemptions')
     .update({ status: 'completed', completed_at: new Date().toISOString() })
-    .eq('id', redemptionId);
+    .eq('id', redemptionId)
+    .eq('parent_id', req.user.id);
 
   if (error) {
     res.status(500).json({ error: '确认现金发放失败' });
@@ -613,15 +678,34 @@ router.put('/cash/redemptions/:redemptionId/complete', authMiddleware, async (re
 router.put('/redemptions/:redemptionId/cancel', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { redemptionId } = req.params;
 
+  if (!req.user?.id) {
+    res.status(401).json({ error: '认证已过期，请重新登录' });
+    return;
+  }
+
   // 1. 获取兑换记录信息
   const { data: redemption, error: fetchError } = await supabase
     .from('reward_redemptions')
-    .select('child_id, quantity, rewards(price), status')
+    .select('child_id, quantity, rewards!inner(price, parent_id), status')
     .eq('id', redemptionId)
+    .eq('rewards.parent_id', req.user.id)
     .single();
 
   if (fetchError || !redemption) {
     res.status(404).json({ error: '兑换记录不存在' });
+    return;
+  }
+
+  const { data: ownedChild } = await supabase
+    .from('children')
+    .select('id')
+    .eq('id', redemption.child_id)
+    .eq('parent_id', req.user.id)
+    .eq('is_deleted', false)
+    .maybeSingle();
+
+  if (!ownedChild) {
+    res.status(403).json({ error: '无权操作该兑换记录' });
     return;
   }
 
@@ -639,6 +723,7 @@ router.put('/redemptions/:redemptionId/cancel', authMiddleware, async (req: Auth
     .from('children')
     .select('fruits_balance')
     .eq('id', redemption.child_id)
+    .eq('parent_id', req.user.id)
     .single();
 
   if (childError || !child) {
@@ -650,7 +735,8 @@ router.put('/redemptions/:redemptionId/cancel', authMiddleware, async (req: Auth
   const { error: updateError } = await supabase
     .from('children')
     .update({ fruits_balance: child.fruits_balance + fruitsToRefund })
-    .eq('id', redemption.child_id);
+    .eq('id', redemption.child_id)
+    .eq('parent_id', req.user.id);
 
   if (updateError) {
     res.status(500).json({ error: '返还果实失败' });
@@ -661,7 +747,8 @@ router.put('/redemptions/:redemptionId/cancel', authMiddleware, async (req: Auth
   const { error: deleteError } = await supabase
     .from('reward_redemptions')
     .delete()
-    .eq('id', redemptionId);
+    .eq('id', redemptionId)
+    .eq('child_id', redemption.child_id);
 
   if (deleteError) {
     res.status(500).json({ error: '删除兑换记录失败' });
@@ -675,6 +762,11 @@ router.put('/redemptions/:redemptionId/cancel', authMiddleware, async (req: Auth
 router.put('/cash/redemptions/:redemptionId/cancel', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { redemptionId } = req.params;
 
+  if (!req.user?.id) {
+    res.status(401).json({ error: '认证已过期，请重新登录' });
+    return;
+  }
+
   const { data: redemption, error: fetchError } = await supabase
     .from('cash_redemptions')
     .select('child_id, parent_id, fruits_spent, status')
@@ -686,7 +778,7 @@ router.put('/cash/redemptions/:redemptionId/cancel', authMiddleware, async (req:
     return;
   }
 
-  if (req.user?.id && redemption.parent_id !== req.user.id) {
+  if (redemption.parent_id !== req.user.id) {
     res.status(403).json({ error: '无权操作该兑换记录' });
     return;
   }
@@ -700,6 +792,7 @@ router.put('/cash/redemptions/:redemptionId/cancel', authMiddleware, async (req:
     .from('children')
     .select('fruits_balance')
     .eq('id', redemption.child_id)
+    .eq('parent_id', req.user?.id)
     .single();
 
   if (childError || !child) {
@@ -710,7 +803,8 @@ router.put('/cash/redemptions/:redemptionId/cancel', authMiddleware, async (req:
   const { error: updateError } = await supabase
     .from('children')
     .update({ fruits_balance: child.fruits_balance + redemption.fruits_spent })
-    .eq('id', redemption.child_id);
+    .eq('id', redemption.child_id)
+    .eq('parent_id', req.user?.id);
 
   if (updateError) {
     res.status(500).json({ error: '返还果实失败' });
@@ -720,7 +814,8 @@ router.put('/cash/redemptions/:redemptionId/cancel', authMiddleware, async (req:
   const { error: deleteError } = await supabase
     .from('cash_redemptions')
     .delete()
-    .eq('id', redemptionId);
+    .eq('id', redemptionId)
+    .eq('parent_id', req.user?.id);
 
   if (deleteError) {
     res.status(500).json({ error: '删除现金兑换记录失败' });
@@ -733,6 +828,11 @@ router.put('/cash/redemptions/:redemptionId/cancel', authMiddleware, async (req:
 // POST /api/v1/rewards  (创建奖品)
 router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { name, price, category } = req.body;
+
+  if (!req.user?.id) {
+    res.status(401).json({ error: '认证已过期，请重新登录' });
+    return;
+  }
 
   if (!name || !price || !category) {
     res.status(400).json({ error: '名称、价格和分类不能为空' });
@@ -757,7 +857,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
 
   const { data, error } = await supabase
     .from('rewards')
-    .insert({ name, price, category, is_active: true, ...limitResult.settings })
+    .insert({ parent_id: req.user.id, name, price, category, is_active: true, ...limitResult.settings })
     .select('id, name, price, category, max_redemptions, max_consecutive_redemptions, cooldown_days, is_active')
     .single();
 
@@ -774,10 +874,16 @@ router.put('/:rewardId', authMiddleware, async (req: AuthRequest, res: Response)
   const { rewardId } = req.params;
   const { name, price, category, is_active } = req.body;
 
+  if (!req.user?.id) {
+    res.status(401).json({ error: '认证已过期，请重新登录' });
+    return;
+  }
+
   const { data: existing } = await supabase
     .from('rewards')
     .select('id, max_redemptions, max_consecutive_redemptions, cooldown_days')
     .eq('id', rewardId)
+    .eq('parent_id', req.user.id)
     .single();
 
   if (!existing) {
@@ -805,6 +911,7 @@ router.put('/:rewardId', authMiddleware, async (req: AuthRequest, res: Response)
     .from('rewards')
     .update(updateData)
     .eq('id', rewardId)
+    .eq('parent_id', req.user.id)
     .select('id, name, price, category, max_redemptions, max_consecutive_redemptions, cooldown_days, is_active')
     .single();
 
@@ -820,10 +927,16 @@ router.put('/:rewardId', authMiddleware, async (req: AuthRequest, res: Response)
 router.delete('/:rewardId', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { rewardId } = req.params;
 
+  if (!req.user?.id) {
+    res.status(401).json({ error: '认证已过期，请重新登录' });
+    return;
+  }
+
   const { data: existing } = await supabase
     .from('rewards')
     .select('id')
     .eq('id', rewardId)
+    .eq('parent_id', req.user.id)
     .single();
 
   if (!existing) {
@@ -834,7 +947,8 @@ router.delete('/:rewardId', authMiddleware, async (req: AuthRequest, res: Respon
   const { error } = await supabase
     .from('rewards')
     .delete()
-    .eq('id', rewardId);
+    .eq('id', rewardId)
+    .eq('parent_id', req.user.id);
 
   if (error) {
     res.status(500).json({ error: '删除奖品失败' });
@@ -845,10 +959,16 @@ router.delete('/:rewardId', authMiddleware, async (req: AuthRequest, res: Respon
 });
 
 // GET /api/v1/rewards/all  (获取所有奖品，含已下架，供家长管理)
-router.get('/all', authMiddleware, async (_req: AuthRequest, res: Response): Promise<void> => {
+router.get('/all', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  if (!req.user?.id) {
+    res.status(401).json({ error: '认证已过期，请重新登录' });
+    return;
+  }
+
   const { data, error } = await supabase
     .from('rewards')
     .select('id, name, price, category, max_redemptions, max_consecutive_redemptions, cooldown_days, is_active')
+    .eq('parent_id', req.user.id)
     .order('created_at', { ascending: false });
 
   if (error) {

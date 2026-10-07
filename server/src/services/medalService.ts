@@ -7,10 +7,19 @@ interface MedalCondition {
 
 // 检查并解锁符合条件的勋章
 export const checkAndUnlockMedals = async (childId: string): Promise<void> => {
+  const { data: child } = await supabase
+    .from('children')
+    .select('parent_id')
+    .eq('id', childId)
+    .single();
+
+  if (!child) return;
+
   // 获取所有勋章定义
   const { data: allMedals } = await supabase
     .from('medals')
-    .select('id, name, unlock_condition');
+    .select('id, name, unlock_condition')
+    .eq('parent_id', child.parent_id);
 
   if (!allMedals || allMedals.length === 0) return;
 

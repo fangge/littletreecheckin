@@ -60,6 +60,21 @@ BEGIN
     COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1))
   )
   ON CONFLICT (id) DO NOTHING;
+
+  INSERT INTO public.medals (parent_id, name, icon, color, description, unlock_condition)
+  SELECT NEW.id, seed.name, seed.icon, seed.color, seed.description, seed.unlock_condition::jsonb
+  FROM (VALUES
+    ('早起小标兵', 'wb_sunny', 'from-yellow-300 to-primary', '连续7天在早上8点前完成打卡', '{"type":"early_checkin","threshold":7}'),
+    ('7天连续达人', 'local_fire_department', 'from-orange-400 to-red-500', '连续7天完成任务打卡', '{"type":"consecutive_days","threshold":7}'),
+    ('浇水小能手', 'water_drop', 'from-blue-400 to-blue-600', '累计完成30次任务打卡', '{"type":"total_tasks","threshold":30}'),
+    ('水果采摘员', 'nutrition', 'from-slate-300 to-slate-400', '完成第一棵树木的培育', '{"type":"trees_completed","threshold":1}'),
+    ('根深蒂固', 'forest', 'from-slate-300 to-slate-400', '完成5棵树木的培育', '{"type":"trees_completed","threshold":5}'),
+    ('闪亮之星', 'stars', 'from-purple-400 to-indigo-600', '累计获得500个果实', '{"type":"total_fruits","threshold":500}'),
+    ('环保小英雄', 'eco', 'from-emerald-400 to-teal-600', '累计完成100次任务打卡', '{"type":"total_tasks","threshold":100}'),
+    ('快速成长期', 'energy_savings_leaf', 'from-slate-300 to-slate-400', '在一周内完成3个不同目标的打卡', '{"type":"weekly_goals","threshold":3}'),
+    ('顶尖选手', 'emoji_events', 'from-slate-300 to-slate-400', '累计完成200次任务打卡', '{"type":"total_tasks","threshold":200}')
+  ) AS seed(name, icon, color, description, unlock_condition);
+
   RETURN NEW;
 END;
 $$;
@@ -206,6 +221,7 @@ CREATE TRIGGER update_tasks_updated_at BEFORE UPDATE ON tasks
 -- ============================================================
 CREATE TABLE IF NOT EXISTS medals (
   id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  parent_id        UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   name             VARCHAR(50) NOT NULL,
   icon             VARCHAR(50) NOT NULL,
   color            VARCHAR(100) NOT NULL,
@@ -213,6 +229,19 @@ CREATE TABLE IF NOT EXISTS medals (
   unlock_condition JSONB NOT NULL DEFAULT '{}',
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS idx_medals_parent_id ON medals(parent_id);
+
+ALTER TABLE medals ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "medals_select_visible" ON medals
+  FOR SELECT TO authenticated
+  USING (parent_id = (select auth.uid()));
+
+CREATE POLICY "medals_service_role" ON medals
+  FOR ALL TO service_role
+  USING (true)
+  WITH CHECK (true);
 
 -- ============================================================
 -- 八、孩子勋章关联表
@@ -227,11 +256,51 @@ CREATE TABLE IF NOT EXISTS child_medals (
 
 CREATE INDEX IF NOT EXISTS idx_child_medals_child_id ON child_medals(child_id);
 
+ALTER TABLE child_medals ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "child_medals_select_own" ON child_medals
+  FOR SELECT TO authenticated
+  USING (
+    child_id IN (SELECT id FROM children WHERE parent_id = (select auth.uid()))
+    AND medal_id IN (SELECT id FROM medals WHERE parent_id = (select auth.uid()))
+  );
+
+CREATE POLICY "child_medals_insert_own" ON child_medals
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    child_id IN (SELECT id FROM children WHERE parent_id = (select auth.uid()))
+    AND medal_id IN (SELECT id FROM medals WHERE parent_id = (select auth.uid()))
+  );
+
+CREATE POLICY "child_medals_update_own" ON child_medals
+  FOR UPDATE TO authenticated
+  USING (
+    child_id IN (SELECT id FROM children WHERE parent_id = (select auth.uid()))
+    AND medal_id IN (SELECT id FROM medals WHERE parent_id = (select auth.uid()))
+  )
+  WITH CHECK (
+    child_id IN (SELECT id FROM children WHERE parent_id = (select auth.uid()))
+    AND medal_id IN (SELECT id FROM medals WHERE parent_id = (select auth.uid()))
+  );
+
+CREATE POLICY "child_medals_delete_own" ON child_medals
+  FOR DELETE TO authenticated
+  USING (
+    child_id IN (SELECT id FROM children WHERE parent_id = (select auth.uid()))
+    AND medal_id IN (SELECT id FROM medals WHERE parent_id = (select auth.uid()))
+  );
+
+CREATE POLICY "child_medals_service_role" ON child_medals
+  FOR ALL TO service_role
+  USING (true)
+  WITH CHECK (true);
+
 -- ============================================================
 -- 九、奖励表
 -- ============================================================
 CREATE TABLE IF NOT EXISTS rewards (
   id                          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  parent_id                   UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   name                        VARCHAR(100) NOT NULL,
   price                       INTEGER NOT NULL CHECK (price > 0),
   category                    VARCHAR(20) NOT NULL CHECK (category IN ('activity', 'toy', 'snack')),
@@ -247,12 +316,14 @@ CREATE TABLE IF NOT EXISTS rewards (
   )
 );
 
+CREATE INDEX IF NOT EXISTS idx_rewards_parent_id ON rewards(parent_id);
+
 -- RLS
 ALTER TABLE rewards ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "rewards_select_authenticated" ON rewards
+CREATE POLICY "rewards_select_own" ON rewards
   FOR SELECT TO authenticated
-  USING (true);
+  USING ((select auth.uid()) = parent_id);
 
 CREATE POLICY "rewards_service_role" ON rewards
   FOR ALL TO service_role
@@ -281,19 +352,35 @@ ALTER TABLE reward_redemptions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "reward_redemptions_select_own" ON reward_redemptions
   FOR SELECT TO authenticated
-  USING (child_id IN (SELECT id FROM children WHERE parent_id = (select auth.uid())));
+  USING (
+    child_id IN (SELECT id FROM children WHERE parent_id = (select auth.uid()))
+    AND reward_id IN (SELECT id FROM rewards WHERE parent_id = (select auth.uid()))
+  );
 
 CREATE POLICY "reward_redemptions_insert_own" ON reward_redemptions
   FOR INSERT TO authenticated
-  WITH CHECK (child_id IN (SELECT id FROM children WHERE parent_id = (select auth.uid())));
+  WITH CHECK (
+    child_id IN (SELECT id FROM children WHERE parent_id = (select auth.uid()))
+    AND reward_id IN (SELECT id FROM rewards WHERE parent_id = (select auth.uid()))
+  );
 
 CREATE POLICY "reward_redemptions_update_own" ON reward_redemptions
   FOR UPDATE TO authenticated
-  USING (child_id IN (SELECT id FROM children WHERE parent_id = (select auth.uid())));
+  USING (
+    child_id IN (SELECT id FROM children WHERE parent_id = (select auth.uid()))
+    AND reward_id IN (SELECT id FROM rewards WHERE parent_id = (select auth.uid()))
+  )
+  WITH CHECK (
+    child_id IN (SELECT id FROM children WHERE parent_id = (select auth.uid()))
+    AND reward_id IN (SELECT id FROM rewards WHERE parent_id = (select auth.uid()))
+  );
 
 CREATE POLICY "reward_redemptions_delete_own" ON reward_redemptions
   FOR DELETE TO authenticated
-  USING (child_id IN (SELECT id FROM children WHERE parent_id = (select auth.uid())));
+  USING (
+    child_id IN (SELECT id FROM children WHERE parent_id = (select auth.uid()))
+    AND reward_id IN (SELECT id FROM rewards WHERE parent_id = (select auth.uid()))
+  );
 
 CREATE POLICY "reward_redemptions_service_role" ON reward_redemptions
   FOR ALL TO service_role
@@ -673,69 +760,17 @@ $$ LANGUAGE plpgsql;
 -- ============================================================
 -- 十四、种子数据：勋章定义（9 枚）
 -- ============================================================
-INSERT INTO medals (id, name, icon, color, description, unlock_condition) VALUES
-(
-  uuid_generate_v4(), '早起小标兵', 'wb_sunny',
-  'from-yellow-300 to-primary',
-  '连续7天在早上8点前完成打卡',
-  '{"type": "early_checkin", "threshold": 7}'
-),
-(
-  uuid_generate_v4(), '7天连续达人', 'local_fire_department',
-  'from-orange-400 to-red-500',
-  '连续7天完成任务打卡',
-  '{"type": "consecutive_days", "threshold": 7}'
-),
-(
-  uuid_generate_v4(), '浇水小能手', 'water_drop',
-  'from-blue-400 to-blue-600',
-  '累计完成30次任务打卡',
-  '{"type": "total_tasks", "threshold": 30}'
-),
-(
-  uuid_generate_v4(), '水果采摘员', 'nutrition',
-  'from-slate-300 to-slate-400',
-  '完成第一棵树木的培育',
-  '{"type": "trees_completed", "threshold": 1}'
-),
-(
-  uuid_generate_v4(), '根深蒂固', 'forest',
-  'from-slate-300 to-slate-400',
-  '完成5棵树木的培育',
-  '{"type": "trees_completed", "threshold": 5}'
-),
-(
-  uuid_generate_v4(), '闪亮之星', 'stars',
-  'from-purple-400 to-indigo-600',
-  '累计获得500个果实',
-  '{"type": "total_fruits", "threshold": 500}'
-),
-(
-  uuid_generate_v4(), '环保小英雄', 'eco',
-  'from-emerald-400 to-teal-600',
-  '累计完成100次任务打卡',
-  '{"type": "total_tasks", "threshold": 100}'
-),
-(
-  uuid_generate_v4(), '快速成长期', 'energy_savings_leaf',
-  'from-slate-300 to-slate-400',
-  '在一周内完成3个不同目标的打卡',
-  '{"type": "weekly_goals", "threshold": 3}'
-),
-(
-  uuid_generate_v4(), '顶尖选手', 'emoji_events',
-  'from-slate-300 to-slate-400',
-  '累计完成200次任务打卡',
-  '{"type": "total_tasks", "threshold": 200}'
-);
-
--- ============================================================
--- 十五、种子数据：初始奖励（6 个）
--- ============================================================
-INSERT INTO rewards (id, name, price, category, is_active) VALUES
-(uuid_generate_v4(), '30分钟游戏时间', 200,  'activity', TRUE),
-(uuid_generate_v4(), '新玩具',         1000, 'toy',      TRUE),
-(uuid_generate_v4(), '冰淇淋',         150,  'snack',    TRUE),
-(uuid_generate_v4(), '额外公园游玩',   300,  'activity', TRUE),
-(uuid_generate_v4(), '电影之夜',       500,  'activity', TRUE),
-(uuid_generate_v4(), '晚睡1小时',      300,  'activity', TRUE);
+INSERT INTO medals (id, parent_id, name, icon, color, description, unlock_condition)
+SELECT uuid_generate_v4(), users.id, seed.name, seed.icon, seed.color, seed.description, seed.unlock_condition::jsonb
+FROM auth.users AS users
+CROSS JOIN (VALUES
+  ('早起小标兵', 'wb_sunny', 'from-yellow-300 to-primary', '连续7天在早上8点前完成打卡', '{"type":"early_checkin","threshold":7}'),
+  ('7天连续达人', 'local_fire_department', 'from-orange-400 to-red-500', '连续7天完成任务打卡', '{"type":"consecutive_days","threshold":7}'),
+  ('浇水小能手', 'water_drop', 'from-blue-400 to-blue-600', '累计完成30次任务打卡', '{"type":"total_tasks","threshold":30}'),
+  ('水果采摘员', 'nutrition', 'from-slate-300 to-slate-400', '完成第一棵树木的培育', '{"type":"trees_completed","threshold":1}'),
+  ('根深蒂固', 'forest', 'from-slate-300 to-slate-400', '完成5棵树木的培育', '{"type":"trees_completed","threshold":5}'),
+  ('闪亮之星', 'stars', 'from-purple-400 to-indigo-600', '累计获得500个果实', '{"type":"total_fruits","threshold":500}'),
+  ('环保小英雄', 'eco', 'from-emerald-400 to-teal-600', '累计完成100次任务打卡', '{"type":"total_tasks","threshold":100}'),
+  ('快速成长期', 'energy_savings_leaf', 'from-slate-300 to-slate-400', '在一周内完成3个不同目标的打卡', '{"type":"weekly_goals","threshold":3}'),
+  ('顶尖选手', 'emoji_events', 'from-slate-300 to-slate-400', '累计完成200次任务打卡', '{"type":"total_tasks","threshold":200}')
+) AS seed(name, icon, color, description, unlock_condition);

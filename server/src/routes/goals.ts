@@ -5,10 +5,18 @@ import { AuthRequest } from '../types.js';
 
 // 删除目标后重新校验并清理不再满足条件的勋章
 const revokeInvalidMedals = async (childId: string): Promise<void> => {
+  const { data: childOwner } = await supabase
+    .from('children')
+    .select('parent_id')
+    .eq('id', childId)
+    .single();
+  if (!childOwner) return;
+
   // 获取所有勋章定义
   const { data: allMedals } = await supabase
     .from('medals')
-    .select('id, unlock_condition');
+    .select('id, unlock_condition')
+    .eq('parent_id', childOwner.parent_id);
 
   if (!allMedals || allMedals.length === 0) return;
 
@@ -118,12 +126,42 @@ router.put('/:goalId', authMiddleware, async (req: AuthRequest, res: Response): 
   // 验证目标存在
   const { data: goal } = await supabase
     .from('goals')
-    .select('id, child_id, reward_tree_name')
+    .select('id, child_id, reward_tree_name, is_shared, shared_child_ids')
     .eq('id', goalId)
     .single();
 
   if (!goal) {
     res.status(404).json({ error: '目标不存在' });
+    return;
+  }
+
+  const { data: ownedGoalChild } = await supabase
+    .from('children')
+    .select('id')
+    .eq('id', goal.child_id)
+    .eq('parent_id', req.user!.id)
+    .eq('is_deleted', false)
+    .single();
+
+  if (!ownedGoalChild) {
+    res.status(403).json({ error: '无权操作该目标' });
+    return;
+  }
+
+  const currentParticipantIds = goal.is_shared
+    ? [...new Set([goal.child_id, ...(goal.shared_child_ids || [])])]
+    : [goal.child_id];
+  const effectiveParticipantIds = goal.is_shared
+    ? [...new Set([child_id || goal.child_id, ...(goal.shared_child_ids || [])])]
+    : [child_id || goal.child_id];
+  const { data: ownedParticipants } = await supabase
+    .from('children')
+    .select('id')
+    .in('id', [...new Set([...currentParticipantIds, ...effectiveParticipantIds])])
+    .eq('parent_id', req.user!.id)
+    .eq('is_deleted', false);
+  if (!ownedParticipants || ownedParticipants.length !== new Set([...currentParticipantIds, ...effectiveParticipantIds]).size) {
+    res.status(403).json({ error: '无权操作该目标' });
     return;
   }
 
@@ -133,6 +171,7 @@ router.put('/:goalId', authMiddleware, async (req: AuthRequest, res: Response): 
       .from('children')
       .select('id')
       .eq('id', child_id)
+      .eq('parent_id', req.user!.id)
       .eq('is_deleted', false)
       .single();
     if (!childData) {
@@ -155,6 +194,7 @@ router.put('/:goalId', authMiddleware, async (req: AuthRequest, res: Response): 
     .from('goals')
     .update(updateData)
     .eq('id', goalId)
+    .eq('child_id', goal.child_id)
     .select('id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, fruits_per_task, created_at, child_id')
     .single();
 
@@ -165,13 +205,13 @@ router.put('/:goalId', authMiddleware, async (req: AuthRequest, res: Response): 
 
   // 同步更新关联树木的名称（如果 reward_tree_name 有变化）
   if (reward_tree_name !== undefined && reward_tree_name !== goal.reward_tree_name) {
-    await supabase.from('trees').update({ name: reward_tree_name }).eq('goal_id', goalId);
+    await supabase.from('trees').update({ name: reward_tree_name }).eq('goal_id', goalId).in('child_id', currentParticipantIds);
   }
 
   // 同步更新关联树木和任务的 child_id（如果归属孩子变化）
   if (child_id && child_id !== goal.child_id) {
-    await supabase.from('trees').update({ child_id }).eq('goal_id', goalId);
-    await supabase.from('tasks').update({ child_id }).eq('goal_id', goalId);
+    await supabase.from('trees').update({ child_id }).eq('goal_id', goalId).in('child_id', currentParticipantIds);
+    await supabase.from('tasks').update({ child_id }).eq('goal_id', goalId).in('child_id', currentParticipantIds);
   }
 
   res.json({ data: updatedGoal, message: '目标更新成功' });
@@ -183,7 +223,7 @@ router.delete('/:goalId', authMiddleware, async (req: AuthRequest, res: Response
 
   const { data: goal } = await supabase
     .from('goals')
-    .select('id, child_id')
+    .select('id, child_id, is_shared, shared_child_ids')
     .eq('id', goalId)
     .single();
 
@@ -192,11 +232,42 @@ router.delete('/:goalId', authMiddleware, async (req: AuthRequest, res: Response
     return;
   }
 
-  // 依次删除关联数据
-  await supabase.from('tasks').delete().eq('goal_id', goalId);
-  await supabase.from('trees').delete().eq('goal_id', goalId);
+  const { data: ownedGoalChild } = await supabase
+    .from('children')
+    .select('id')
+    .eq('id', goal.child_id)
+    .eq('parent_id', req.user!.id)
+    .eq('is_deleted', false)
+    .single();
 
-  const { error } = await supabase.from('goals').delete().eq('id', goalId);
+  if (!ownedGoalChild) {
+    res.status(403).json({ error: '无权删除该目标' });
+    return;
+  }
+
+  const participantIds = goal.is_shared
+    ? [...new Set([goal.child_id, ...(goal.shared_child_ids || [])])]
+    : [goal.child_id];
+  const { data: ownedParticipants } = await supabase
+    .from('children')
+    .select('id')
+    .in('id', participantIds)
+    .eq('parent_id', req.user!.id)
+    .eq('is_deleted', false);
+  if (!ownedParticipants || ownedParticipants.length !== participantIds.length) {
+    res.status(403).json({ error: '无权删除该目标' });
+    return;
+  }
+
+  // 依次删除关联数据
+  await supabase.from('tasks').delete().eq('goal_id', goalId).in('child_id', participantIds);
+  await supabase.from('trees').delete().eq('goal_id', goalId).in('child_id', participantIds);
+
+  const { error } = await supabase
+    .from('goals')
+    .delete()
+    .eq('id', goalId)
+    .eq('child_id', goal.child_id);
 
   if (error) {
     res.status(500).json({ error: '删除目标失败' });

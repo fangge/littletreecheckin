@@ -16,6 +16,7 @@ router.get('/:childId/tasks', authMiddleware, async (req: AuthRequest, res: Resp
     .from('children')
     .select('id')
     .eq('id', childId)
+    .eq('parent_id', req.user!.id)
     .eq('is_deleted', false)
     .single();
 
@@ -95,6 +96,19 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
     return;
   }
 
+  const { data: ownedChild } = await supabase
+    .from('children')
+    .select('id')
+    .eq('id', child_id)
+    .eq('parent_id', req.user!.id)
+    .eq('is_deleted', false)
+    .single();
+
+  if (!ownedChild) {
+    res.status(403).json({ error: '无权为该孩子打卡' });
+    return;
+  }
+
   // 验证目标存在且属于该孩子（支持共享任务：child_id 匹配或在 shared_child_ids 中）
   const { data: goal } = await supabase
     .from('goals')
@@ -103,6 +117,34 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
     .single();
 
   if (!goal) {
+    res.status(404).json({ error: '目标不存在' });
+    return;
+  }
+
+  // 共享目标也必须由当前家长创建，避免仅凭 shared_child_ids 越权使用其他用户的目标。
+  const { data: goalOwner } = await supabase
+    .from('children')
+    .select('id')
+    .eq('id', goal.child_id)
+    .eq('parent_id', req.user!.id)
+    .eq('is_deleted', false)
+    .single();
+
+  if (!goalOwner) {
+    res.status(404).json({ error: '目标不存在' });
+    return;
+  }
+
+  const participantIds = goal.is_shared && Array.isArray(goal.shared_child_ids)
+    ? [...new Set([goal.child_id, ...goal.shared_child_ids])]
+    : [goal.child_id];
+  const { data: ownedParticipants } = await supabase
+    .from('children')
+    .select('id')
+    .in('id', participantIds)
+    .eq('parent_id', req.user!.id)
+    .eq('is_deleted', false);
+  if (!ownedParticipants || ownedParticipants.length !== participantIds.length) {
     res.status(404).json({ error: '目标不存在' });
     return;
   }
@@ -125,6 +167,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promis
     .from('children')
     .select('name')
     .eq('id', child_id)
+    .eq('parent_id', req.user!.id)
     .single();
 
   // 检查指定日期是否已打卡（排除已拒绝的任务，允许重新打卡）
@@ -205,6 +248,30 @@ router.put('/:taskId/approve', authMiddleware, async (req: AuthRequest, res: Res
   const { taskId } = req.params;
   const bonusFruits = Math.max(0, parseInt(req.body?.bonus_fruits ?? '0', 10) || 0);
 
+  const { data: taskOwner } = await supabase
+    .from('tasks')
+    .select('child_id')
+    .eq('id', taskId)
+    .single();
+
+  if (!taskOwner) {
+    res.status(404).json({ error: '任务不存在' });
+    return;
+  }
+
+  const { data: ownedChild } = await supabase
+    .from('children')
+    .select('id')
+    .eq('id', taskOwner.child_id)
+    .eq('parent_id', req.user!.id)
+    .eq('is_deleted', false)
+    .single();
+
+  if (!ownedChild) {
+    res.status(403).json({ error: '无权审核该任务' });
+    return;
+  }
+
   // 调用 RPC 存储过程，所有操作在一个事务中完成
   const { data: result, error } = await supabase
     .rpc('approve_task_rpc', {
@@ -238,6 +305,7 @@ router.put('/:taskId/approve', authMiddleware, async (req: AuthRequest, res: Res
     .from('tasks')
     .select('id, title, type, status, checkin_time, image_url, progress, created_at')
     .eq('id', taskId)
+    .eq('child_id', taskOwner.child_id)
     .single();
 
   // 异步检查勋章解锁（不阻塞响应）
@@ -273,6 +341,19 @@ router.put('/:taskId/reject', authMiddleware, async (req: AuthRequest, res: Resp
     return;
   }
 
+  const { data: ownedChild } = await supabase
+    .from('children')
+    .select('id')
+    .eq('id', task.child_id)
+    .eq('parent_id', req.user!.id)
+    .eq('is_deleted', false)
+    .single();
+
+  if (!ownedChild) {
+    res.status(403).json({ error: '无权审核该任务' });
+    return;
+  }
+
   if (task.status !== 'pending') {
     res.status(400).json({ error: '任务已审核，无法重复操作' });
     return;
@@ -282,6 +363,7 @@ router.put('/:taskId/reject', authMiddleware, async (req: AuthRequest, res: Resp
     .from('tasks')
     .update({ status: 'rejected', reject_reason: reason || null })
     .eq('id', taskId)
+    .eq('child_id', task.child_id)
     .select('id, title, type, status, checkin_time, image_url, progress, reject_reason, created_at')
     .single();
 
@@ -310,6 +392,19 @@ router.put('/:taskId/revoke', authMiddleware, async (req: AuthRequest, res: Resp
     return;
   }
 
+  const { data: ownedChild } = await supabase
+    .from('children')
+    .select('id')
+    .eq('id', task.child_id)
+    .eq('parent_id', req.user!.id)
+    .eq('is_deleted', false)
+    .single();
+
+  if (!ownedChild) {
+    res.status(403).json({ error: '无权操作该任务' });
+    return;
+  }
+
   if (task.status !== 'approved') {
     res.status(400).json({ error: '只能撤销已批准的任务' });
     return;
@@ -320,6 +415,7 @@ router.put('/:taskId/revoke', authMiddleware, async (req: AuthRequest, res: Resp
     .from('children')
     .select('id, fruits_balance')
     .eq('id', task.child_id)
+    .eq('parent_id', req.user!.id)
     .single();
 
   if (!child) {
@@ -357,6 +453,7 @@ router.put('/:taskId/revoke', authMiddleware, async (req: AuthRequest, res: Resp
     .from('tasks')
     .update({ status: 'pending', bonus_fruits: 0 })
     .eq('id', taskId)
+    .eq('child_id', task.child_id)
     .select('id, title, type, status, checkin_time, image_url, progress, created_at')
     .single();
 
@@ -369,7 +466,8 @@ router.put('/:taskId/revoke', authMiddleware, async (req: AuthRequest, res: Resp
   await supabase
     .from('children')
     .update({ fruits_balance: child.fruits_balance - totalFruitsToDeduct })
-    .eq('id', task.child_id);
+    .eq('id', task.child_id)
+    .eq('parent_id', req.user!.id);
 
   // 3. 重新计算树木进度（撤销后始终重新计算，基于实际已批准的 distinct 日期数）
   if (task.tree_id) {
@@ -455,6 +553,19 @@ router.put('/bulk-approve', authMiddleware, async (req: AuthRequest, res: Respon
     const foundIds = new Set(tasks.map(t => t.id));
     const missingIds = task_ids.filter(id => !foundIds.has(id));
     res.status(400).json({ error: `以下任务不存在: ${missingIds.join(', ')}` });
+    return;
+  }
+
+  const childIds = [...new Set(tasks.map(task => task.child_id))];
+  const { data: ownedChildren } = await supabase
+    .from('children')
+    .select('id')
+    .eq('parent_id', req.user!.id)
+    .eq('is_deleted', false)
+    .in('id', childIds);
+
+  if (!ownedChildren || ownedChildren.length !== childIds.length) {
+    res.status(403).json({ error: '无权审核其中一个或多个任务' });
     return;
   }
 
