@@ -35,11 +35,27 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
               </button>
             </div>
             <div className="overflow-y-auto max-h-[60vh] px-6 py-4 space-y-4">
-              {/* v4.4 */}
+              {/* v4.5 */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v4.4</span>
+                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v4.5</span>
                   <span className="text-sm text-slate-500 dark:text-[var(--text-muted)]">最新</span>
+                </div>
+                <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">批量补打卡与成就统计优化</h4>
+                <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
+                  打卡页支持一次选择多个日期补打卡；森林页重新整理任务与已长成树木的展示；成就单会合并跨阶段的同名任务并累计打卡次数。
+                </p>
+                <ul className="text-xs text-slate-500 dark:text-[var(--text-muted)] space-y-1 ml-2">
+                  <li>• 同一个任务可一次选择多个历史日期批量补打卡</li>
+                  <li>• 打卡页和森林页优先展示当天未打卡任务</li>
+                  <li>• 已长成树木集中在森林健康度弹窗中查看</li>
+                  <li>• 成就单自动合并跨阶段同名任务，累计展示打卡次数</li>
+                </ul>
+              </div>
+              {/* v4.4 */}
+              <div className="space-y-2 pt-4 border-t border-primary/5 dark:border-[var(--border-color)]">
+                <div className="flex items-center gap-2">
+                  <span className="bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-xs font-bold px-2 py-0.5 rounded">v4.4</span>
                 </div>
                 <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">奖品批量兑换与兑换限制</h4>
                 <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
