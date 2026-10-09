@@ -1,0 +1,255 @@
+<!DOCTYPE html><html class="light" lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>每日打卡 - 活力成长仪表盘</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;800;900&amp;family=Plus+Jakarta+Sans:wght@700;800;900&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "primary": "#059669",
+                "primary-light": "#ecfdf5",
+                "brand-green": "#10b981",
+                "surface": "#f4f8f5",
+                "energy-start": "#ff7e29",
+                "energy-end": "#ffb300"
+            },
+            "fontFamily": {
+                "sans": ["'Noto Sans SC'", "sans-serif"],
+                "num": ["'Plus Jakarta Sans'", "'Noto Sans SC'", "sans-serif"]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+    body {
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      font-family: 'Noto Sans SC', sans-serif;
+    }
+    @keyframes pulse-subtle {
+      0%, 100% { transform: scale(1); box-shadow: 0 10px 22px -4px rgba(16, 185, 129, 0.4); }
+      50% { transform: scale(1.018); box-shadow: 0 14px 28px -4px rgba(16, 185, 129, 0.58); }
+    }
+    .btn-breathe {
+      animation: pulse-subtle 2.6s infinite ease-in-out;
+    }
+    @keyframes bounce-slow {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+    }
+    .animate-float-slow {
+      animation: bounce-slow 3s ease-in-out infinite;
+    }
+    @keyframes sun-spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .animate-sun {
+      animation: sun-spin 24s linear infinite;
+    }
+</style>
+</head>
+<body class="bg-[#f2f7f3] text-slate-800 antialiased h-screen overflow-hidden flex flex-col justify-between w-full max-w-md mx-auto relative select-none">
+<!-- 1. 顶部 Header (轻量紧凑) -->
+<header class="px-4 pt-3 pb-1 flex-shrink-0 z-20">
+<div class="flex items-center justify-between">
+<!-- 孩子切换 Pill -->
+<div class="flex items-center bg-white p-1 rounded-full shadow-xs border border-emerald-100">
+<button class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500 text-white font-bold text-xs shadow-xs transition-all">
+<span class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-[10px]">👦</span>
+<span class="">乐惟</span>
+</button>
+<button class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-slate-500 hover:text-slate-800 font-medium text-xs transition-all">
+<span class="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-[10px]">👧</span>
+<span class="">豆豆</span>
+</button>
+</div>
+<!-- 提醒通知与设置 -->
+<div class="flex items-center gap-1.5">
+<button class="w-8 h-8 rounded-full bg-white border border-slate-200/60 flex items-center justify-center text-slate-600 shadow-xs active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[17px]">notifications</span>
+</button>
+<button class="w-8 h-8 rounded-full bg-white border border-slate-200/60 flex items-center justify-center text-slate-600 shadow-xs active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[17px]">settings</span>
+</button>
+</div>
+</div>
+</header>
+<!-- 核心交互区 (零滚动全景适配) -->
+<main class="flex-1 flex flex-col justify-between px-4 py-1.5 overflow-hidden z-10 gap-2">
+<!-- 2. 核心“超级能量果实”看板 (Hero Score Banner：融合目标与积分，极致获得感) -->
+<div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#ff8b26] via-[#f7931e] to-[#ffb300] p-3.5 text-white shadow-[0_10px_24px_-6px_rgba(247,147,30,0.42)] flex-shrink-0 border-t border-white/25">
+<!-- 动态光斑背景 -->
+<div class="absolute -right-5 -bottom-6 w-28 h-28 bg-white/15 rounded-full blur-xl pointer-events-none"></div>
+<div class="absolute right-1/3 -top-10 w-24 h-24 bg-yellow-200/25 rounded-full blur-lg pointer-events-none"></div>
+<div class="relative z-10 flex flex-col gap-2">
+<!-- 顶部轻标：当前目标联动与兑换入口 -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5 bg-black/15 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-white/20">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-200 animate-pulse"></span>
+<span class="text-[10px] text-amber-100 font-medium">当前目标:</span>
+<span class="text-[11px] font-bold text-white tracking-tight">复习拼音</span>
+<span class="material-symbols-outlined text-[13px] text-amber-200">expand_more</span>
+</div>
+<button class="text-[11px] font-bold bg-white/20 hover:bg-white/30 backdrop-blur-sm px-2.5 py-0.5 rounded-full border border-white/30 text-white flex items-center gap-0.5 transition-all">
+<span class="">兑换心愿</span>
+<span class="material-symbols-outlined text-[13px]">arrow_forward</span>
+</button>
+</div>
+<!-- 主分展示：巨型苹果徽章 + 超大发光数字 -->
+<div class="flex items-center justify-between mt-0.5">
+<div class="flex items-center gap-3">
+<div class="w-14 h-14 rounded-2xl bg-white/25 backdrop-blur-md border border-white/40 flex items-center justify-center shadow-inner flex-shrink-0 relative group">
+<span class="text-3xl drop-shadow filter">🍎</span>
+
+</div>
+<div>
+<div class="text-[10px] font-bold text-amber-100/90 tracking-wider flex items-center gap-1">
+<span class="">成长果实总数</span>
+<span class="bg-white/20 text-[9px] px-1.5 py-0.2 rounded font-semibold">实效累计</span>
+</div>
+<div class="flex items-baseline gap-1.5">
+<span class="font-num text-4xl font-black tracking-tight drop-shadow-sm leading-none text-white">7,251</span>
+<span class="text-xs text-amber-100 font-bold">颗</span>
+</div>
+</div>
+</div>
+<!-- 今日增量徽章 -->
+<div class="flex flex-col items-end justify-center bg-white/15 backdrop-blur-sm px-2.5 py-1.5 rounded-xl border border-white/20">
+<span class="text-[9px] text-amber-100 font-medium">今日已获得</span>
+<div class="flex items-center gap-0.5 text-yellow-200 font-num font-extrabold text-sm leading-tight mt-0.5">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">bolt</span>
+<span class="">+150 🍎</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- 3. 中央紧凑“成长沙盒生态圈”（三合一高集成舱） -->
+<div class="bg-white rounded-3xl p-3 border border-emerald-100 shadow-sm flex-1 flex flex-col justify-between relative overflow-hidden min-h-[175px] max-h-[240px]">
+<!-- 沙盒微渐变天空与草地地平线 -->
+<div class="absolute inset-0 bg-gradient-to-b from-sky-50/60 via-emerald-50/30 to-emerald-100/40 pointer-events-none"></div>
+<!-- 顶部天气与状态徽章 -->
+<div class="relative z-10 flex justify-between items-center px-1">
+<div class="flex items-center gap-1 text-amber-500 animate-sun">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">sunny</span>
+</div>
+<div class="bg-emerald-500/10 text-emerald-700 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-emerald-500/20 flex items-center gap-1 shadow-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+<span class="">幼苗成长阶段</span>
+</div>
+<div class="flex items-center text-sky-400">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">cloud</span>
+</div>
+</div>
+<!-- 中间：活力小树核心生态圈 (带环形光晕与能量泡泡) -->
+<div class="relative z-10 flex flex-col items-center justify-center my-auto">
+<div class="relative flex items-center justify-center">
+<!-- 外层能量微环 -->
+<div class="w-24 h-24 rounded-full border-2 border-dashed border-emerald-400/50 bg-emerald-50/70 flex items-center justify-center relative shadow-inner">
+<!-- 树苗 -->
+<span class="material-symbols-outlined text-emerald-600 text-[64px] drop-shadow-sm select-none transform hover:scale-105 transition-transform" style="font-variation-settings: 'FILL' 1;">park</span>
+<!-- 漂浮水滴气泡 -->
+<div class="absolute -top-1.5 -right-1 bg-cyan-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shadow-md animate-float-slow border-2 border-white">
+            💧
+          </div>
+</div>
+</div>
+<!-- 地表阴影与成长状态小标 -->
+<div class="w-20 h-1.5 bg-emerald-200/80 rounded-full blur-[0.5px] mt-1"></div>
+<span class="text-[10px] font-bold text-emerald-800 bg-emerald-100/70 px-2.5 py-0.5 rounded-full mt-1">复习拼音 · 茁壮成长中</span>
+</div>
+<!-- 底部：高集成紧凑成长进度舱 -->
+<div class="relative z-10 bg-white/95 backdrop-blur-sm px-3 py-2 rounded-2xl border border-emerald-100/80 shadow-xs">
+<div class="flex items-center justify-between text-xs mb-1">
+<div class="flex items-center gap-1 text-emerald-700 font-bold text-[11px]">
+<span class="material-symbols-outlined text-[13px]" style="font-variation-settings: 'FILL' 1;">water_drop</span>
+<span class="">还需 85% 就能结果啦！</span>
+</div>
+<div class="flex items-baseline gap-0.5">
+<span class="text-[10px] text-slate-400 font-medium">已达</span>
+<span class="font-num font-extrabold text-xs text-emerald-600">15%</span>
+</div>
+</div>
+<!-- 胶囊进度条 -->
+<div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/50">
+<div class="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-700 shadow-xs" style="width: 15%;"></div>
+</div>
+<!-- 精简标签：已打卡 14/100 天 + 历史记录入口 -->
+<div class="flex items-center justify-between mt-1 text-[10px] text-slate-500 font-medium px-0.5">
+<span class="flex items-center gap-1 font-bold text-emerald-700">
+<span class="material-symbols-outlined text-[12px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="">已打卡 14 / 100 天</span>
+</span>
+<button class="text-slate-400 hover:text-emerald-600 flex items-center text-[10px] transition-colors">
+<span class="">记录</span>
+<span class="material-symbols-outlined text-[12px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- 4. 底部即时行动区 (Call To Action: 保证首屏一键直达) -->
+<div class="flex flex-col gap-1.5 flex-shrink-0 pt-0.5">
+<!-- 提示文案与日期选择器 -->
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-1 text-slate-700">
+<span class="text-sm">🌱</span>
+<span class="text-xs font-bold text-slate-700">浇水时间到！小树正在长大</span>
+</div>
+<!-- 日期选择器 -->
+<button class="flex items-center gap-1 bg-white hover:bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-full text-slate-700 text-xs font-bold shadow-xs active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[13px] text-emerald-600">calendar_today</span>
+<span class="">打卡: 今天</span>
+<span class="material-symbols-outlined text-[14px] text-slate-400">arrow_drop_down</span>
+</button>
+</div>
+<!-- 醒目打卡主按钮与补打卡并排 -->
+<div class="flex items-center gap-2">
+<!-- 立即打卡大按钮 (弹性绿色渐变高光、呼吸动效) -->
+<button class="flex-1 bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 text-white py-3.5 px-4 rounded-2xl font-black text-base shadow-[0_8px_20px_rgba(16,185,129,0.36)] btn-breathe active:scale-[0.98] transition-all flex items-center justify-center gap-2 border-t border-emerald-400/40">
+<span class="material-symbols-outlined text-[22px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="tracking-wide">立即打卡</span>
+</button>
+<!-- 补打卡轻量入口 -->
+<button class="flex flex-col items-center justify-center bg-white hover:bg-emerald-50/50 border border-emerald-200 text-emerald-700 px-3.5 py-2 rounded-2xl active:scale-95 transition-all shadow-xs min-h-[50px]">
+<span class="material-symbols-outlined text-[18px]">edit_calendar</span>
+<span class="text-[11px] font-bold whitespace-nowrap mt-0.5">补打卡</span>
+</button>
+</div>
+</div>
+</main>
+<!-- 5. 底部标配导航栏 (成长树高亮、全景锁底) -->
+<nav class="bg-white border-t border-slate-100 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] px-3 pt-1.5 pb-3 flex-shrink-0 z-20">
+<div class="flex justify-around items-center max-w-sm mx-auto">
+<!-- 任务 -->
+<a class="flex flex-col items-center justify-center text-slate-400 hover:text-emerald-600 transition-colors py-1 px-3" href="#">
+<span class="material-symbols-outlined text-[22px]">assignment</span>
+<span class="text-[10px] font-bold mt-0.5">任务</span>
+</a>
+<!-- 成长树 (高亮) -->
+<a class="flex flex-col items-center justify-center text-emerald-600 bg-emerald-50/80 rounded-2xl py-1 px-3.5 transition-all scale-105" href="#">
+<span class="material-symbols-outlined text-[22px]" style="font-variation-settings: 'FILL' 1;">potted_plant</span>
+<span class="text-[10px] font-black mt-0.5">成长树</span>
+</a>
+<!-- 勋章 -->
+<a class="flex flex-col items-center justify-center text-slate-400 hover:text-emerald-600 transition-colors py-1 px-3" href="#">
+<span class="material-symbols-outlined text-[22px]">military_tech</span>
+<span class="text-[10px] font-bold mt-0.5">勋章</span>
+</a>
+<!-- 家长中心 -->
+<a class="flex flex-col items-center justify-center text-slate-400 hover:text-emerald-600 transition-colors py-1 px-3" href="#">
+<span class="material-symbols-outlined text-[22px]">family_restroom</span>
+<span class="text-[10px] font-bold mt-0.5">家长中心</span>
+</a>
+</div>
+</nav>
+
+
+</body></html>

@@ -133,15 +133,19 @@ export default function FruitsHistory() {
                     key={item.id}
                     className="flex items-center gap-3 bg-white dark:bg-[var(--bg-surface)] rounded-2xl px-4 py-3 shadow-sm transition-colors"
                   >
-                    {/* 目标图标 */}
-                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${getIconColor(index)}`}>
-                      <Icon name={item.goal_icon || 'check_circle'} className="text-xl leading-none" />
+                    {/* 来源图标 */}
+                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${item.source === 'gift' ? 'bg-primary/10 text-primary' : getIconColor(index)}`}>
+                      <Icon name={item.source === 'gift' ? 'redeem' : (item.goal_icon || 'check_circle')} className="text-xl leading-none" />
                     </div>
                     {/* 任务信息 */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <p className="text-sm font-bold text-slate-900 truncate">{item.title}</p>
-                        {item.is_shared && (
+                        {item.source === 'gift' ? (
+                          <span className="inline-flex items-center gap-0.5 shrink-0 bg-primary/10 text-primary text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none">
+                            家长赠送
+                          </span>
+                        ) : item.is_shared && (
                           <span className="inline-flex items-center gap-0.5 shrink-0 bg-blue-100 text-blue-500 text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none">
                             <Icon name="group" />
                             共享

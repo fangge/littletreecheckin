@@ -409,6 +409,19 @@ router.get('/:childId/fruits-history', authMiddleware, async (req: AuthRequest, 
     return;
   }
 
+  const { data: gifts, error: giftsError } = await supabase
+    .from('fruit_gifts')
+    .select('id, fruits_amount, reason, created_at')
+    .eq('child_id', childId)
+    .eq('parent_id', req.user!.id)
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  if (giftsError) {
+    res.status(500).json({ error: '获取果实获取记录失败' });
+    return;
+  }
+
   // 找出每个共享目标中最新的打卡记录 ID（按 checkin_time 降序，第一条即最新）
   const sharedGoalLatestTaskMap = new Map<string, string>(); // goal_id -> task_id
   for (const task of (tasks || []) as Record<string, any>[]) {
@@ -418,7 +431,7 @@ router.get('/:childId/fruits-history', authMiddleware, async (req: AuthRequest, 
     }
   }
 
-  const items = (tasks || []).map((task: Record<string, any>) => {
+  const taskItems = (tasks || []).map((task: Record<string, any>) => {
     const isShared = task.goals?.is_shared ?? false;
     const treeCompleted = task.trees?.status === 'completed';
     const isLatestForSharedGoal = sharedGoalLatestTaskMap.get(task.goal_id) === task.id;
@@ -434,8 +447,25 @@ router.get('/:childId/fruits-history', authMiddleware, async (req: AuthRequest, 
       bonus_fruits: showFruits ? (task.bonus_fruits ?? 0) : 0,
       goal_icon: task.goals?.icon ?? null,
       is_shared: isShared,
+      source: 'task' as const,
     };
   });
+
+  const giftItems = (gifts || []).map(gift => ({
+    id: gift.id,
+    title: gift.reason,
+    checkin_time: gift.created_at,
+    fruits_earned: gift.fruits_amount,
+    bonus_fruits: 0,
+    goal_icon: 'redeem',
+    is_shared: false,
+    source: 'gift' as const,
+    gift_reason: gift.reason,
+  }));
+
+  const items = [...taskItems, ...giftItems]
+    .sort((a, b) => new Date(b.checkin_time).getTime() - new Date(a.checkin_time).getTime())
+    .slice(0, 200);
 
   res.json({ data: items, fruits_balance: child.fruits_balance });
 });

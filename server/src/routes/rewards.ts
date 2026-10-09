@@ -207,6 +207,72 @@ router.get('/children/:childId/fruits', authMiddleware, async (req: AuthRequest,
   res.json({ data: { fruits_balance: child.fruits_balance } });
 });
 
+// POST /api/v1/rewards/gift-fruits
+router.post('/gift-fruits', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  const parentId = req.user?.id;
+  const { child_ids, fruits_amount, reason } = req.body as {
+    child_ids?: unknown;
+    fruits_amount?: unknown;
+    reason?: unknown;
+  };
+
+  if (!parentId) {
+    res.status(401).json({ error: '认证已过期，请重新登录' });
+    return;
+  }
+
+  if (!Array.isArray(child_ids) || child_ids.length === 0 || child_ids.some(id => typeof id !== 'string' || !id.trim())) {
+    res.status(400).json({ error: '至少选择一个孩子' });
+    return;
+  }
+
+  const childIds = [...new Set(child_ids as string[])];
+  const fruitsAmount = Number(fruits_amount);
+  const trimmedReason = typeof reason === 'string' ? reason.trim() : '';
+
+  if (!Number.isSafeInteger(fruitsAmount) || fruitsAmount <= 0) {
+    res.status(400).json({ error: '赠送果实数必须是大于0的整数' });
+    return;
+  }
+
+  if (trimmedReason.length < 1 || trimmedReason.length > 200) {
+    res.status(400).json({ error: '赠送原因长度必须为1到200个字符' });
+    return;
+  }
+
+  const { data, error } = await supabase.rpc('gift_fruits_rpc', {
+    p_parent_id: parentId,
+    p_child_ids: childIds,
+    p_fruits_amount: fruitsAmount,
+    p_reason: trimmedReason,
+  });
+
+  if (error || !data?.[0]) {
+    console.error('赠送果实失败:', error);
+    const message = error?.message?.includes('无权操作')
+      ? '存在无权操作的孩子'
+      : error?.message?.includes('至少选择')
+        ? '至少选择一个孩子'
+        : error?.message?.includes('赠送原因')
+          ? '赠送原因长度必须为1到200个字符'
+          : '赠送果实失败';
+    res.status(error?.message?.includes('无权操作') || error?.message?.includes('至少选择') || error?.message?.includes('赠送原因') ? 400 : 500)
+      .json({ error: message });
+    return;
+  }
+
+  const result = data[0] as { gift_count: number; total_fruits: number; child_ids: string[] };
+  res.status(201).json({
+    data: {
+      gift_count: result.gift_count,
+      fruits_amount: fruitsAmount,
+      total_fruits: result.total_fruits,
+      child_ids: result.child_ids,
+    },
+    message: `已为 ${result.gift_count} 个孩子各增加 ${fruitsAmount} 个果实`,
+  });
+});
+
 // GET /api/v1/rewards/cash/settings
 router.get('/cash/settings', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   if (!req.user?.id) {

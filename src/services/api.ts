@@ -264,6 +264,8 @@ export interface FruitsHistoryItem {
   bonus_fruits: number;
   goal_icon?: string | null;
   is_shared?: boolean;
+  source?: 'task' | 'gift';
+  gift_reason?: string;
 }
 
 // ============================================================
@@ -497,6 +499,20 @@ export const rewardsApi = {
 
   getFruits: (childId: string) =>
     request<{ data: { fruits_balance: number } }>(`/api/v1/rewards/children/${childId}/fruits`),
+
+  giftFruits: (childIds: string[], fruitsAmount: number, reason: string) =>
+    request<{
+      data: {
+        gift_count: number;
+        fruits_amount: number;
+        total_fruits: number;
+        child_ids: string[];
+      };
+      message: string;
+    }>('/api/v1/rewards/gift-fruits', {
+      method: 'POST',
+      body: JSON.stringify({ child_ids: childIds, fruits_amount: fruitsAmount, reason }),
+    }),
 
   redeem: (rewardId: string, childId: string, quantity = 1) =>
     request<{ data: { remaining_balance: number }; message: string }>(

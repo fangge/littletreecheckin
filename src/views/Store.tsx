@@ -48,7 +48,7 @@ const getRewardLimitSummary = (reward: RewardData) => {
 
 export default function Store() {
   const navigate = useNavigate();
-  const { user, currentChild, setCurrentChild, refreshUser } = useAuth();
+  const { user, currentChild, setCurrentChild, refreshUser, isChildMode } = useAuth();
   const [selectedChild, setSelectedChild] = useState<Child | null>(currentChild);
   const [rewards, setRewards] = useState<RewardData[]>([]);
   const [activeCategory, setActiveCategory] = useState('');
@@ -64,6 +64,11 @@ export default function Store() {
   const [showCashModal, setShowCashModal] = useState(false);
   const [isCashRedeeming, setIsCashRedeeming] = useState(false);
   const [completedCashAmount, setCompletedCashAmount] = useState(0);
+  const [showGiftModal, setShowGiftModal] = useState(false);
+  const [giftFruitsInput, setGiftFruitsInput] = useState('');
+  const [giftReason, setGiftReason] = useState('');
+  const [giftChildIds, setGiftChildIds] = useState<string[]>([]);
+  const [isGiftSubmitting, setIsGiftSubmitting] = useState(false);
 
   const cashFruits = parseInt(cashFruitsInput, 10);
   const cashPreview = cashSetting && !isNaN(cashFruits)
@@ -76,6 +81,8 @@ export default function Store() {
       ))
     : 0;
   const redeemTotal = selectedReward ? selectedReward.price * redeemQuantity : 0;
+  const giftFruits = Number.parseInt(giftFruitsInput, 10);
+  const giftReasonTrimmed = giftReason.trim();
 
   const handleSelectChild = (child: Child) => {
     setSelectedChild(child);
@@ -228,6 +235,65 @@ export default function Store() {
     setShowCashModal(false);
   };
 
+  const handleOpenGiftModal = () => {
+    if (isChildMode) {
+      alert('儿童模式下不能赠送果实');
+      return;
+    }
+    const children = user?.children || [];
+    if (children.length === 0) {
+      alert('请先添加孩子');
+      return;
+    }
+    setGiftFruitsInput('');
+    setGiftReason('');
+    setGiftChildIds(currentChild ? [currentChild.id] : [children[0].id]);
+    setShowGiftModal(true);
+  };
+
+  const handleCloseGiftModal = () => {
+    if (isGiftSubmitting) return;
+    setShowGiftModal(false);
+  };
+
+  const handleToggleGiftChild = (childId: string) => {
+    setGiftChildIds(ids => ids.includes(childId)
+      ? ids.filter(id => id !== childId)
+      : [...ids, childId]);
+  };
+
+  const handleConfirmGift = async () => {
+    if (giftChildIds.length === 0) {
+      alert('请至少选择一个孩子');
+      return;
+    }
+    if (!Number.isSafeInteger(giftFruits) || giftFruits <= 0) {
+      alert('请输入大于0的整数果实数');
+      return;
+    }
+    if (!giftReasonTrimmed || giftReasonTrimmed.length > 200) {
+      alert('请输入1到200个字符的赠送原因');
+      return;
+    }
+
+    setIsGiftSubmitting(true);
+    try {
+      const res = await rewardsApi.giftFruits(giftChildIds, giftFruits, giftReasonTrimmed);
+      setShowGiftModal(false);
+      await Promise.all([fetchData(), refreshUser()]);
+      setGiftFruitsInput('');
+      setGiftReason('');
+      setGiftChildIds([]);
+      setTimeout(() => {
+        alert(res.message || '果实赠送成功！');
+      }, 100);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '赠送果实失败');
+    } finally {
+      setIsGiftSubmitting(false);
+    }
+  };
+
   return (
     <PullToRefresh onRefresh={handleRefresh}>
       <motion.div
@@ -371,6 +437,24 @@ export default function Store() {
           </div>
         </div>
 
+        {/* 家长赠送果实 */}
+        <button
+          type="button"
+          onClick={handleOpenGiftModal}
+          disabled={isChildMode || !user?.children?.length}
+          className="mt-4 flex w-full items-center gap-4 rounded-2xl border border-primary/15 bg-[#f7fcf9] p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-[var(--bg-surface)]"
+          aria-label="家长赠送果实"
+        >
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <Icon name="redeem" className="text-2xl" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-bold text-slate-900 dark:text-[var(--text-primary)]">家长赠送果实</span>
+            <span className="mt-1 block text-xs text-slate-500 dark:text-[var(--text-secondary)]">一次选择多个孩子，输入数量和赠送原因</span>
+          </span>
+          <Icon name="chevron_right" className="shrink-0 text-primary" />
+        </button>
+
         {/* 分类筛选 */}
         <div className="mt-8 flex gap-3 overflow-x-auto pb-2 no-scrollbar">
           {CATEGORIES.map(cat => (
@@ -430,6 +514,142 @@ export default function Store() {
           </div>
         )}
       </div>
+
+      {/* 赠送果实弹窗 */}
+      <AnimatePresence>
+        {showGiftModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+            onClick={handleCloseGiftModal}
+          >
+            <motion.div
+              initial={{ scale: 0.94, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.94, opacity: 0 }}
+              className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl dark:bg-[var(--bg-surface)]"
+              onClick={event => event.stopPropagation()}
+            >
+              <div className="flex items-start gap-3">
+                <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <Icon name="redeem" className="text-2xl" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-[var(--text-primary)]">家长赠送果实</h3>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-[var(--text-secondary)]">每位选中的孩子都会获得相同数量</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCloseGiftModal}
+                  disabled={isGiftSubmitting}
+                  className="flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200 disabled:opacity-50 dark:bg-[var(--bg-card)]"
+                  aria-label="关闭赠送果实弹窗"
+                >
+                  <Icon name="close" />
+                </button>
+              </div>
+
+              <div className="mt-6">
+                <div className="mb-2 flex items-center justify-between">
+                  <label htmlFor="gift-fruits-input" className="text-sm font-bold text-slate-700 dark:text-[var(--text-primary)]">赠送果实数</label>
+                  <span className="text-xs text-slate-400">正整数</span>
+                </div>
+                <input
+                  id="gift-fruits-input"
+                  type="number"
+                  min="1"
+                  step="1"
+                  inputMode="numeric"
+                  value={giftFruitsInput}
+                  onChange={event => setGiftFruitsInput(event.target.value)}
+                  placeholder="例如 20"
+                  disabled={isGiftSubmitting}
+                  className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-base font-bold text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-primary focus:bg-white dark:border-[var(--border-color)] dark:bg-[var(--bg-card)] dark:text-[var(--text-primary)]"
+                />
+              </div>
+
+              <div className="mt-5">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm font-bold text-slate-700 dark:text-[var(--text-primary)]">选择孩子</span>
+                  <span className="text-xs font-semibold text-primary">已选 {giftChildIds.length} 人</span>
+                </div>
+                <div className="space-y-2">
+                  {(user?.children || []).map(child => {
+                    const isChecked = giftChildIds.includes(child.id);
+                    return (
+                      <label
+                        key={child.id}
+                        className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3 transition-colors ${isChecked ? 'border-primary/40 bg-primary/5' : 'border-slate-200 bg-white hover:border-primary/25 dark:border-[var(--border-color)] dark:bg-[var(--bg-card)]'}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleToggleGiftChild(child.id)}
+                          disabled={isGiftSubmitting}
+                          className="peer sr-only"
+                        />
+                        <span className={`flex size-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${isChecked ? 'border-primary bg-primary text-white' : 'border-slate-300 bg-white text-transparent dark:border-[var(--outline-color)] dark:bg-[var(--bg-surface)]'}`}>
+                          <Icon name="check" className="text-base" />
+                        </span>
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                          <Icon name={child.gender === 'female' ? 'face_3' : 'face'} />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-bold text-slate-900 dark:text-[var(--text-primary)]">{child.name}</span>
+                          <span className="mt-0.5 block text-xs text-slate-500 dark:text-[var(--text-secondary)]">当前余额 {child.fruits_balance.toLocaleString()} 🍎</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mt-5">
+                <label htmlFor="gift-reason-input" className="mb-2 block text-sm font-bold text-slate-700 dark:text-[var(--text-primary)]">赠送原因</label>
+                <textarea
+                  id="gift-reason-input"
+                  value={giftReason}
+                  onChange={event => setGiftReason(event.target.value)}
+                  maxLength={200}
+                  rows={3}
+                  placeholder="例如：周末表现很棒"
+                  disabled={isGiftSubmitting}
+                  className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-primary focus:bg-white dark:border-[var(--border-color)] dark:bg-[var(--bg-card)] dark:text-[var(--text-primary)]"
+                />
+                <div className="mt-1 text-right text-xs text-slate-400">{giftReason.length}/200</div>
+              </div>
+
+              <div className="mt-5 flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleCloseGiftModal}
+                  disabled={isGiftSubmitting}
+                  className="flex-1 rounded-2xl bg-slate-100 py-3 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-200 disabled:opacity-50 dark:bg-[var(--bg-card)] dark:text-[var(--text-secondary)]"
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmGift}
+                  disabled={isGiftSubmitting || giftChildIds.length === 0}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-primary py-3 text-sm font-bold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isGiftSubmitting ? (
+                    <>
+                      <Icon name="progress_activity" className="animate-spin text-base" />
+                      赠送中...
+                    </>
+                  ) : (
+                    '确认赠送'
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 兑换确认弹窗 */}
       <AnimatePresence>

@@ -2,13 +2,13 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
 import { usePendingTasks } from '../contexts/PendingTasksContext';
 import Icon from '../components/Icon';
 import {
+  childrenApi,
   tasksApi,
   treesApi,
-  medalsApi, rewardsApi,
+  medalsApi,
   TreeData,
   TaskData,
   GoalData,
@@ -22,7 +22,6 @@ import PullToRefresh from '../components/PullToRefresh';
 export default function CheckIn() {
   const navigate = useNavigate();
   const { user, currentChild, setCurrentChild } = useAuth();
-  const { isDark } = useTheme();
   const { refreshPendingCount } = usePendingTasks();
   // 获取 UTC+8 今天的日期字符串 YYYY-MM-DD
   const getUTC8Today = (): string => {
@@ -58,6 +57,8 @@ export default function CheckIn() {
   const [batchError, setBatchError] = useState('');
   // 果实余额
   const [fruitsBalance, setFruitsBalance] = useState(0);
+  const [todayFruitsEarned, setTodayFruitsEarned] = useState(0);
+  const dateInputRef = useRef<HTMLInputElement>(null);
   // 打卡后待展示的新勋章（等 CelebrationPopup 关闭后再展示）
   const pendingNewMedalsRef = useRef<MedalData[]>([]);
 
@@ -68,15 +69,28 @@ export default function CheckIn() {
     setIsLoading(true);
     try {
       // 并行获取全部树木（含已完成）、今日任务和目标列表
-      const [treesRes, tasksRes, goalsRes] = await Promise.all([
+      const [treesRes, tasksRes, goalsRes, fruitsHistoryRes] = await Promise.all([
         treesApi.list(currentChild.id),
         tasksApi.list(currentChild.id),
-        treesApi.listGoals(currentChild.id)
+        treesApi.listGoals(currentChild.id),
+        childrenApi.getFruitsHistory(currentChild.id),
       ]);
 
       const activeTrees = treesRes.data.filter(tree => tree.status !== 'completed');
       setTrees(activeTrees);
       setGoals(goalsRes.data);
+      setFruitsBalance(fruitsHistoryRes.fruits_balance);
+      const today = getUTC8Today();
+      setTodayFruitsEarned(
+        fruitsHistoryRes.data
+          .filter(item => {
+            const utc8Offset = 8 * 60 * 60 * 1000;
+            return new Date(new Date(item.checkin_time).getTime() + utc8Offset)
+              .toISOString()
+              .split('T')[0] === today;
+          })
+          .reduce((total, item) => total + item.fruits_earned + item.bonus_fruits, 0)
+      );
       // 保存全量任务数据，供切换树时复用（避免重复网络请求）
       setAllTasks(tasksRes.data);
       if (activeTrees.length > 0) {
@@ -123,14 +137,6 @@ export default function CheckIn() {
   useEffect(() => {
     preloadTreeGifs();
   }, []);
-
-  // 获取果实余额
-  useEffect(() => {
-    if (!currentChild) return;
-    rewardsApi.getFruits(currentChild.id)
-      .then(res => setFruitsBalance(res.data.fruits_balance))
-      .catch(() => {});
-  }, [currentChild]);
 
   // 初始化已解锁勋章基准集合，避免首次打卡时把历史勋章误判为新解锁
   useEffect(() => {
@@ -430,50 +436,53 @@ export default function CheckIn() {
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="flex-1 flex flex-col overflow-x-hidden pb-32 lg:pb-8 w-full"
+          className="flex min-h-0 w-full flex-1 flex-col overflow-x-hidden bg-[#f2f7f3] pb-32 dark:bg-[#0f172a] lg:pb-8"
         >
-          <header className="w-full bg-background-light/80 dark:bg-[var(--bg-primary)]/80 backdrop-blur-md sticky top-0 z-10 px-3 lg:max-w-xl lg:mx-auto transition-colors">
-            <div className="flex items-center py-4 justify-between">
-              <button
-                onClick={() => navigate('/profile')}
-                className="text-slate-900 dark:text-[var(--text-primary)] flex size-12 shrink-0 items-center justify-start hover:text-primary transition-colors"
-                aria-label="设置"
-              >
-                <Icon name="settings" className="text-2xl" />
-              </button>
-              <h2 className="text-slate-900 dark:text-[var(--text-primary)] text-lg font-bold leading-tight tracking-tight flex-1 text-center font-display">
-                {currentChild ? `${currentChild.name}的打卡` : '每日打卡'}
-              </h2>
-              <div className="flex w-12 items-center justify-end">
+          <header className="sticky top-0 z-10 w-full bg-transparent transition-colors">
+            <div className="mx-auto flex max-w-md items-center justify-between px-4 pb-2 pt-3">
+              {user?.children && user.children.length > 1 ? (
+                <div className="flex max-w-[70%] items-center gap-1 overflow-x-auto rounded-full border border-emerald-100 bg-white p-1 shadow-sm no-scrollbar dark:border-emerald-900/50 dark:bg-[var(--bg-surface)]">
+                  {user.children.map((child) => (
+                    <button
+                      key={child.id}
+                      className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-all ${
+                        currentChild?.id === child.id
+                          ? 'bg-primary text-white shadow-sm'
+                          : 'text-slate-500 hover:bg-primary/5 dark:text-[var(--text-secondary)]'
+                      }`}
+                      onClick={() => setCurrentChild(child)}
+                      aria-label={`切换到${child.name}`}
+                    >
+                      <Icon name={child.gender === 'female' ? 'face_3' : 'face'} className="text-sm" />
+                      {child.name}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-slate-900 dark:text-[var(--text-primary)]">
+                  <span className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <Icon name={currentChild?.gender === 'female' ? 'face_3' : 'face'} className="text-xl" />
+                  </span>
+                  <span className="text-base font-extrabold">{currentChild?.name || '每日打卡'}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => navigate('/messages')}
-                  className="flex items-center justify-center rounded-full size-10 bg-primary/10 text-primary"
+                  className="flex size-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-primary/30 hover:text-primary dark:border-[var(--border-color)] dark:bg-[var(--bg-surface)] dark:text-[var(--text-secondary)]"
                   aria-label="消息"
                 >
-                  <Icon name="mail" filled className="text-2xl" />
+                  <Icon name="notifications" size="17px" />
+                </button>
+                <button
+                  onClick={() => navigate('/profile')}
+                  className="flex size-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-primary/30 hover:text-primary dark:border-[var(--border-color)] dark:bg-[var(--bg-surface)] dark:text-[var(--text-secondary)]"
+                  aria-label="设置"
+                >
+                  <Icon name="settings" size="17px" />
                 </button>
               </div>
             </div>
-            {/* 多孩子切换器 */}
-            {user?.children && user.children.length > 1 && (
-              <div className="flex gap-2 pb-3 overflow-x-auto no-scrollbar">
-                {user.children.map((child) => (
-                  <button
-                    key={child.id}
-                    className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
-                      currentChild?.id === child.id
-                        ? 'bg-primary text-white shadow-sm'
-                        : 'bg-white dark:bg-[var(--bg-card)] border border-slate-200 dark:border-[var(--border-color)] text-slate-600 dark:text-[var(--text-secondary)] hover:border-primary/40'
-                    }`}
-                    onClick={() => setCurrentChild(child)}
-                    aria-label={`切换到${child.name}`}
-                  >
-                    <Icon name={child.gender === 'female' ? 'face_3' : 'face'} className="text-sm" />
-                    {child.name}
-                  </button>
-                ))}
-              </div>
-            )}
           </header>
 
           {isLoading ? (
@@ -494,349 +503,152 @@ export default function CheckIn() {
               </button>
             </div>
           ) : (
-            <div className="w-full space-y-4 pb-4 px-3">
-              {/* 树木选择 */}
-              {trees.length > 1 && (
-                <div className="w-full max-w-sm mx-auto">
-                  <label className="relative flex items-center gap-2 px-4 py-3 bg-white dark:bg-[var(--bg-card)] border border-slate-200 dark:border-[var(--border-color)] rounded-2xl shadow-sm cursor-pointer hover:border-primary/40 transition-colors">
-                    <Icon name="park" className="text-primary text-xl" />
-                    <span className="text-slate-600 dark:text-[var(--text-secondary)] text-sm font-medium">
-                      当前目标：
-                    </span>
-                    <span className="text-primary font-bold text-sm flex-1 flex items-center gap-1.5">
-                      {selectedTree?.name || '选择目标'}
-                      {currentGoal?.is_shared && (
-                        <button
-                          onClick={e => { e.stopPropagation(); navigate(`/shared-task/${currentGoal.id}`); }}
-                          className="flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400 whitespace-nowrap active:scale-95 transition-transform"
-                          aria-label="查看共享任务详情"
+            <div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col justify-between gap-4 px-4 py-1.5 sm:px-5">
+              <section className="relative shrink-0 overflow-hidden rounded-3xl border-t border-white/25 bg-gradient-to-br from-[#ff8b26] via-[#f7931e] to-[#ffb300] p-3.5 text-white shadow-[0_10px_24px_-6px_rgba(247,147,30,0.42)] dark:border dark:border-white/20 dark:from-[#ea6d00] dark:via-[#e67c13] dark:to-[#d97706] dark:shadow-[0_10px_24px_-6px_rgba(234,109,0,0.35)]">
+                <div className="pointer-events-none absolute -bottom-6 -right-5 size-28 rounded-full bg-white/15 blur-xl" />
+                <div className="pointer-events-none absolute -top-10 right-1/3 size-24 rounded-full bg-yellow-200/25 blur-lg" />
+                <div className="relative z-10 flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="relative inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/15 px-2.5 py-1 backdrop-blur-md dark:bg-black/25">
+                      <span className="size-1.5 rounded-full bg-amber-200" />
+                      <span className="text-[10px] font-medium text-amber-100">当前目标:</span>
+                      <span className="max-w-[9rem] truncate text-[11px] font-bold tracking-tight text-white">{selectedTree?.name || '选择目标'}</span>
+                      <Icon name="expand_more" className="text-[13px] text-amber-200" />
+                      {trees.length > 1 && (
+                        <select
+                          value={selectedTree?.id || ''}
+                          onChange={(e) => {
+                            const tree = trees.find(t => t.id === e.target.value);
+                            if (tree) setSelectedTree(tree);
+                          }}
+                          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                          aria-label="选择目标"
                         >
-                          <Icon name="group" className="text-[10px]" />
-                          共享
-                        </button>
+                          {sortedTrees.map((tree) => {
+                            const treeTask = getTaskForTreeOnDate(tree, selectedDate);
+                            const statusIcon = tree.status === 'completed' ? ' ✅已长成' : treeTask?.status === 'approved' ? ' ✓' : treeTask?.status === 'pending' ? ' ⏳' : '';
+                            return <option key={tree.id} value={tree.id}>{tree.name}{statusIcon}</option>;
+                          })}
+                        </select>
                       )}
-                    </span>
-                    {(() => {
-                      const treeTask = getTaskForTreeOnDate(
-                        selectedTree,
-                        selectedDate
-                      );
-                      return treeTask?.status === 'approved' ? (
-                        <span className="text-green-600 text-xs">✓</span>
-                      ) : treeTask?.status === 'pending' ? (
-                        <span className="text-amber-500 text-xs">⏳</span>
-                      ) : null;
-                    })()}
-                    <Icon name="expand_more" className="text-slate-400 dark:text-[var(--text-muted)] text-base" />
-                    <select
-                      value={selectedTree?.id || ''}
-                      onChange={(e) => {
-                        const tree = trees.find(
-                          (t) => t.id === e.target.value
-                        );
-                        if (tree) setSelectedTree(tree);
-                      }}
-                      className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                      aria-label="选择目标"
-                    >
-                      {sortedTrees.map((tree) => {
-                        const treeTask = getTaskForTreeOnDate(
-                          tree,
-                          selectedDate
-                        );
-                        const statusIcon =
-                          tree.status === 'completed'
-                            ? ' ✅已长成'
-                            : treeTask?.status === 'approved'
-                              ? ' ✓'
-                              : treeTask?.status === 'pending'
-                                ? ' ⏳'
-                                : '';
-                        return (
-                          <option key={tree.id} value={tree.id}>
-                            {tree.name}
-                            {statusIcon}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  </label>
+                    </div>
+                    <button onClick={() => navigate('/store')} className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-white/30 bg-white/20 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-sm transition hover:bg-white/30">
+                      兑换心愿 <Icon name="arrow_forward" className="text-[13px]" />
+                    </button>
+                  </div>
+                  <div className="mt-0.5 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl border border-white/40 bg-white/25 text-3xl shadow-inner dark:bg-white/20">🍎</div>
+                      <div>
+                        <div className="flex items-center gap-1 text-[10px] font-bold tracking-wider text-amber-100/90"><span>成长果实总数</span></div>
+                        <div className="flex items-baseline gap-1.5"><span className="text-4xl font-black leading-none tracking-tight drop-shadow-sm">{fruitsBalance.toLocaleString()}</span><span className="text-xs font-bold text-amber-100">颗</span></div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end justify-center rounded-xl border border-white/20 bg-white/15 px-2.5 py-1.5 backdrop-blur-sm dark:bg-black/20">
+                      <span className="text-[9px] font-medium text-amber-100">今日已获得</span>
+                      <div className="mt-0.5 flex items-center gap-0.5 text-sm font-extrabold leading-tight text-yellow-200"><Icon name="bolt" filled className="text-[14px]" /><span>+{todayFruitsEarned} 🍎</span></div>
+                    </div>
+                  </div>
                 </div>
-              )}
+              </section>
 
-              <div className="relative w-full max-w-sm mx-auto h-40 bg-gradient-to-b from-blue-100 dark:from-[#1a3d3a] to-primary/5 dark:to-[var(--bg-surface)] rounded-3xl overflow-hidden shadow-inner flex flex-col items-center justify-center border-4 border-white dark:border-[var(--bg-card)] transition-colors">
-                <div className="absolute top-8 left-8 text-yellow-400">
-                  <Icon name="light_mode" filled className="text-6xl" />
+              <section className="relative flex min-h-[175px] max-h-[240px] flex-1 flex-col justify-between overflow-hidden rounded-3xl border border-emerald-100 bg-white p-3 shadow-sm dark:border-[rgba(51,65,85,0.7)] dark:bg-[#131e30] dark:shadow-lg">
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-sky-50/60 via-emerald-50/30 to-emerald-100/40 dark:from-sky-950/20 dark:via-emerald-950/30 dark:to-[#0d1624]" />
+                <div className="relative z-10 flex items-center justify-between px-1">
+                  <div className="flex items-center gap-1 text-amber-500 dark:text-amber-400">
+                    <Icon name="sunny" filled size="20px" className="animate-sun" />
+                  </div>
+                  <div className="flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 shadow-sm dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-400">
+                    <span className="size-1.5 animate-ping rounded-full bg-emerald-500" />
+                    <span>{currentTree && (currentTree.progress ?? 0) >= 60 ? '茁壮成长阶段' : '幼苗成长阶段'}</span>
+                  </div>
+                  <div className="flex items-center text-sky-400">
+                    <Icon name="cloud" filled size="20px" />
+                  </div>
                 </div>
-                <div className="absolute top-12 right-12 text-white/80">
-                  <Icon name="cloud" filled className="text-4xl" />
-                </div>
-
-                <div className="relative z-0 mt-auto mb-8">
-                  {(() => {
-                    // 根据进度计算树的大小：0% → 64px，100% → 128px（已完成树木强制 100%）
-                    const isTreeCompleted = currentTree?.status === 'completed';
-                    const progress = isTreeCompleted ? 100 : (currentTree?.progress ?? 0);
-                    const minSize = 64;
-                    const maxSize = 128;
-                    const treeSize = Math.round(
-                      minSize + (maxSize - minSize) * (progress / 100)
-                    );
-                    const shadowWidth = Math.round(48 + 48 * (progress / 100));
-
-                    return (
-                      <>
-                        {currentTree?.image ? (
+                <div className="relative z-10 my-auto flex flex-col items-center justify-center">
+                  <div className="relative flex items-center justify-center">
+                    <div className="relative flex size-24 items-center justify-center rounded-full border-2 border-dashed border-emerald-400/50 bg-emerald-50/70 shadow-inner dark:border-emerald-500/50 dark:bg-emerald-950/40">
+                      {(() => {
+                        const treeSize = 64;
+                        return currentTree?.image ? (
                           <motion.div
                             animate={{ width: treeSize, height: treeSize }}
-                            transition={{
-                              type: 'spring',
-                              damping: 20,
-                              stiffness: 120
-                            }}
+                            transition={{ type: 'spring', damping: 20, stiffness: 120 }}
                             className="bg-contain bg-center bg-no-repeat"
-                            style={{
-                              backgroundImage: `url('${currentTree.image}')`
-                            }}
+                            style={{ backgroundImage: `url('${currentTree.image}')` }}
                           />
                         ) : (
                           <motion.div
                             animate={{ width: treeSize, height: treeSize }}
-                            transition={{
-                              type: 'spring',
-                              damping: 20,
-                              stiffness: 120
-                            }}
+                            transition={{ type: 'spring', damping: 20, stiffness: 120 }}
                             className="flex items-center justify-center"
                           >
-                            <Icon name="park" filled size={`${treeSize}px`} className="text-primary" />
+                            <Icon name="park" filled size="64px" className="text-emerald-600 dark:text-emerald-400" />
                           </motion.div>
-                        )}
-                        <motion.div
-                          animate={{ width: shadowWidth }}
-                          transition={{
-                            type: 'spring',
-                            damping: 20,
-                            stiffness: 120
-                          }}
-                          className="absolute -bottom-4 left-1/2 -translate-x-1/2 h-6 bg-slate-900/10 blur-md rounded-full"
-                        />
-                      </>
-                    );
-                  })()}
-                </div>
-
-                <div className="absolute bottom-0 w-full h-12 bg-primary/20 flex items-center justify-center gap-2">
-                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary/80">
-                    {currentTree ? currentTree.name : '幼苗阶段'}
-                  </p>
-                  {currentGoal?.is_shared && (
-                    <button
-                      onClick={() => navigate(`/shared-task/${currentGoal.id}`)}
-                      className="flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-400/30 text-amber-700 dark:text-amber-400 whitespace-nowrap active:scale-95 transition-transform"
-                      aria-label="查看共享任务详情"
-                    >
-                      <Icon name="group" className="text-[10px]" />
-                      共享
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div className="w-full max-w-sm mx-auto space-y-4">
-                {error && (
-                  <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
-                    {error}
+                        );
+                      })()}
+                      <span className="animate-float-slow absolute -right-1 -top-1 flex size-6 items-center justify-center rounded-full border-2 border-white bg-cyan-500 text-[10px] font-bold text-white shadow-md dark:border-[rgb(30,41,59)]">💧</span>
+                    </div>
                   </div>
-                )}
+                  <div className="mt-1 h-1.5 w-20 rounded-full bg-emerald-200/80 blur-[0.5px] dark:bg-emerald-500/30" />
+                  <span className="mt-1 rounded-full bg-emerald-100/70 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800 dark:border dark:border-emerald-500/30 dark:bg-emerald-950/70 dark:text-emerald-300">{currentTree?.name || '小树'} · 茁壮成长中</span>
+                </div>
+                <div className="relative z-10 rounded-2xl border border-emerald-100/80 bg-white/95 px-3 py-2 shadow-sm backdrop-blur-sm dark:border-[rgba(51,65,85,0.6)] dark:bg-[rgba(15,23,42,0.8)]">
+                  <div className="mb-1 flex items-center justify-between gap-3 text-xs font-bold">
+                    <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-300"><Icon name="water_drop" size="13px" />{currentTree ? `还需 ${100 - (currentTree.progress ?? 0)}% 就能结果啦！` : '坚持浇水，小树会长大'}</span>
+                    <span className="flex items-baseline gap-0.5 text-[10px] font-medium text-slate-400">已达 <b className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400">{selectedTree?.status === 'completed' ? 100 : (currentTree?.progress ?? 0)}%</b></span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full border border-slate-200/50 bg-slate-100 p-0.5 dark:border-[rgba(51,65,85,0.5)] dark:bg-[rgb(30,41,59)]">
+                    <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all duration-700 dark:from-emerald-500 dark:to-teal-400" style={{ width: `${selectedTree?.status === 'completed' ? 100 : (currentTree?.progress ?? 0)}%` }} />
+                  </div>
+                  <div className="mt-1 flex items-center justify-between px-0.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                    <span className="flex items-center gap-1 font-bold text-emerald-700 dark:text-emerald-300"><Icon name="check_circle" size="12px" />已打卡 {currentTree?.completed_days || 0} / {currentGoal?.duration_days || 0} 天</span>
+                    <button onClick={() => setShowCheckinHistory(true)} className="flex items-center text-[10px] text-slate-400 transition-colors hover:text-emerald-600">记录 <Icon name="chevron_right" size="12px" /></button>
+                  </div>
+                </div>
+              </section>
 
-                {/* 今日打卡状态提示 */}
+              <div className="flex shrink-0 flex-col gap-3 pt-0.5">
+                {error && <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">{error}</div>}
                 {statusInfo && (
-                  <div
-                    className={`px-4 py-3 border rounded-xl text-sm font-medium flex items-center justify-between gap-2 ${statusInfo.bg} ${statusInfo.color}`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Icon name={taskStatus === 'approved'
-                          ? 'check_circle'
-                          : taskStatus === 'rejected'
-                            ? 'cancel'
-                            : 'hourglass_empty'} className="text-lg" />
-                      {statusInfo.text}
-                    </div>
-                    {todayTask?.checkin_time && (
-                      <span className="text-xs opacity-70 shrink-0">
-                        {formatCheckinTime(todayTask.checkin_time)}
-                      </span>
-                    )}
+                  <div className={`flex items-center justify-between gap-2 rounded-2xl border px-4 py-3 text-sm font-medium ${statusInfo.bg} ${statusInfo.color}`}>
+                    <div className="flex items-center gap-2"><Icon name={taskStatus === 'approved' ? 'check_circle' : taskStatus === 'rejected' ? 'cancel' : 'hourglass_empty'} className="text-lg" />{statusInfo.text}</div>
+                    {todayTask?.checkin_time && <span className="shrink-0 text-xs opacity-70">{formatCheckinTime(todayTask.checkin_time)}</span>}
                   </div>
                 )}
 
-                <button
-                    onClick={() => navigate('/store')}
-                    className="w-full flex items-center justify-between p-4 bg-white dark:bg-[var(--bg-surface)] rounded-2xl shadow-sm border border-slate-100 dark:border-[var(--border-color)] active:scale-[0.98] transition-all hover:border-primary/30"
-                  >
-                    <span className="text-slate-600 dark:text-[var(--text-secondary)] text-sm font-medium">当前果实</span>
-                    <span className="text-primary font-extrabold text-lg">{fruitsBalance.toLocaleString()}</span>
-                  </button>
+                {currentGoal && <div className="flex flex-wrap gap-2 text-xs font-bold text-slate-500 dark:text-[var(--text-muted)]">
+                  <span className="rounded-full bg-white px-3 py-1.5 shadow-sm dark:bg-[var(--bg-surface)]">目标 {currentGoal.duration_days} 天</span>
+                  {currentGoal.duration_minutes > 0 && <span className="rounded-full bg-white px-3 py-1.5 shadow-sm dark:bg-[var(--bg-surface)]">每天 {currentGoal.duration_minutes >= 60 ? `${Math.round(currentGoal.duration_minutes / 60)} 小时` : `${currentGoal.duration_minutes} 分钟`}</span>}
+                  {currentGoal.daily_count && currentGoal.daily_count > 0 && <span className="rounded-full bg-white px-3 py-1.5 shadow-sm dark:bg-[var(--bg-surface)]">每天 {currentGoal.daily_count} 次</span>}
+                </div>}
 
-                <div className="flex flex-col gap-3 p-4 bg-white dark:bg-[var(--bg-surface)] rounded-2xl shadow-sm border border-slate-100 dark:border-[var(--border-color)] transition-colors">
-                  <div className="flex gap-6 justify-between items-center">
-                    <p className="text-slate-900 dark:text-[var(--text-primary)] text-base font-bold">
-                      成长进度
-                    </p>
-                    <span className="px-2 py-1 bg-primary/20 text-primary text-xs font-bold rounded-full">
-                      {selectedTree?.status === 'completed' ? 100 : (currentTree?.progress ?? 0)}%
-                    </span>
-                  </div>
-                  <div className="h-4 w-full rounded-full bg-slate-100 dark:bg-[var(--bg-card)] overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-primary shadow-[0_0_10px_rgba(13,242,13,0.5)] transition-all"
-                      style={{ width: `${selectedTree?.status === 'completed' ? 100 : (currentTree?.progress ?? 0)}%` }}
-                    />
-                  </div>
-                  <p className="text-primary text-sm font-medium flex items-center gap-2">
-                    <Icon name="water_drop" className="text-lg" />
-                    {currentTree
-                      ? selectedTree?.status === 'completed'
-                        ? (currentGoal?.is_shared && selectedTree?.completed_by_child_id && selectedTree.completed_by_child_id !== currentChild?.id
-                            ? (() => {
-                                const finisher = user?.children?.find(c => c.id === selectedTree.completed_by_child_id);
-                                return `🎉 ${finisher?.name || '小伙伴'} 已经完成了这个共享任务！你也可以继续努力，种下属于自己的小树吧~`;
-                              })()
-                            : '树木已长成！🎉 继续坚持好习惯，种下更多成长的种子吧。')
-                        : `还需 ${100 - (currentTree.progress ?? 0)}% 就能结果啦！`
-                      : '坚持完成好习惯，让你的幼苗长成参天大树吧。'}
-                  </p>
-                  {/* 目标详情：时长 / 每日时长 / 每日次数 / 已打卡天数 */}
+                <div className="flex items-center justify-between gap-2 px-1 pt-0.5">
+                  <div className="flex items-center gap-1.5 text-sm font-bold text-slate-700 dark:text-[var(--text-secondary)]"><span className="text-base">🌱</span>{!hasCheckedInToday ? (isBackfillDate ? '补上漏掉的浇水记录' : '浇水时间到！小树正在长大') : statusInfo?.text}</div>
                   <button
-                    onClick={() => setShowCheckinHistory(true)}
-                    className="flex items-center gap-1 text-xs font-bold text-primary/70 hover:text-primary active:scale-95 transition-all self-start"
+                    type="button"
+                    onClick={() => {
+                      const input = dateInputRef.current;
+                      if (input && typeof input.showPicker === 'function') input.showPicker();
+                      else input?.click();
+                    }}
+                    className="relative flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 active:scale-95 dark:border-[rgba(51,65,85,0.7)] dark:bg-[rgba(30,41,59,0.9)] dark:text-slate-200 dark:hover:bg-[rgba(51,65,85,0.9)]"
                   >
-                    <Icon name="history" className="text-sm" />
-                    查看打卡记录
+                    <Icon name="calendar_today" size="13px" className="text-emerald-600 dark:text-emerald-400" />
+                    <span className="dark:text-[var(--text-secondary)]">打卡: {formatDateDisplay(selectedDate)}</span>
+                    <Icon name="arrow_drop_down" size="14px" className="text-slate-400" />
+                    <input ref={dateInputRef} type="date" value={selectedDate} max={today} onChange={e => e.target.value && setSelectedDate(e.target.value)} className="pointer-events-none absolute size-0 opacity-0" aria-label="选择打卡日期" />
                   </button>
-                  {currentGoal && (
-                    <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-100 dark:border-[var(--border-color)]">
-                      <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-[var(--text-muted)] bg-slate-50 dark:bg-[var(--bg-card)] px-2 py-1 rounded-full">
-                        <Icon name="calendar_month" className="text-sm" />
-                        目标 {currentGoal.duration_days} 天
-                      </span>
-                      {currentGoal.duration_minutes > 0 && (
-                        <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-[var(--text-muted)] bg-slate-50 dark:bg-[var(--bg-card)] px-2 py-1 rounded-full">
-                          <Icon name="schedule" className="text-sm" />
-                          {currentGoal.duration_minutes >= 60
-                            ? `每天 ${Math.round(currentGoal.duration_minutes / 60)} 小时`
-                            : `每天 ${currentGoal.duration_minutes} 分钟`}
-                        </span>
-                      )}
-                      {currentGoal.daily_count &&
-                        currentGoal.daily_count > 0 && (
-                          <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-[var(--text-muted)] bg-slate-50 dark:bg-[var(--bg-card)] px-2 py-1 rounded-full">
-                            <Icon name="repeat" className="text-sm" />
-                            每天 {currentGoal.daily_count} 次
-                          </span>
-                        )}
-                      {/* 已打卡天数 */}
-                      <span className="flex items-center gap-1 text-xs text-primary bg-primary/10 px-2 py-1 rounded-full">
-                        <Icon name="check_circle" className="text-sm" />
-                        已打卡 {currentTree?.completed_days || 0} 天
-                      </span>
-                    </div>
-                  )}
                 </div>
 
-                <div className="text-center py-2">
-                  <h1 className="text-slate-900 dark:text-[var(--text-primary)] tracking-tight text-2xl font-extrabold leading-tight">
-                    {!hasCheckedInToday
-                        ? isBackfillDate
-                          ? '补打卡'
-                          : '浇水时间到！'
-                      : taskStatus === 'approved'
-                        ? `${isBackfillDate ? formatDateDisplay(selectedDate) : '今日'}已完成！🎉`
-                        : taskStatus === 'rejected'
-                          ? '需要重新打卡'
-                          : `${isBackfillDate ? formatDateDisplay(selectedDate) : '今日'}已打卡！`}
-                  </h1>
-                    <p className="text-slate-500 dark:text-[var(--text-secondary)] mt-2">
-                      {!hasCheckedInToday
-                          ? isBackfillDate
-                            ? `为 ${formatDateDisplay(selectedDate)} 补打卡，记录你的坚持！`
-                            : '坚持完成好习惯，让你的幼苗长成参天大树吧。'
-                      : taskStatus === 'approved'
-                        ? '家长已审核通过，树木正在成长！'
-                        : taskStatus === 'rejected'
-                          ? todayTask?.reject_reason ||
-                            '家长建议改进，重新打卡吧！'
-                          : '等待家长审核，继续加油！'}
-                  </p>
+                <div className="flex items-stretch gap-2">
+                  <button className={`flex min-h-[50px] flex-1 items-center justify-center gap-2 rounded-2xl border-t border-emerald-400/40 bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 px-4 py-3.5 text-base font-black text-white shadow-[0_8px_20px_rgba(16,185,129,0.36)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${canCheckin && !isChecking ? 'btn-breathe' : ''}`} onClick={handleCheckin} disabled={isChecking || !canCheckin} aria-label={isBackfillDate ? '补打卡' : '立即打卡'}>
+                    <Icon name={selectedTree?.status === 'completed' ? 'park' : 'check_circle'} size="22px" />
+                    {selectedTree?.status === 'completed' ? '树木已长成' : isChecking ? '打卡中...' : !canCheckin ? (taskStatus === 'approved' ? `${isBackfillDate ? formatDateDisplay(selectedDate) : '今日'}已完成` : '等待审核中') : taskStatus === 'rejected' ? '重新打卡' : isBackfillDate ? '补打卡' : '立即打卡'}
+                  </button>
+                  <button onClick={() => { setBatchDates([]); setBatchDateInput(today); setBatchError(''); setShowBatchCheckin(true); }} disabled={!selectedTree || isChecking || isBatchChecking} className="flex min-h-[50px] w-auto shrink-0 flex-col items-center justify-center rounded-2xl border border-emerald-200 bg-white px-3.5 py-2 text-xs font-bold text-emerald-700 shadow-sm transition hover:bg-emerald-50/50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 dark:border-[rgba(51,65,85,0.7)] dark:bg-[rgba(30,41,59,0.9)] dark:text-emerald-400 dark:hover:bg-[rgba(51,65,85,0.8)]"><Icon name="edit_calendar" size="18px" />补打卡</button>
                 </div>
-
-                {/* 打卡日期选择器 */}
-                <div className="flex items-center justify-center">
-                  <label className="relative flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-[var(--bg-card)] border border-slate-200 dark:border-[var(--border-color)] rounded-full shadow-sm cursor-pointer hover:border-primary/40 transition-colors">
-                    <Icon name="calendar_month" className="text-primary text-xl" />
-                    <span className="text-slate-600 dark:text-[var(--text-secondary)] text-sm font-medium">
-                      打卡日期：
-                    </span>
-                    <span className="text-primary font-bold text-sm">
-                      {formatDateDisplay(selectedDate)}
-                    </span>
-                    <Icon name="expand_more" className="text-slate-400 dark:text-[var(--text-muted)] text-base" />
-                    <input
-                      type="date"
-                      value={selectedDate}
-                      max={today}
-                      onChange={(e) => {
-                        if (e.target.value) setSelectedDate(e.target.value);
-                      }}
-                      className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                      aria-label="选择打卡日期"
-                    />
-                  </label>
-                </div>
-
-                <button
-                  onClick={() => {
-                    setBatchDates([]);
-                    setBatchDateInput(today);
-                    setBatchError('');
-                    setShowBatchCheckin(true);
-                  }}
-                  disabled={!selectedTree || isChecking || isBatchChecking}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-primary/30 text-primary font-bold text-sm hover:bg-primary/5 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Icon name="calendar_month" className="text-lg" />
-                  批量补打卡
-                </button>
-
-                <button
-                  className="w-full py-6 bg-primary text-background-dark text-xl font-extrabold rounded-2xl shadow-lg shadow-primary/30 active:scale-95 transition-transform flex items-center justify-center gap-3 disabled:opacity-60 disabled:cursor-not-allowed"
-                  onClick={handleCheckin}
-                  disabled={isChecking || !canCheckin}
-                  aria-label={isBackfillDate ? '补打卡' : '立即打卡'}
-                >
-                  {selectedTree?.status === 'completed' ? (
-                    <>
-                      <Icon name="park" className="text-3xl" />
-                      树木已长成 🌳
-                    </>
-                  ) : (
-                    <>
-                      <Icon name="check_circle" className="text-3xl" />
-                      {isChecking
-                        ? '打卡中...'
-                        : !canCheckin
-                          ? taskStatus === 'approved'
-                            ? `${isBackfillDate ? formatDateDisplay(selectedDate) : '今日'}已完成`
-                            : '等待审核中'
-                          : taskStatus === 'rejected'
-                            ? '重新打卡'
-                            : isBackfillDate
-                              ? `补打卡 · ${formatDateDisplay(selectedDate)}`
-                              : '立即打卡'}
-                    </>
-                  )}
-                </button>
               </div>
             </div>
           )}
