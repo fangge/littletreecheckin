@@ -35,11 +35,27 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
               </button>
             </div>
             <div className="overflow-y-auto max-h-[60vh] px-6 py-4 space-y-4">
-              {/* v4.5 */}
+              {/* v4.6 */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v4.5</span>
+                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v4.6</span>
                   <span className="text-sm text-slate-500 dark:text-[var(--text-muted)]">最新</span>
+                </div>
+                <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">家长赠送果实与赠送流水</h4>
+                <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
+                  果实商店新增家长赠送果实功能，支持填写赠送数量和原因，并一次选择多个孩子；赠送结果会同步记录并通知孩子。
+                </p>
+                <ul className="text-xs text-slate-500 dark:text-[var(--text-muted)] space-y-1 ml-2">
+                  <li>• 一次为多个孩子各增加相同数量的果实</li>
+                  <li>• 支持填写赠送原因，方便查看果实来源</li>
+                  <li>• 儿童模式下自动隐藏赠送操作权限</li>
+                  <li>• 果实获取记录新增家长赠送来源标识</li>
+                </ul>
+              </div>
+              {/* v4.5 */}
+              <div className="space-y-2 pt-4 border-t border-primary/5 dark:border-[var(--border-color)]">
+                <div className="flex items-center gap-2">
+                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v4.5</span>
                 </div>
                 <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">批量补打卡与成就统计优化</h4>
                 <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
