@@ -30,10 +30,11 @@ const formatCheckinTime = (isoStr: string): string => {
 
 export default function FruitsHistory() {
   const navigate = useNavigate();
-  const { currentChild } = useAuth();
+  const { currentChild, isChildMode, refreshUser } = useAuth();
   const [items, setItems] = useState<FruitsHistoryItem[]>([]);
   const [fruitsBalance, setFruitsBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!currentChild) return;
@@ -61,6 +62,22 @@ export default function FruitsHistory() {
   const handleRefresh = useCallback(async () => {
     await fetchData();
   }, [fetchData]);
+
+  const handleRevokeGift = async (item: FruitsHistoryItem) => {
+    if (item.source !== 'gift' || item.gift_status !== 'active' || revokingId) return;
+    if (!window.confirm(`确定撤回这次赠送的 ${item.fruits_earned} 个果实吗？`)) return;
+
+    setRevokingId(item.id);
+    try {
+      const res = await rewardsApi.revokeGift(item.id);
+      await Promise.all([fetchData(), refreshUser()]);
+      alert(res.message || '赠送已撤回');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '撤回赠送失败');
+    } finally {
+      setRevokingId(null);
+    }
+  };
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
@@ -123,15 +140,20 @@ export default function FruitsHistory() {
                 {items.map((item, index) => {
                   // 计算本条记录打卡后的余额（列表按时间降序，index=0 为最新）
                   const laterEarned = items.slice(0, index).reduce(
-                    (sum, it) => sum + it.fruits_earned + it.bonus_fruits, 0
+                    (sum, it) => sum + (it.source === 'gift' && it.gift_status === 'revoked'
+                      ? -it.fruits_earned
+                      : it.fruits_earned + it.bonus_fruits), 0
                   );
+                  const itemDelta = item.source === 'gift' && item.gift_status === 'revoked'
+                    ? -item.fruits_earned
+                    : item.fruits_earned + item.bonus_fruits;
                   const balanceAfter = fruitsBalance - laterEarned;
-                  const balanceBefore = balanceAfter - item.fruits_earned - item.bonus_fruits;
+                  const balanceBefore = balanceAfter - itemDelta;
 
                   return (
                   <div
                     key={item.id}
-                    className="flex items-center gap-3 bg-white dark:bg-[var(--bg-surface)] rounded-2xl px-4 py-3 shadow-sm transition-colors"
+                    className={`flex items-center gap-3 bg-white dark:bg-[var(--bg-surface)] rounded-2xl px-4 py-3 shadow-sm transition-colors ${item.source === 'gift' && item.gift_status === 'revoked' ? 'opacity-70' : ''}`}
                   >
                     {/* 来源图标 */}
                     <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${item.source === 'gift' ? 'bg-primary/10 text-primary' : getIconColor(index)}`}>
@@ -143,7 +165,7 @@ export default function FruitsHistory() {
                         <p className="text-sm font-bold text-slate-900 truncate">{item.title}</p>
                         {item.source === 'gift' ? (
                           <span className="inline-flex items-center gap-0.5 shrink-0 bg-primary/10 text-primary text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none">
-                            家长赠送
+                            {item.gift_status === 'revoked' ? '已撤回' : '家长赠送'}
                           </span>
                         ) : item.is_shared && (
                           <span className="inline-flex items-center gap-0.5 shrink-0 bg-blue-100 text-blue-500 text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none">
@@ -152,13 +174,16 @@ export default function FruitsHistory() {
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-slate-400 mt-0.5">{formatCheckinTime(item.checkin_time)}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {formatCheckinTime(item.checkin_time)}
+                        {item.source === 'gift' && item.gift_status === 'revoked' && item.revoked_at && ` · 撤回于 ${formatCheckinTime(item.revoked_at)}`}
+                      </p>
                     </div>
                     {/* 果实数 */}
                     <div className="flex flex-col items-end gap-0.5 shrink-0">
                       <div className="flex items-center gap-1">
-                        <span className="text-base font-extrabold text-orange-500">
-                          +{item.fruits_earned}
+                        <span className={`text-base font-extrabold ${item.source === 'gift' && item.gift_status === 'revoked' ? 'text-red-500' : 'text-orange-500'}`}>
+                          {item.source === 'gift' && item.gift_status === 'revoked' ? '-' : '+'}{item.fruits_earned}
                           {item.bonus_fruits > 0 && (
                             <span className="text-xs text-primary">(+{item.bonus_fruits})</span>
                           )}
@@ -168,6 +193,17 @@ export default function FruitsHistory() {
                       <p className="text-[10px] text-slate-400 leading-none">
                         {balanceBefore.toLocaleString()} → {balanceAfter.toLocaleString()}
                       </p>
+                      {item.source === 'gift' && item.gift_status === 'active' && !isChildMode && (
+                        <button
+                          type="button"
+                          onClick={() => handleRevokeGift(item)}
+                          disabled={revokingId === item.id}
+                          className="mt-1 inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-1 text-[10px] font-bold text-red-500 transition-colors hover:bg-red-100 disabled:opacity-50 dark:bg-red-900/20"
+                        >
+                          <Icon name="undo" className="text-xs" />
+                          {revokingId === item.id ? '撤回中' : '撤回赠送'}
+                        </button>
+                      )}
                     </div>
                   </div>
                   );

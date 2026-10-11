@@ -273,6 +273,171 @@ router.post('/gift-fruits', authMiddleware, async (req: AuthRequest, res: Respon
   });
 });
 
+// GET /api/v1/rewards/gift-templates
+router.get('/gift-templates', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  if (!req.user?.id) {
+    res.status(401).json({ error: '认证已过期，请重新登录' });
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from('fruit_gift_templates')
+    .select('id, reason, fruits_amount, created_at, updated_at')
+    .eq('parent_id', req.user.id)
+    .order('updated_at', { ascending: false });
+
+  if (error) {
+    res.status(500).json({ error: '获取赠送模板失败' });
+    return;
+  }
+
+  res.json({ data: data || [] });
+});
+
+// POST /api/v1/rewards/gift-templates
+router.post('/gift-templates', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  if (!req.user?.id) {
+    res.status(401).json({ error: '认证已过期，请重新登录' });
+    return;
+  }
+
+  const fruitsAmount = Number(req.body.fruits_amount);
+  const reason = typeof req.body.reason === 'string' ? req.body.reason.trim() : '';
+  if (!Number.isSafeInteger(fruitsAmount) || fruitsAmount <= 0) {
+    res.status(400).json({ error: '模板果实数必须是大于0的整数' });
+    return;
+  }
+  if (reason.length < 1 || reason.length > 200) {
+    res.status(400).json({ error: '模板理由长度必须为1到200个字符' });
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from('fruit_gift_templates')
+    .insert({ parent_id: req.user.id, fruits_amount: fruitsAmount, reason })
+    .select('id, reason, fruits_amount, created_at, updated_at')
+    .single();
+
+  if (error || !data) {
+    res.status(500).json({ error: '保存赠送模板失败' });
+    return;
+  }
+
+  res.status(201).json({ data, message: '赠送模板已保存' });
+});
+
+// PUT /api/v1/rewards/gift-templates/:templateId
+router.put('/gift-templates/:templateId', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  if (!req.user?.id) {
+    res.status(401).json({ error: '认证已过期，请重新登录' });
+    return;
+  }
+
+  const fruitsAmount = Number(req.body.fruits_amount);
+  const reason = typeof req.body.reason === 'string' ? req.body.reason.trim() : '';
+  if (!Number.isSafeInteger(fruitsAmount) || fruitsAmount <= 0) {
+    res.status(400).json({ error: '模板果实数必须是大于0的整数' });
+    return;
+  }
+  if (reason.length < 1 || reason.length > 200) {
+    res.status(400).json({ error: '模板理由长度必须为1到200个字符' });
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from('fruit_gift_templates')
+    .update({ fruits_amount: fruitsAmount, reason })
+    .eq('id', req.params.templateId)
+    .eq('parent_id', req.user.id)
+    .select('id, reason, fruits_amount, created_at, updated_at')
+    .maybeSingle();
+
+  if (error) {
+    res.status(500).json({ error: '更新赠送模板失败' });
+    return;
+  }
+  if (!data) {
+    res.status(404).json({ error: '赠送模板不存在' });
+    return;
+  }
+
+  res.json({ data, message: '赠送模板已更新' });
+});
+
+// DELETE /api/v1/rewards/gift-templates/:templateId
+router.delete('/gift-templates/:templateId', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  if (!req.user?.id) {
+    res.status(401).json({ error: '认证已过期，请重新登录' });
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from('fruit_gift_templates')
+    .delete()
+    .eq('id', req.params.templateId)
+    .eq('parent_id', req.user.id)
+    .select('id')
+    .maybeSingle();
+
+  if (error) {
+    res.status(500).json({ error: '删除赠送模板失败' });
+    return;
+  }
+  if (!data) {
+    res.status(404).json({ error: '赠送模板不存在' });
+    return;
+  }
+
+  res.json({ message: '赠送模板已删除' });
+});
+
+// PUT /api/v1/rewards/gift-fruits/:giftId/revoke
+router.put('/gift-fruits/:giftId/revoke', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  if (!req.user?.id) {
+    res.status(401).json({ error: '认证已过期，请重新登录' });
+    return;
+  }
+
+  const revokedReason = typeof req.body.reason === 'string' && req.body.reason.trim()
+    ? req.body.reason.trim()
+    : '家长撤回赠送';
+  if (revokedReason.length > 200) {
+    res.status(400).json({ error: '撤回原因不能超过200个字符' });
+    return;
+  }
+
+  const { data, error } = await supabase.rpc('revoke_fruit_gift_rpc', {
+    p_parent_id: req.user.id,
+    p_gift_id: req.params.giftId,
+    p_revoked_reason: revokedReason,
+  });
+  const result = Array.isArray(data) ? data[0] : data;
+
+  if (error || !result) {
+    const errorMessage = error?.message || '';
+    const message = errorMessage.includes('余额不足')
+      ? '孩子当前果实余额不足，无法撤回'
+      : errorMessage.includes('已撤回')
+        ? '该赠送记录已撤回'
+        : errorMessage.includes('不存在')
+          ? '赠送记录不存在'
+          : '撤回赠送失败';
+    const status = message === '撤回赠送失败' ? 500 : 400;
+    res.status(status).json({ error: message });
+    return;
+  }
+
+  res.json({
+    data: {
+      gift_id: result.gift_id,
+      child_id: result.child_id,
+      fruits_amount: result.fruits_amount,
+      remaining_balance: result.remaining_balance,
+    },
+    message: `已撤回 ${result.fruits_amount} 个果实`,
+  });
+});
+
 // GET /api/v1/rewards/cash/settings
 router.get('/cash/settings', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   if (!req.user?.id) {

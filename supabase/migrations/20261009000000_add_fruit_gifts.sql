@@ -56,9 +56,9 @@ BEGIN
   END IF;
 
   SELECT ARRAY(
-    SELECT DISTINCT requested_id
-    FROM unnest(COALESCE(p_child_ids, ARRAY[]::UUID[])) AS requested_id
-    ORDER BY requested_id
+    SELECT DISTINCT requested_child_id
+    FROM unnest(COALESCE(p_child_ids, ARRAY[]::UUID[])) AS requested(requested_child_id)
+    ORDER BY requested_child_id
   ) INTO v_child_ids;
 
   v_requested_count := COALESCE(cardinality(v_child_ids), 0);
@@ -110,3 +110,6 @@ BEGIN
     v_child_ids;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+REVOKE ALL ON FUNCTION public.gift_fruits_rpc(UUID, UUID[], INTEGER, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.gift_fruits_rpc(UUID, UUID[], INTEGER, TEXT) TO service_role;

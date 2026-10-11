@@ -265,7 +265,19 @@ export interface FruitsHistoryItem {
   goal_icon?: string | null;
   is_shared?: boolean;
   source?: 'task' | 'gift';
+  event_time?: string;
   gift_reason?: string;
+  gift_status?: 'active' | 'revoked';
+  revoked_at?: string | null;
+  revoked_reason?: string | null;
+}
+
+export interface FruitGiftTemplate {
+  id: string;
+  reason: string;
+  fruits_amount: number;
+  created_at: string;
+  updated_at: string;
 }
 
 // ============================================================
@@ -512,6 +524,40 @@ export const rewardsApi = {
     }>('/api/v1/rewards/gift-fruits', {
       method: 'POST',
       body: JSON.stringify({ child_ids: childIds, fruits_amount: fruitsAmount, reason }),
+    }),
+
+  listGiftTemplates: () =>
+    request<{ data: FruitGiftTemplate[] }>('/api/v1/rewards/gift-templates'),
+
+  createGiftTemplate: (data: { fruits_amount: number; reason: string }) =>
+    request<{ data: FruitGiftTemplate; message: string }>('/api/v1/rewards/gift-templates', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateGiftTemplate: (templateId: string, data: { fruits_amount: number; reason: string }) =>
+    request<{ data: FruitGiftTemplate; message: string }>(`/api/v1/rewards/gift-templates/${templateId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  deleteGiftTemplate: (templateId: string) =>
+    request<{ message: string }>(`/api/v1/rewards/gift-templates/${templateId}`, {
+      method: 'DELETE',
+    }),
+
+  revokeGift: (giftId: string, reason?: string) =>
+    request<{
+      data: {
+        gift_id: string;
+        child_id: string;
+        fruits_amount: number;
+        remaining_balance: number;
+      };
+      message: string;
+    }>(`/api/v1/rewards/gift-fruits/${giftId}/revoke`, {
+      method: 'PUT',
+      body: JSON.stringify({ reason }),
     }),
 
   redeem: (rewardId: string, childId: string, quantity = 1) =>

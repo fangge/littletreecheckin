@@ -131,6 +131,79 @@ CREATE POLICY "children_service_role" ON children
   WITH CHECK (true);
 
 -- ============================================================
+-- 三-A、家长赠送果实记录与模板
+-- ============================================================
+CREATE TABLE IF NOT EXISTS fruit_gifts (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  parent_id       UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  child_id        UUID NOT NULL REFERENCES children(id) ON DELETE CASCADE,
+  fruits_amount   INTEGER NOT NULL CHECK (fruits_amount > 0),
+  reason          TEXT NOT NULL CHECK (char_length(trim(reason)) BETWEEN 1 AND 200),
+  status          VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'revoked')),
+  revoked_at      TIMESTAMPTZ,
+  revoked_reason  TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_fruit_gifts_child_created_at
+  ON fruit_gifts(child_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_fruit_gifts_parent_status_created_at
+  ON fruit_gifts(parent_id, status, created_at DESC);
+
+ALTER TABLE fruit_gifts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "fruit_gifts_select_own" ON fruit_gifts
+  FOR SELECT TO authenticated
+  USING (
+    parent_id = (select auth.uid())
+    AND child_id IN (SELECT id FROM children WHERE parent_id = (select auth.uid()))
+  );
+
+CREATE POLICY "fruit_gifts_service_role" ON fruit_gifts
+  FOR ALL TO service_role
+  USING (true)
+  WITH CHECK (true);
+
+CREATE TABLE IF NOT EXISTS fruit_gift_templates (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  parent_id     UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  reason        TEXT NOT NULL CHECK (char_length(trim(reason)) BETWEEN 1 AND 200),
+  fruits_amount INTEGER NOT NULL CHECK (fruits_amount > 0),
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_fruit_gift_templates_parent_updated_at
+  ON fruit_gift_templates(parent_id, updated_at DESC);
+
+CREATE TRIGGER update_fruit_gift_templates_updated_at BEFORE UPDATE ON fruit_gift_templates
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE fruit_gift_templates ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "fruit_gift_templates_select_own" ON fruit_gift_templates
+  FOR SELECT TO authenticated
+  USING ((select auth.uid()) = parent_id);
+
+CREATE POLICY "fruit_gift_templates_insert_own" ON fruit_gift_templates
+  FOR INSERT TO authenticated
+  WITH CHECK ((select auth.uid()) = parent_id);
+
+CREATE POLICY "fruit_gift_templates_update_own" ON fruit_gift_templates
+  FOR UPDATE TO authenticated
+  USING ((select auth.uid()) = parent_id)
+  WITH CHECK ((select auth.uid()) = parent_id);
+
+CREATE POLICY "fruit_gift_templates_delete_own" ON fruit_gift_templates
+  FOR DELETE TO authenticated
+  USING ((select auth.uid()) = parent_id);
+
+CREATE POLICY "fruit_gift_templates_service_role" ON fruit_gift_templates
+  FOR ALL TO service_role
+  USING (true)
+  WITH CHECK (true);
+
+-- ============================================================
 -- 四、目标/习惯表
 -- ============================================================
 CREATE TABLE IF NOT EXISTS goals (
@@ -488,6 +561,103 @@ CREATE TABLE IF NOT EXISTS messages (
 
 CREATE INDEX IF NOT EXISTS idx_messages_child_id ON messages(child_id);
 CREATE INDEX IF NOT EXISTS idx_messages_is_read ON messages(is_read);
+
+-- 家长赠送果实事务函数
+CREATE OR REPLACE FUNCTION gift_fruits_rpc(
+  p_parent_id UUID,
+  p_child_ids UUID[],
+  p_fruits_amount INTEGER,
+  p_reason TEXT
+)
+RETURNS TABLE (gift_count INTEGER, total_fruits INTEGER, child_ids UUID[]) AS $$
+DECLARE
+  v_child_ids UUID[];
+  v_requested_count INTEGER;
+  v_owned_count INTEGER;
+  v_child_id UUID;
+  v_reason TEXT := trim(COALESCE(p_reason, ''));
+BEGIN
+  IF p_fruits_amount IS NULL OR p_fruits_amount <= 0 THEN
+    RAISE EXCEPTION '赠送果实数必须是大于0的整数';
+  END IF;
+  IF v_reason = '' OR char_length(v_reason) > 200 THEN
+    RAISE EXCEPTION '赠送原因长度必须为1到200个字符';
+  END IF;
+
+  SELECT ARRAY(
+    SELECT DISTINCT requested_child_id
+    FROM unnest(COALESCE(p_child_ids, ARRAY[]::UUID[])) AS requested(requested_child_id)
+    ORDER BY requested_child_id
+  ) INTO v_child_ids;
+
+  v_requested_count := COALESCE(cardinality(v_child_ids), 0);
+  IF v_requested_count = 0 THEN
+    RAISE EXCEPTION '至少选择一个孩子';
+  END IF;
+
+  SELECT COUNT(*)::INTEGER INTO v_owned_count
+  FROM children
+  WHERE parent_id = p_parent_id AND is_deleted = false AND id = ANY(v_child_ids);
+  IF v_owned_count <> v_requested_count THEN
+    RAISE EXCEPTION '存在无权操作的孩子';
+  END IF;
+
+  PERFORM 1 FROM children
+  WHERE parent_id = p_parent_id AND is_deleted = false AND id = ANY(v_child_ids)
+  ORDER BY id FOR UPDATE;
+
+  FOREACH v_child_id IN ARRAY v_child_ids LOOP
+    UPDATE children SET fruits_balance = fruits_balance + p_fruits_amount WHERE id = v_child_id;
+    INSERT INTO fruit_gifts (parent_id, child_id, fruits_amount, reason)
+    VALUES (p_parent_id, v_child_id, p_fruits_amount, v_reason);
+    INSERT INTO messages (child_id, sender_id, sender_type, text, type, is_read)
+    VALUES (v_child_id, p_parent_id, 'system', format('家长送给你 %s 个果实：%s', p_fruits_amount, v_reason), 'text', false);
+  END LOOP;
+
+  RETURN QUERY SELECT v_requested_count, v_requested_count * p_fruits_amount, v_child_ids;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+REVOKE ALL ON FUNCTION gift_fruits_rpc(UUID, UUID[], INTEGER, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION gift_fruits_rpc(UUID, UUID[], INTEGER, TEXT) TO service_role;
+
+-- 家长撤回赠送果实事务函数
+CREATE OR REPLACE FUNCTION revoke_fruit_gift_rpc(
+  p_parent_id UUID,
+  p_gift_id UUID,
+  p_revoked_reason TEXT DEFAULT '家长撤回赠送'
+)
+RETURNS TABLE (gift_id UUID, child_id UUID, fruits_amount INTEGER, remaining_balance INTEGER) AS $$
+DECLARE
+  v_gift RECORD;
+  v_child RECORD;
+  v_reason TEXT := trim(COALESCE(p_revoked_reason, '家长撤回赠送'));
+BEGIN
+  SELECT id, child_id, fruits_amount, status INTO v_gift
+  FROM fruit_gifts WHERE id = p_gift_id AND parent_id = p_parent_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION '赠送记录不存在'; END IF;
+  IF v_gift.status <> 'active' THEN RAISE EXCEPTION '该赠送记录已撤回'; END IF;
+
+  SELECT id, fruits_balance INTO v_child
+  FROM children
+  WHERE id = v_gift.child_id AND parent_id = p_parent_id AND is_deleted = false
+  FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION '孩子不存在'; END IF;
+  IF v_child.fruits_balance < v_gift.fruits_amount THEN
+    RAISE EXCEPTION '孩子当前果实余额不足，无法撤回';
+  END IF;
+
+  UPDATE children SET fruits_balance = fruits_balance - v_gift.fruits_amount WHERE id = v_child.id;
+  UPDATE fruit_gifts SET status = 'revoked', revoked_at = NOW(), revoked_reason = v_reason WHERE id = v_gift.id;
+  INSERT INTO messages (child_id, sender_id, sender_type, text, type, is_read)
+  VALUES (v_child.id, p_parent_id, 'system', format('家长收回了之前赠送的 %s 个果实：%s', v_gift.fruits_amount, v_reason), 'text', false);
+
+  RETURN QUERY SELECT v_gift.id, v_child.id, v_gift.fruits_amount, v_child.fruits_balance - v_gift.fruits_amount;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+REVOKE ALL ON FUNCTION revoke_fruit_gift_rpc(UUID, UUID, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION revoke_fruit_gift_rpc(UUID, UUID, TEXT) TO service_role;
 
 -- ============================================================
 -- 十二、推送订阅表

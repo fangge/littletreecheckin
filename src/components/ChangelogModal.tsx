@@ -41,15 +41,16 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
                   <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v4.6</span>
                   <span className="text-sm text-slate-500 dark:text-[var(--text-muted)]">最新</span>
                 </div>
-                <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">家长赠送果实与赠送流水</h4>
+                <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">家长赠送果实与赠送管理</h4>
                 <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
-                  果实商店新增家长赠送果实功能，支持填写赠送数量和原因，并一次选择多个孩子；赠送结果会同步记录并通知孩子。
+                  果实商店新增家长赠送果实功能，支持模板管理、赠送撤回和多孩子选择；赠送结果会同步记录并通知孩子。
                 </p>
                 <ul className="text-xs text-slate-500 dark:text-[var(--text-muted)] space-y-1 ml-2">
                   <li>• 一次为多个孩子各增加相同数量的果实</li>
-                  <li>• 支持填写赠送原因，方便查看果实来源</li>
-                  <li>• 儿童模式下自动隐藏赠送操作权限</li>
-                  <li>• 果实获取记录新增家长赠送来源标识</li>
+                  <li>• 赠送数量和原因可保存为模板，支持编辑和删除</li>
+                  <li>• 已赠送果实支持撤回并返还孩子余额</li>
+                  <li>• 赠送弹层布局更紧凑，小屏不显示滚动条</li>
+                  <li>• 果实获取记录新增赠送和撤回来源标识</li>
                 </ul>
               </div>
               {/* v4.5 */}

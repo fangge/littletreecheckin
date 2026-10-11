@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
-import { rewardsApi, RewardData, Child, CashExchangeSetting, RedemptionData } from '../services/api';
+import { rewardsApi, RewardData, Child, CashExchangeSetting, RedemptionData, FruitGiftTemplate } from '../services/api';
 import PullToRefresh from '../components/PullToRefresh';
 
 import Icon from '../components/Icon';
@@ -69,6 +69,9 @@ export default function Store() {
   const [giftReason, setGiftReason] = useState('');
   const [giftChildIds, setGiftChildIds] = useState<string[]>([]);
   const [isGiftSubmitting, setIsGiftSubmitting] = useState(false);
+  const [giftTemplates, setGiftTemplates] = useState<FruitGiftTemplate[]>([]);
+  const [selectedGiftTemplateId, setSelectedGiftTemplateId] = useState('');
+  const [isTemplateSubmitting, setIsTemplateSubmitting] = useState(false);
 
   const cashFruits = parseInt(cashFruitsInput, 10);
   const cashPreview = cashSetting && !isNaN(cashFruits)
@@ -94,6 +97,7 @@ export default function Store() {
     try {
       const rewardsPromise = rewardsApi.list(activeCategory || undefined, selectedChild?.id);
       const cashSettingPromise = rewardsApi.getCashSetting();
+      const giftTemplatesPromise = rewardsApi.listGiftTemplates();
       const childDataPromise = selectedChild
         ? Promise.all([
             rewardsApi.getFruits(selectedChild.id),
@@ -101,13 +105,15 @@ export default function Store() {
           ])
         : Promise.resolve(null);
 
-      const [rewardsRes, cashSettingRes, childData] = await Promise.all([
+      const [rewardsRes, cashSettingRes, giftTemplatesRes, childData] = await Promise.all([
         rewardsPromise,
         cashSettingPromise,
+        giftTemplatesPromise,
         childDataPromise,
       ]);
       setRewards(rewardsRes.data);
       setCashSetting(cashSettingRes.data);
+      setGiftTemplates(giftTemplatesRes.data);
 
       if (childData) {
         const [fruitsRes, redemptionsRes] = childData;
@@ -247,6 +253,7 @@ export default function Store() {
     }
     setGiftFruitsInput('');
     setGiftReason('');
+    setSelectedGiftTemplateId('');
     setGiftChildIds(currentChild ? [currentChild.id] : [children[0].id]);
     setShowGiftModal(true);
   };
@@ -260,6 +267,69 @@ export default function Store() {
     setGiftChildIds(ids => ids.includes(childId)
       ? ids.filter(id => id !== childId)
       : [...ids, childId]);
+  };
+
+  const handleSelectGiftTemplate = (templateId: string) => {
+    setSelectedGiftTemplateId(templateId);
+    const template = giftTemplates.find(item => item.id === templateId);
+    if (template) {
+      setGiftFruitsInput(String(template.fruits_amount));
+      setGiftReason(template.reason);
+    }
+  };
+
+  const validateGiftTemplate = () => {
+    if (!Number.isSafeInteger(giftFruits) || giftFruits <= 0) {
+      alert('请输入大于0的整数果实数');
+      return false;
+    }
+    if (!giftReasonTrimmed || giftReasonTrimmed.length > 200) {
+      alert('请输入1到200个字符的赠送原因');
+      return false;
+    }
+    return true;
+  };
+
+  const handleSaveGiftTemplate = async () => {
+    if (!validateGiftTemplate()) return;
+    setIsTemplateSubmitting(true);
+    try {
+      if (selectedGiftTemplateId) {
+        await rewardsApi.updateGiftTemplate(selectedGiftTemplateId, {
+          fruits_amount: giftFruits,
+          reason: giftReasonTrimmed,
+        });
+      } else {
+        const result = await rewardsApi.createGiftTemplate({
+          fruits_amount: giftFruits,
+          reason: giftReasonTrimmed,
+        });
+        setSelectedGiftTemplateId(result.data.id);
+      }
+      const templatesRes = await rewardsApi.listGiftTemplates();
+      setGiftTemplates(templatesRes.data);
+      alert(selectedGiftTemplateId ? '赠送模板已更新' : '赠送模板已保存');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '保存赠送模板失败');
+    } finally {
+      setIsTemplateSubmitting(false);
+    }
+  };
+
+  const handleDeleteGiftTemplate = async () => {
+    if (!selectedGiftTemplateId || isTemplateSubmitting) return;
+    if (!window.confirm('确定删除这个赠送模板吗？')) return;
+    setIsTemplateSubmitting(true);
+    try {
+      await rewardsApi.deleteGiftTemplate(selectedGiftTemplateId);
+      setGiftTemplates(templates => templates.filter(template => template.id !== selectedGiftTemplateId));
+      setSelectedGiftTemplateId('');
+      alert('赠送模板已删除');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '删除赠送模板失败');
+    } finally {
+      setIsTemplateSubmitting(false);
+    }
   };
 
   const handleConfirmGift = async () => {
@@ -529,15 +599,15 @@ export default function Store() {
               initial={{ scale: 0.94, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.94, opacity: 0 }}
-              className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl dark:bg-[var(--bg-surface)]"
+              className="no-scrollbar max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-4 shadow-2xl sm:p-5 dark:bg-[var(--bg-surface)]"
               onClick={event => event.stopPropagation()}
             >
               <div className="flex items-start gap-3">
-                <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                   <Icon name="redeem" className="text-2xl" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-[var(--text-primary)]">家长赠送果实</h3>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-[var(--text-primary)]">家长赠送果实</h3>
                   <p className="mt-1 text-sm text-slate-500 dark:text-[var(--text-secondary)]">每位选中的孩子都会获得相同数量</p>
                 </div>
                 <button
@@ -551,7 +621,41 @@ export default function Store() {
                 </button>
               </div>
 
-              <div className="mt-6">
+              <div className="mt-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <label htmlFor="gift-template-select" className="text-sm font-bold text-slate-700 dark:text-[var(--text-primary)]">赠送模板</label>
+                  {giftTemplates.length > 0 && <span className="text-xs text-slate-400">选择后可编辑</span>}
+                </div>
+                <div className="flex gap-2">
+                  <select
+                    id="gift-template-select"
+                    value={selectedGiftTemplateId}
+                    onChange={event => handleSelectGiftTemplate(event.target.value)}
+                    disabled={isGiftSubmitting || isTemplateSubmitting}
+                    className="h-11 min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-900 outline-none focus:border-primary focus:bg-white dark:border-[var(--border-color)] dark:bg-[var(--bg-card)] dark:text-[var(--text-primary)]"
+                  >
+                    <option value="">不使用模板</option>
+                    {giftTemplates.map(template => (
+                      <option key={template.id} value={template.id}>
+                        {template.reason} · {template.fruits_amount} 🍎
+                      </option>
+                    ))}
+                  </select>
+                  {selectedGiftTemplateId && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteGiftTemplate}
+                      disabled={isGiftSubmitting || isTemplateSubmitting}
+                      className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-red-50 text-red-500 transition-colors hover:bg-red-100 disabled:opacity-50 dark:bg-red-900/20"
+                      aria-label="删除赠送模板"
+                    >
+                      <Icon name="delete" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-3">
                 <div className="mb-2 flex items-center justify-between">
                   <label htmlFor="gift-fruits-input" className="text-sm font-bold text-slate-700 dark:text-[var(--text-primary)]">赠送果实数</label>
                   <span className="text-xs text-slate-400">正整数</span>
@@ -566,22 +670,22 @@ export default function Store() {
                   onChange={event => setGiftFruitsInput(event.target.value)}
                   placeholder="例如 20"
                   disabled={isGiftSubmitting}
-                  className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-base font-bold text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-primary focus:bg-white dark:border-[var(--border-color)] dark:bg-[var(--bg-card)] dark:text-[var(--text-primary)]"
+                  className="h-10 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-base font-bold text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-primary focus:bg-white dark:border-[var(--border-color)] dark:bg-[var(--bg-card)] dark:text-[var(--text-primary)]"
                 />
               </div>
 
-              <div className="mt-5">
+              <div className="mt-3">
                 <div className="mb-2 flex items-center justify-between">
                   <span className="text-sm font-bold text-slate-700 dark:text-[var(--text-primary)]">选择孩子</span>
                   <span className="text-xs font-semibold text-primary">已选 {giftChildIds.length} 人</span>
                 </div>
-                <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
                   {(user?.children || []).map(child => {
                     const isChecked = giftChildIds.includes(child.id);
                     return (
                       <label
                         key={child.id}
-                        className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3 transition-colors ${isChecked ? 'border-primary/40 bg-primary/5' : 'border-slate-200 bg-white hover:border-primary/25 dark:border-[var(--border-color)] dark:bg-[var(--bg-card)]'}`}
+                        className={`flex cursor-pointer items-center gap-2 rounded-2xl border p-2 transition-colors ${isChecked ? 'border-primary/40 bg-primary/5' : 'border-slate-200 bg-white hover:border-primary/25 dark:border-[var(--border-color)] dark:bg-[var(--bg-card)]'}`}
                       >
                         <input
                           type="checkbox"
@@ -590,10 +694,10 @@ export default function Store() {
                           disabled={isGiftSubmitting}
                           className="peer sr-only"
                         />
-                        <span className={`flex size-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${isChecked ? 'border-primary bg-primary text-white' : 'border-slate-300 bg-white text-transparent dark:border-[var(--outline-color)] dark:bg-[var(--bg-surface)]'}`}>
-                          <Icon name="check" className="text-base" />
+                        <span className={`flex size-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${isChecked ? 'border-primary bg-primary text-white' : 'border-slate-300 bg-white text-transparent dark:border-[var(--outline-color)] dark:bg-[var(--bg-surface)]'}`}>
+                          <Icon name="check" className="text-sm" />
                         </span>
-                        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                           <Icon name={child.gender === 'female' ? 'face_3' : 'face'} />
                         </span>
                         <span className="min-w-0 flex-1">
@@ -606,27 +710,36 @@ export default function Store() {
                 </div>
               </div>
 
-              <div className="mt-5">
+              <div className="mt-3">
                 <label htmlFor="gift-reason-input" className="mb-2 block text-sm font-bold text-slate-700 dark:text-[var(--text-primary)]">赠送原因</label>
                 <textarea
                   id="gift-reason-input"
                   value={giftReason}
                   onChange={event => setGiftReason(event.target.value)}
                   maxLength={200}
-                  rows={3}
+                  rows={2}
                   placeholder="例如：周末表现很棒"
                   disabled={isGiftSubmitting}
                   className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-primary focus:bg-white dark:border-[var(--border-color)] dark:bg-[var(--bg-card)] dark:text-[var(--text-primary)]"
                 />
                 <div className="mt-1 text-right text-xs text-slate-400">{giftReason.length}/200</div>
+                <button
+                  type="button"
+                  onClick={handleSaveGiftTemplate}
+                  disabled={isGiftSubmitting || isTemplateSubmitting}
+                  className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
+                >
+                  <Icon name="edit_note" className="text-sm" />
+                  {selectedGiftTemplateId ? '更新当前模板' : '保存为模板'}
+                </button>
               </div>
 
-              <div className="mt-5 flex gap-3">
+              <div className="mt-3 flex gap-3">
                 <button
                   type="button"
                   onClick={handleCloseGiftModal}
                   disabled={isGiftSubmitting}
-                  className="flex-1 rounded-2xl bg-slate-100 py-3 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-200 disabled:opacity-50 dark:bg-[var(--bg-card)] dark:text-[var(--text-secondary)]"
+                  className="flex-1 rounded-2xl bg-slate-100 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-200 disabled:opacity-50 dark:bg-[var(--bg-card)] dark:text-[var(--text-secondary)]"
                 >
                   取消
                 </button>
@@ -634,7 +747,7 @@ export default function Store() {
                   type="button"
                   onClick={handleConfirmGift}
                   disabled={isGiftSubmitting || giftChildIds.length === 0}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-primary py-3 text-sm font-bold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-primary py-2.5 text-sm font-bold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isGiftSubmitting ? (
                     <>

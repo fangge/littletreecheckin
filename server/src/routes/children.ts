@@ -411,7 +411,7 @@ router.get('/:childId/fruits-history', authMiddleware, async (req: AuthRequest, 
 
   const { data: gifts, error: giftsError } = await supabase
     .from('fruit_gifts')
-    .select('id, fruits_amount, reason, created_at')
+    .select('id, fruits_amount, reason, status, revoked_at, revoked_reason, created_at')
     .eq('child_id', childId)
     .eq('parent_id', req.user!.id)
     .order('created_at', { ascending: false })
@@ -443,6 +443,7 @@ router.get('/:childId/fruits-history', authMiddleware, async (req: AuthRequest, 
       id: task.id,
       title: task.title,
       checkin_time: task.checkin_time,
+      event_time: task.checkin_time,
       fruits_earned: showFruits ? (task.goals?.fruits_per_task ?? 10) : 0,
       bonus_fruits: showFruits ? (task.bonus_fruits ?? 0) : 0,
       goal_icon: task.goals?.icon ?? null,
@@ -455,16 +456,20 @@ router.get('/:childId/fruits-history', authMiddleware, async (req: AuthRequest, 
     id: gift.id,
     title: gift.reason,
     checkin_time: gift.created_at,
+    event_time: gift.status === 'revoked' && gift.revoked_at ? gift.revoked_at : gift.created_at,
     fruits_earned: gift.fruits_amount,
     bonus_fruits: 0,
     goal_icon: 'redeem',
     is_shared: false,
     source: 'gift' as const,
     gift_reason: gift.reason,
+    gift_status: gift.status,
+    revoked_at: gift.revoked_at,
+    revoked_reason: gift.revoked_reason,
   }));
 
   const items = [...taskItems, ...giftItems]
-    .sort((a, b) => new Date(b.checkin_time).getTime() - new Date(a.checkin_time).getTime())
+    .sort((a, b) => new Date(b.event_time || b.checkin_time).getTime() - new Date(a.event_time || a.checkin_time).getTime())
     .slice(0, 200);
 
   res.json({ data: items, fruits_balance: child.fruits_balance });
