@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 
 // GIF 资源地址（男孩/女孩种树成功动画）
@@ -84,6 +84,7 @@ export default function CelebrationPopup({
 }: CelebrationPopupProps) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [animationKey, setAnimationKey] = useState(0);
   // 用 ref 保存最新值，避免 useEffect 因引用变化而重复触发
   const onCloseRef = useRef(onClose);
   const mp3UrlRef = useRef('');
@@ -97,6 +98,9 @@ export default function CelebrationPopup({
   // 只依赖 isOpen，避免 onClose/mp3Url 引用变化导致重复触发
   useEffect(() => {
     if (!isOpen) return;
+
+    // 每次打开都创建新的 GIF 节点，避免沿用上一次播放进度
+    setAnimationKey((key) => key + 1);
 
     // 播放对应音效
     const audio = new Audio(mp3UrlRef.current);
@@ -147,6 +151,7 @@ export default function CelebrationPopup({
               {/* GIF 动画区域 */}
               <div className="flex justify-center py-4">
                 <img
+                  key={`${gifUrl}-${animationKey}`}
                   src={gifUrl}
                   alt="树木成长动画"
                   width={300}

@@ -36,7 +36,7 @@ export default function CheckIn() {
   const [allTasks, setAllTasks] = useState<TaskData[]>([]);
   const [selectedTreeTasks, setSelectedTreeTasks] = useState<TaskData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isChecking, setIsChecking] = useState(false);
+  const [checkingTaskKey, setCheckingTaskKey] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [isCelebrationOpen, setIsCelebrationOpen] = useState(false);
   const [celebrationData, setCelebrationData] = useState<{
@@ -53,6 +53,7 @@ export default function CheckIn() {
   const [showBatchCheckin, setShowBatchCheckin] = useState(false);
   const [batchDateInput, setBatchDateInput] = useState(getUTC8Today());
   const [batchDates, setBatchDates] = useState<string[]>([]);
+  const [batchTreeIds, setBatchTreeIds] = useState<string[]>([]);
   const [isBatchChecking, setIsBatchChecking] = useState(false);
   const [batchError, setBatchError] = useState('');
   // 果实余额
@@ -162,13 +163,14 @@ export default function CheckIn() {
       return;
     }
 
-    setIsChecking(true);
-    setError('');
-    setIsCelebrationOpen(true);
+    const checkinKey = `${selectedTree.id}:${selectedDate}`;
+    if (checkingTaskKey === checkinKey) return;
 
-    // 检查当前目标是否为共享任务，记录 goalId 供弹窗关闭后跳转
+    setCheckingTaskKey(checkinKey);
+    setError('');
+
+    // 保存当前目标，供请求成功后更新庆祝弹层内容
     const currentGoalData = goals.find(g => g.id === selectedTree.goal_id);
-    sharedGoalIdRef.current = currentGoalData?.is_shared ? selectedTree.goal_id : null;
 
     try {
       const isBackfill = selectedDate !== getUTC8Today();
@@ -224,10 +226,13 @@ export default function CheckIn() {
       } catch (medalErr) {
         console.error('检查勋章失败:', medalErr);
       }
+      // 记录实际完成的目标，供弹窗关闭后跳转
+      sharedGoalIdRef.current = currentGoalData?.is_shared ? selectedTree.goal_id : null;
+      setIsCelebrationOpen(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : '打卡失败，请重试');
     } finally {
-      setIsChecking(false);
+      setCheckingTaskKey((currentKey) => currentKey === checkinKey ? null : currentKey);
     }
   };
 
@@ -238,6 +243,9 @@ export default function CheckIn() {
   const todayTask = getTaskForTreeOnDate(currentTree, selectedDate);
   const hasCheckedInToday = !!todayTask;
   const taskStatus = todayTask?.status;
+  const currentTaskKey = selectedTree ? `${selectedTree.id}:${selectedDate}` : null;
+  const isCheckingCurrent = currentTaskKey !== null && checkingTaskKey === currentTaskKey;
+  const isCheckingAny = checkingTaskKey !== null;
 
 
   // 将 ISO 时间字符串格式化为北京时间显示
@@ -329,69 +337,112 @@ export default function CheckIn() {
   const statusInfo = getStatusText();
   const canCheckin = (!hasCheckedInToday || taskStatus === 'rejected') && selectedTree?.status !== 'completed';
 
+  const canBatchCheckin = (tree: TreeData, date: string) => {
+    const task = getTaskForTreeOnDate(tree, date);
+    return tree.status !== 'completed' && (!task || task.status === 'rejected');
+  };
+
+  const batchSelections = batchTreeIds.flatMap(treeId => {
+    const tree = trees.find(item => item.id === treeId);
+    if (!tree) return [];
+    return batchDates
+      .filter(date => canBatchCheckin(tree, date))
+      .map(date => ({ treeId: tree.id, goalId: tree.goal_id, date }));
+  }).filter((selection): selection is { treeId: string; goalId: string; date: string } => Boolean(selection.goalId));
+
+  const openBatchCheckin = () => {
+    const initialTreeId = selectedTree && canBatchCheckin(selectedTree, today) ? selectedTree.id : null;
+    setBatchTreeIds(initialTreeId ? [initialTreeId] : []);
+    setBatchDates([today]);
+    setBatchDateInput(today);
+    setBatchError('');
+    setShowBatchCheckin(true);
+  };
+
   const addBatchDate = () => {
     if (!batchDateInput || batchDateInput > today) return;
-    const existingTask = getTaskForTreeOnDate(selectedTree, batchDateInput);
-    if (existingTask && existingTask.status !== 'rejected') return;
+    if (batchDates.includes(batchDateInput)) return;
+    const selectedTrees = trees.filter(tree => batchTreeIds.includes(tree.id));
+    if (!selectedTrees.some(tree => canBatchCheckin(tree, batchDateInput))) return;
     setBatchDates(prev => prev.includes(batchDateInput) ? prev : [...prev, batchDateInput].sort());
   };
 
   const handleBatchCheckin = async () => {
-    if (!selectedTree?.goal_id || !currentChild || batchDates.length === 0) return;
+    if (!currentChild || batchSelections.length === 0) {
+      setBatchError('请选择至少一个可打卡的目标和日期');
+      return;
+    }
 
     setIsBatchChecking(true);
     setBatchError('');
-    const results = await Promise.all(batchDates.map(async date => {
-      try {
-        await tasksApi.checkin(selectedTree.goal_id!, currentChild.id, undefined, date);
-        return { date, success: true, message: '' };
-      } catch (err) {
-        return {
-          date,
-          success: false,
-          message: err instanceof Error ? err.message : '打卡失败'
-        };
-      }
-    }));
-    const failedDates = results
-      .filter(result => !result.success)
-      .map(result => `${formatDateDisplay(result.date)}：${result.message}`);
-    const successCount = results.filter(result => result.success).length;
+    try {
+      const results = await Promise.all(batchSelections.map(async selection => {
+        try {
+          const res = await tasksApi.checkin(selection.goalId, currentChild.id, undefined, selection.date);
+          return { ...selection, success: true, task: res.data, message: '' };
+        } catch (err) {
+          return {
+            ...selection,
+            success: false,
+            task: null,
+            message: err instanceof Error ? err.message : '打卡失败'
+          };
+        }
+      }));
+      const successfulResults = results.filter(result => result.success);
+      const failedResults = results.filter(result => !result.success);
+      const failedSelections = failedResults
+        .map(result => `${trees.find(tree => tree.id === result.treeId)?.name || '目标'} ${formatDateDisplay(result.date)}：${result.message}`);
 
-    if (successCount > 0) {
-      const currentGoalData = goals.find(g => g.id === selectedTree.goal_id);
-      sharedGoalIdRef.current = currentGoalData?.is_shared ? selectedTree.goal_id : null;
-      invalidateChildDataCache(currentChild.id);
-      const refreshedTreesRes = await treesApi.list(currentChild.id);
-      const refreshedTree = refreshedTreesRes.data.find(t => t.id === selectedTree.id);
-      setCelebrationData({
-        treeProgress: refreshedTree?.progress ?? selectedTree.progress,
-        treeName: refreshedTree?.name ?? selectedTree.name,
-        isTreeCompleted: refreshedTree?.status === 'completed'
-      });
-      await fetchData();
-      await refreshPendingCount();
-      try {
-        const medalRes = await medalsApi.list(currentChild.id);
-        const freshUnlocked = medalRes.data.filter(m => m.unlocked);
-        const freshIds = new Set(freshUnlocked.map(m => m.id));
-        const newly = freshUnlocked.filter(m => !prevUnlockedMedalIdsRef.current.has(m.id));
-        prevUnlockedMedalIdsRef.current = freshIds;
-        if (newly.length > 0) pendingNewMedalsRef.current = newly;
-      } catch (medalErr) {
-        console.error('检查勋章失败:', medalErr);
+      if (successfulResults.length > 0) {
+        setTodayTasks(prev => {
+          const next = { ...prev };
+          for (const result of successfulResults) {
+            if (result.task) next[`${result.date}_${result.goalId}`] = result.task;
+          }
+          return next;
+        });
+
+        const celebrationSelection = successfulResults.find(result => result.treeId === selectedTree?.id) || successfulResults[0];
+        const celebrationTree = trees.find(tree => tree.id === celebrationSelection.treeId) || selectedTree;
+        invalidateChildDataCache(currentChild.id);
+        const refreshedTreesRes = await treesApi.list(currentChild.id);
+        const refreshedTree = refreshedTreesRes.data.find(tree => tree.id === celebrationSelection.treeId);
+        setCelebrationData({
+          treeProgress: refreshedTree?.progress ?? celebrationTree?.progress ?? 0,
+          treeName: refreshedTree?.name ?? celebrationTree?.name ?? '小树',
+          isTreeCompleted: refreshedTree?.status === 'completed'
+        });
+        await fetchData();
+        await refreshPendingCount();
+        try {
+          const medalRes = await medalsApi.list(currentChild.id);
+          const freshUnlocked = medalRes.data.filter(m => m.unlocked);
+          const freshIds = new Set(freshUnlocked.map(m => m.id));
+          const newly = freshUnlocked.filter(m => !prevUnlockedMedalIdsRef.current.has(m.id));
+          prevUnlockedMedalIdsRef.current = freshIds;
+          if (newly.length > 0) pendingNewMedalsRef.current = newly;
+        } catch (medalErr) {
+          console.error('检查勋章失败:', medalErr);
+        }
+
+        const celebrationGoal = goals.find(goal => goal.id === celebrationSelection.goalId);
+        sharedGoalIdRef.current = celebrationGoal?.is_shared ? celebrationSelection.goalId : null;
+        setIsCelebrationOpen(true);
+        setShowBatchCheckin(false);
+        setBatchDates([]);
+        setBatchTreeIds([]);
+        if (failedSelections.length > 0) {
+          setError(`已完成 ${successfulResults.length} 项打卡，以下项目未完成：${failedSelections.join('；')}`);
+        }
+      } else {
+        setBatchError(failedSelections.join('；') || '没有可提交的打卡项目');
       }
-      setIsCelebrationOpen(true);
-      setShowBatchCheckin(false);
-      setBatchDates([]);
-      if (failedDates.length > 0) {
-        setError(`已完成 ${successCount} 个日期的打卡，以下日期未完成：${failedDates.join('；')}`);
-      }
-    } else {
-      setBatchError(failedDates.join('；') || '没有可提交的日期');
+    } catch (err) {
+      setBatchError(err instanceof Error ? err.message : '批量打卡失败，请重试');
+    } finally {
+      setIsBatchChecking(false);
     }
-
-    setIsBatchChecking(false);
   };
 
   // 下拉刷新处理函数（清除缓存后强制刷新）
@@ -643,11 +694,11 @@ export default function CheckIn() {
                 </div>
 
                 <div className="flex items-stretch gap-2">
-                  <button className={`flex min-h-[50px] flex-1 items-center justify-center gap-2 rounded-2xl border-t border-emerald-400/40 bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 px-4 py-3.5 text-base font-black text-white shadow-[0_8px_20px_rgba(16,185,129,0.36)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${canCheckin && !isChecking ? 'btn-breathe' : ''}`} onClick={handleCheckin} disabled={isChecking || !canCheckin} aria-label={isBackfillDate ? '补打卡' : '立即打卡'}>
+                  <button className={`flex min-h-[50px] flex-1 items-center justify-center gap-2 rounded-2xl border-t border-emerald-400/40 bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 px-4 py-3.5 text-base font-black text-white shadow-[0_8px_20px_rgba(16,185,129,0.36)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${canCheckin && !isCheckingCurrent ? 'btn-breathe' : ''}`} onClick={handleCheckin} disabled={isCheckingCurrent || !canCheckin} aria-label={isBackfillDate ? '补打卡' : '立即打卡'}>
                     <Icon name={selectedTree?.status === 'completed' ? 'park' : 'check_circle'} size="22px" />
-                    {selectedTree?.status === 'completed' ? '树木已长成' : isChecking ? '打卡中...' : !canCheckin ? (taskStatus === 'approved' ? `${isBackfillDate ? formatDateDisplay(selectedDate) : '今日'}已完成` : '等待审核中') : taskStatus === 'rejected' ? '重新打卡' : isBackfillDate ? '补打卡' : '立即打卡'}
+                    {selectedTree?.status === 'completed' ? '树木已长成' : isCheckingCurrent ? '打卡中...' : !canCheckin ? (taskStatus === 'approved' ? `${isBackfillDate ? formatDateDisplay(selectedDate) : '今日'}已完成` : '等待审核中') : taskStatus === 'rejected' ? '重新打卡' : isBackfillDate ? '补打卡' : '立即打卡'}
                   </button>
-                  <button onClick={() => { setBatchDates([]); setBatchDateInput(today); setBatchError(''); setShowBatchCheckin(true); }} disabled={!selectedTree || isChecking || isBatchChecking} className="flex min-h-[50px] w-auto shrink-0 flex-col items-center justify-center rounded-2xl border border-emerald-200 bg-white px-3.5 py-2 text-xs font-bold text-emerald-700 shadow-sm transition hover:bg-emerald-50/50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 dark:border-[rgba(51,65,85,0.7)] dark:bg-[rgba(30,41,59,0.9)] dark:text-emerald-400 dark:hover:bg-[rgba(51,65,85,0.8)]"><Icon name="edit_calendar" size="18px" />补打卡</button>
+                  <button onClick={openBatchCheckin} disabled={!selectedTree || isCheckingAny || isBatchChecking} className="flex min-h-[50px] w-auto shrink-0 flex-col items-center justify-center rounded-2xl border border-emerald-200 bg-white px-3.5 py-2 text-xs font-bold text-emerald-700 shadow-sm transition hover:bg-emerald-50/50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 dark:border-[rgba(51,65,85,0.7)] dark:bg-[rgba(30,41,59,0.9)] dark:text-emerald-400 dark:hover:bg-[rgba(51,65,85,0.8)]"><Icon name="edit_calendar" size="18px" />批量打卡</button>
                 </div>
               </div>
             </div>
@@ -772,20 +823,60 @@ export default function CheckIn() {
           >
             <div className="flex items-center justify-between px-5 pt-5 pb-3">
               <div>
-                <p className="text-slate-900 dark:text-[var(--text-primary)] text-lg font-bold">批量补打卡</p>
-                <p className="text-xs text-slate-500 dark:text-[var(--text-muted)] mt-1">为「{selectedTree?.name || '当前目标'}」选择漏打卡日期</p>
+                <p className="text-slate-900 dark:text-[var(--text-primary)] text-lg font-bold">批量打卡</p>
+                <p className="text-xs text-slate-500 dark:text-[var(--text-muted)] mt-1">选择多个目标和日期，一次提交打卡</p>
               </div>
               <button
                 onClick={() => setShowBatchCheckin(false)}
                 disabled={isBatchChecking}
                 className="size-9 flex items-center justify-center rounded-full bg-slate-100 dark:bg-[var(--bg-card)] text-slate-400"
-                aria-label="关闭批量补打卡"
+                aria-label="关闭批量打卡"
               >
                 <Icon name="close" className="text-lg" />
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-bold text-slate-700 dark:text-[var(--text-secondary)]">选择目标</p>
+                  <span className="text-xs text-slate-400 dark:text-[var(--text-muted)]">可多选</span>
+                </div>
+                <div className="space-y-2">
+                  {trees.map(tree => {
+                    const selected = batchTreeIds.includes(tree.id);
+                    const canSelect = tree.status !== 'completed';
+                    const previewTask = getTaskForTreeOnDate(tree, batchDateInput);
+                    const previewText = previewTask?.status === 'approved'
+                      ? '已完成'
+                      : previewTask?.status === 'pending'
+                        ? '等待审核'
+                        : previewTask?.status === 'rejected'
+                          ? '可重新打卡'
+                          : '可打卡';
+                    return (
+                      <label
+                        key={tree.id}
+                        className={`flex cursor-pointer items-center gap-3 rounded-2xl border px-3 py-2.5 transition ${selected ? 'border-primary bg-primary/5' : 'border-slate-100 bg-white dark:border-[var(--border-color)] dark:bg-[var(--bg-card)]'} ${!canSelect ? 'cursor-not-allowed opacity-50' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          disabled={!canSelect}
+                          onChange={() => setBatchTreeIds(prev => selected ? prev.filter(id => id !== tree.id) : [...prev, tree.id])}
+                          className="size-4 accent-primary"
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-bold text-slate-800 dark:text-[var(--text-primary)]">{tree.name}</span>
+                          <span className="block text-xs text-slate-400 dark:text-[var(--text-muted)]">{batchDateInput ? `${formatDateDisplay(batchDateInput)} · ${previewText}` : previewText}</span>
+                        </span>
+                        <Icon name="park" size="18px" className="shrink-0 text-emerald-500" />
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="flex items-center gap-2">
                 <input
                   type="date"
@@ -797,7 +888,10 @@ export default function CheckIn() {
                 />
                 <button
                   onClick={addBatchDate}
-                  disabled={!batchDateInput || batchDateInput > today || !!(getTaskForTreeOnDate(selectedTree, batchDateInput) && getTaskForTreeOnDate(selectedTree, batchDateInput)?.status !== 'rejected')}
+                  disabled={!batchDateInput || batchDateInput > today || batchDates.includes(batchDateInput) || !batchTreeIds.some(treeId => {
+                    const tree = trees.find(item => item.id === treeId);
+                    return tree ? canBatchCheckin(tree, batchDateInput) : false;
+                  })}
                   className="flex items-center gap-1 px-3 py-2.5 rounded-xl bg-primary/10 text-primary text-sm font-bold disabled:opacity-40"
                 >
                   <Icon name="add" className="text-base" />
@@ -829,11 +923,11 @@ export default function CheckIn() {
 
               <button
                 onClick={handleBatchCheckin}
-                disabled={isBatchChecking || batchDates.length === 0}
+                disabled={isBatchChecking || batchSelections.length === 0}
                 className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-primary text-white font-bold shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Icon name="check_circle" className="text-lg" />
-                {isBatchChecking ? '批量打卡中...' : `提交 ${batchDates.length} 个日期`}
+                {isBatchChecking ? '批量打卡中...' : `提交 ${batchSelections.length} 项打卡`}
               </button>
             </div>
           </motion.div>

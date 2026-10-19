@@ -35,11 +35,28 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
               </button>
             </div>
             <div className="overflow-y-auto max-h-[60vh] px-6 py-4 space-y-4">
-              {/* v4.6 */}
+              {/* v4.7 */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v4.6</span>
+                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v4.7</span>
                   <span className="text-sm text-slate-500 dark:text-[var(--text-muted)]">最新</span>
+                </div>
+                <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">批量任务打卡与打卡体验优化</h4>
+                <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
+                  打卡页支持一次选择多个目标和多个日期，今日任务与历史补打卡可以统一提交；同时优化慢请求状态和庆祝动画的重复播放体验。
+                </p>
+                <ul className="text-xs text-slate-500 dark:text-[var(--text-muted)] space-y-1 ml-2">
+                  <li>• 今日可同时选择多个任务打卡，无需逐个切换目标</li>
+                  <li>• 支持多个任务同时补打多个历史日期</li>
+                  <li>• 已完成或等待审核的任务自动跳过，失败项目逐项提示</li>
+                  <li>• 切换任务时不会继承其他任务的“打卡中”状态</li>
+                  <li>• 庆祝 GIF 每次打开都会重新播放</li>
+                </ul>
+              </div>
+              {/* v4.6 */}
+              <div className="space-y-2 pt-4 border-t border-primary/5 dark:border-[var(--border-color)]">
+                <div className="flex items-center gap-2">
+                  <span className="bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-xs font-bold px-2 py-0.5 rounded">v4.6</span>
                 </div>
                 <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">家长赠送果实与赠送管理</h4>
                 <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
