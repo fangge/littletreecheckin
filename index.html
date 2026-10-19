@@ -81,11 +81,9 @@
   <link rel="apple-touch-icon" sizes="192x192" href="/logo2-192.png">
   <link rel="apple-touch-icon" sizes="512x512" href="/logo2-512.png">
 
-  <!-- 字体（国内 CDN 加速） -->
-  <link rel="preconnect" href="https://fonts.loli.net">
-  <link rel="preconnect" href="https://gstatic.loli.net" crossorigin>
-  <link rel="preconnect" href="https://diy-assets.msstatic.com">
-  <link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <!-- 字体：全部使用系统字体栈（见 src/index.css 的 --font-sans）。
+       原先引用的 Inter / Noto Sans SC 在项目中没有任何地方使用，
+       只会带来额外的跨境请求，已移除。 -->
 </head>
 
 <body>

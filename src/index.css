@@ -3,7 +3,8 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-display: "Inter", "Noto Sans SC", sans-serif;
+  /* 不引入外部 Web 字体：全部走系统字体栈，避免跨境字体请求 */
+  --font-display: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
   --font-sans:
     -apple-system, BlinkMacSystemFont, "PingFang SC", Helvetica, Tahoma, Arial, "Hiragino Sans GB", "Microsoft YaHei",
     微软雅黑, SimSun, 宋体, Heiti, 黑体, sans-serif;
