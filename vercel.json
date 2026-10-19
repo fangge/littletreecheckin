@@ -3,7 +3,7 @@
   "buildCommand": "pnpm build && pnpm docs:build",
   "outputDirectory": "dist",
   "installCommand": "pnpm install && pnpm --prefix server install",
-  "regions": ["hkg1"],
+  "regions": ["sin1"],
   "functions": {
     "api/[...path].ts": {
       "includeFiles": "server/src/**"
