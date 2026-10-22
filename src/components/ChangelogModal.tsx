@@ -52,6 +52,8 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
                   <li>• 毕业后自动收藏为宠物卡片，可反复领养同一种宠物</li>
                   <li>• 6 种宠物拥有不同的待机、漂浮粒子与进化动画</li>
                   <li>• 暗黑模式优化：卡片标签、喂养芯片与操作按钮对比度提升</li>
+                  <li>• 修复领养弹层滚动穿透，滚动到边界不再带动背后页面</li>
+                  <li>• 修复宠物图片层级穿透，滚动时不再盖住吸顶栏</li>
                   <li>• 勋章页面与全部勋章逻辑、数据已移除</li>
                 </ul>
               </div>

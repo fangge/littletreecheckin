@@ -68,7 +68,7 @@ export default function PetCharacter({
 
   return (
     <div
-      className={`relative flex items-end justify-center ${sizeClassName ?? VARIANT_CLASS[variant]} ${className}`}
+      className={`isolate relative flex items-end justify-center ${sizeClassName ?? VARIANT_CLASS[variant]} ${className}`}
       aria-label={label}
     >
       {/* 柔光背景 */}
@@ -113,14 +113,14 @@ export default function PetCharacter({
         initial={animateIn ? { opacity: 0, scale: 0.86, y: 12 } : false}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 220, damping: 20 }}
-        className="relative z-10 flex h-full w-full items-end justify-center"
+        className="relative z-[1] flex h-full w-full items-end justify-center"
       >
         <img
           src={src}
           alt={alt ?? label}
           draggable={false}
           loading={variant === 'hero' ? 'eager' : 'lazy'}
-          className={`relative z-10 max-w-full select-none object-contain ${meta.idleClass} ${
+          className={`relative z-[1] max-w-full select-none object-contain ${meta.idleClass} ${
             isFeeding ? 'pet-cheer' : ''
           } ${isEvolving ? 'pet-evolving' : ''} ${imageClassName}`}
           style={{

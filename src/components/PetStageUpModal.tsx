@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { motion } from 'motion/react';
 import type { PetSpecies } from '../services/api';
 import {
@@ -7,6 +8,7 @@ import {
   getPetMeta,
 } from '../data/pets';
 import PetCharacter from './PetCharacter';
+import useBodyScrollLock from '../hooks/useBodyScrollLock';
 
 interface PetStageUpModalProps {
   species: PetSpecies;
@@ -37,6 +39,9 @@ export default function PetStageUpModal({
   childName,
   onClose,
 }: PetStageUpModalProps) {
+  const overlayRef = useRef<HTMLDivElement>(null);
+  useBodyScrollLock(true, overlayRef);
+
   const meta = getPetMeta(species);
   const safeStage = Math.min(4, Math.max(0, stage));
   const title = completed ? '毕业啦！' : `进化到「${PET_STAGE_LABELS[safeStage]}」`;
@@ -46,11 +51,13 @@ export default function PetStageUpModal({
 
   return (
     <motion.div
+      ref={overlayRef}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-[120] flex items-center justify-center overflow-hidden bg-[#2b1a1a]/55 p-4 backdrop-blur-md"
       onClick={onClose}
+      onWheel={(event) => event.stopPropagation()}
       role="dialog"
       aria-modal="true"
       aria-label={title}

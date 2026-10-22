@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DEFAULT_STAGE_COSTS, STAGE_COST_LABELS, formatPoints, getTotalRequired } from '../data/pets';
 import Icon from './Icon';
+import useBodyScrollLock from '../hooks/useBodyScrollLock';
 
 interface PetSettingsModalProps {
   open: boolean;
@@ -24,6 +25,9 @@ export default function PetSettingsModal({
   onClose,
   onSave,
 }: PetSettingsModalProps) {
+  const overlayRef = useRef<HTMLDivElement>(null);
+  useBodyScrollLock(open, overlayRef);
+
   const [draft, setDraft] = useState<string[]>(() => costs.map(String));
 
   useEffect(() => {
@@ -44,11 +48,13 @@ export default function PetSettingsModal({
     <AnimatePresence>
       {open && (
         <motion.div
+          ref={overlayRef}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-[130] flex items-end justify-center bg-[#2b1a1a]/45 p-0 backdrop-blur-sm sm:items-center sm:p-4"
           onClick={onClose}
+          onWheel={(event) => event.stopPropagation()}
           role="dialog"
           aria-modal="true"
           aria-label="成长规则设置"
@@ -58,7 +64,7 @@ export default function PetSettingsModal({
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 40, opacity: 0, scale: 0.98 }}
             transition={{ type: 'spring', stiffness: 280, damping: 26 }}
-            className="pet-light-surface relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-[2rem] border border-white/80 bg-[#fffdfb] p-5 shadow-2xl sm:rounded-[2rem] sm:p-6"
+            className="pet-light-surface overscroll-contain touch-pan-y relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-[2rem] border border-white/80 bg-[#fffdfb] p-5 shadow-2xl sm:rounded-[2rem] sm:p-6"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-5 flex items-start justify-between gap-4">

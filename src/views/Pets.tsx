@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
@@ -27,6 +27,7 @@ import PetSettingsModal from '../components/PetSettingsModal';
 import PetStageUpModal from '../components/PetStageUpModal';
 import PullToRefresh from '../components/PullToRefresh';
 import Icon from '../components/Icon';
+import useBodyScrollLock from '../hooks/useBodyScrollLock';
 
 const STAGE_EMOJI = ['🌰', '🌱', '🌸', '🌳', '🎓'] as const;
 const FEED_PRESETS = [10, 50, 100] as const;
@@ -74,6 +75,9 @@ export default function Pets() {
   const [selectedCard, setSelectedCard] = useState<PetData | null>(null);
   const [toast, setToast] = useState('');
   const [error, setError] = useState('');
+
+  const cardOverlayRef = useRef<HTMLDivElement>(null);
+  useBodyScrollLock(Boolean(selectedCard), cardOverlayRef);
 
   const fetchOverview = useCallback(async () => {
     if (!currentChild) {
@@ -310,7 +314,10 @@ export default function Pets() {
   };
 
   return (
-    <PullToRefresh onRefresh={handleRefresh}>
+    <PullToRefresh
+      onRefresh={handleRefresh}
+      disabled={showAdopt || showSettings || Boolean(celebration) || Boolean(selectedCard)}
+    >
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -834,11 +841,13 @@ export default function Pets() {
         <AnimatePresence>
           {selectedCard && (
             <motion.div
+              ref={cardOverlayRef}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 z-[120] flex items-center justify-center bg-[#2b1a1a]/55 p-4 backdrop-blur-md"
               onClick={() => setSelectedCard(null)}
+              onWheel={(event) => event.stopPropagation()}
               role="dialog"
               aria-modal="true"
               aria-label="宠物卡片详情"

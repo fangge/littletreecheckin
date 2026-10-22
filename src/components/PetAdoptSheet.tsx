@@ -1,8 +1,10 @@
+import { useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { PetSpecies } from '../services/api';
 import { PET_LIST, formatPoints, getPetImage } from '../data/pets';
 import PetCharacter from './PetCharacter';
 import Icon from './Icon';
+import useBodyScrollLock from '../hooks/useBodyScrollLock';
 
 interface PetAdoptSheetProps {
   open: boolean;
@@ -23,15 +25,20 @@ export default function PetAdoptSheet({
   onClose,
   onAdopt,
 }: PetAdoptSheetProps) {
+  const overlayRef = useRef<HTMLDivElement>(null);
+  useBodyScrollLock(open, overlayRef);
+
   return (
     <AnimatePresence>
       {open && (
         <motion.div
+          ref={overlayRef}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-[125] flex items-end justify-center bg-[#2b1a1a]/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
           onClick={onClose}
+          onWheel={(event) => event.stopPropagation()}
           role="dialog"
           aria-modal="true"
           aria-label="选择宠物"
@@ -41,10 +48,10 @@ export default function PetAdoptSheet({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 50, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 260, damping: 26 }}
-            className="pet-light-surface relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-[2rem] border border-white/80 bg-[#fdfaf6] p-5 shadow-2xl sm:rounded-[2rem] sm:p-6"
+            className="pet-light-surface touch-pan-y overscroll-contain relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-[2rem] border border-white/80 bg-[#fdfaf6] p-5 shadow-2xl sm:rounded-[2rem] sm:p-6"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="sticky top-0 z-10 -mx-5 -mt-5 mb-4 flex items-start justify-between gap-4 bg-[#fdfaf6]/95 px-5 pb-3 pt-5 backdrop-blur sm:-mx-6 sm:-mt-6 sm:px-6 sm:pt-6">
+            <div className="sticky top-0 z-30 -mx-5 -mt-5 mb-4 flex items-start justify-between gap-4 bg-[#fdfaf6]/95 px-5 pb-3 pt-5 backdrop-blur sm:-mx-6 sm:-mt-6 sm:px-6 sm:pt-6">
               <div>
                 <div className="mb-1 flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#8a6a5f]">
                   <Icon name="pets" className="text-sm" />
@@ -78,7 +85,7 @@ export default function PetAdoptSheet({
                     whileTap={{ scale: 0.98 }}
                     onClick={() => onAdopt(meta.id)}
                     disabled={Boolean(adoptingSpecies)}
-                    className={`group relative overflow-hidden rounded-[1.4rem] border border-white/80 bg-gradient-to-br ${meta.gradient} p-3 text-left shadow-[0_10px_28px_-18px_rgba(90,50,40,0.55)] transition disabled:cursor-wait`}
+                    className={`group isolate relative overflow-hidden rounded-[1.4rem] border border-white/80 bg-gradient-to-br ${meta.gradient} p-3 text-left shadow-[0_10px_28px_-18px_rgba(90,50,40,0.55)] transition disabled:cursor-wait`}
                     aria-label={`领养${meta.name}`}
                   >
                     <div className="flex items-start justify-between">
