@@ -6,10 +6,10 @@ import authRouter from './routes/auth.js';
 import childrenRouter from './routes/children.js';
 import treesRouter from './routes/trees.js';
 import tasksRouter from './routes/tasks.js';
-import medalsRouter from './routes/medals.js';
 import rewardsRouter from './routes/rewards.js';
 import messagesRouter from './routes/messages.js';
 import goalsRouter from './routes/goals.js';
+import petsRouter from './routes/pets.js';
 
 const app: Express = express();
 
@@ -43,9 +43,8 @@ app.use('/api/v1/users', childrenRouter);
 app.use('/api/v1/children', childrenRouter);
 app.use('/api/v1/children', treesRouter);
 app.use('/api/v1/children', tasksRouter);
-app.use('/api/v1/children', medalsRouter);
-app.use('/api/v1/medals', medalsRouter);
 app.use('/api/v1/children', messagesRouter);
+app.use('/api/v1/children', petsRouter);
 app.use('/api/v1/rewards', rewardsRouter);
 app.use('/api/v1/trees', treesRouter);
 app.use('/api/v1/tasks', tasksRouter);

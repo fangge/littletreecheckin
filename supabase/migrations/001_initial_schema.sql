@@ -98,30 +98,8 @@ CREATE INDEX idx_tasks_status ON tasks(status);
 CREATE INDEX idx_tasks_checkin_time ON tasks(goal_id, checkin_time);
 
 -- ============================================================
--- 6. 勋章定义表
+-- 6-7. 勋章系统已移除（由 20261022000000_remove_medals.sql 清理）
 -- ============================================================
-CREATE TABLE IF NOT EXISTS medals (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name VARCHAR(50) NOT NULL,
-  icon VARCHAR(50) NOT NULL,
-  color VARCHAR(100) NOT NULL,
-  description TEXT,
-  unlock_condition JSONB NOT NULL DEFAULT '{}',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- ============================================================
--- 7. 孩子勋章关联表
--- ============================================================
-CREATE TABLE IF NOT EXISTS child_medals (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  child_id UUID NOT NULL REFERENCES children(id) ON DELETE CASCADE,
-  medal_id UUID NOT NULL REFERENCES medals(id) ON DELETE CASCADE,
-  unlocked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE(child_id, medal_id)
-);
-
-CREATE INDEX idx_child_medals_child_id ON child_medals(child_id);
 
 -- ============================================================
 -- 8. 奖励表

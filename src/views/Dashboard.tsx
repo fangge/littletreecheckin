@@ -1,12 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
-import { treesApi, childrenApi, medalsApi, TreeData, StatsData, GoalData, CalendarData, CalendarTask, MedalData, invalidateChildDataCache } from '../services/api';
+import { treesApi, childrenApi, TreeData, StatsData, GoalData, CalendarData, CalendarTask, invalidateChildDataCache } from '../services/api';
 import CheckinCalendar from '../components/CheckinCalendar';
 import CheckinDetailPopup from '../components/CheckinDetailPopup';
 import MonthlySummaryModal from '../components/MonthlySummaryModal';
-import MedalUnlockPopup from '../components/MedalUnlockPopup';
 import PullToRefresh from '../components/PullToRefresh';
 
 import Icon from '../components/Icon';
@@ -90,10 +89,6 @@ export default function Dashboard() {
   const [stats, setStats] = useState<StatsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('month');
-  const [newMedals, setNewMedals] = useState<MedalData[]>([]);
-  // 记录上次已知的已解锁勋章 ID 集合，用于对比新解锁的勋章
-  const prevUnlockedMedalIdsRef = useRef<Set<string>>(new Set());
-
   // 日历相关状态
   const [selectedMonth, setSelectedMonth] = useState<Date>(() => {
     const now = new Date();
@@ -104,15 +99,6 @@ export default function Dashboard() {
   const [showMonthlySummary, setShowMonthlySummary] = useState(false);
   const [summaryCalendarData, setSummaryCalendarData] = useState<CalendarData | null>(null);
   const [showCompletedTrees, setShowCompletedTrees] = useState(false);
-
-  // 初始化已解锁勋章基准集合，避免误判历史勋章为新解锁
-  useEffect(() => {
-    if (!currentChild) return;
-    medalsApi.list(currentChild.id).then(res => {
-      const ids = new Set(res.data.filter(m => m.unlocked).map(m => m.id));
-      prevUnlockedMedalIdsRef.current = ids;
-    }).catch(() => {/* 静默失败 */});
-  }, [currentChild]);
 
   useEffect(() => {
     if (!currentChild) return;
@@ -164,23 +150,6 @@ export default function Dashboard() {
   const handleCloseDetailPopup = () => {
     setSelectedCalendarDate(null);
   };
-
-  // CheckinDetailPopup 完全消失后，检查是否有新解锁的勋章
-  const handleAfterCloseDetailPopup = useCallback(async () => {
-    if (!currentChild) return;
-    try {
-      const res = await medalsApi.list(currentChild.id);
-      const freshUnlocked = res.data.filter(m => m.unlocked);
-      const freshIds = new Set(freshUnlocked.map(m => m.id));
-      const newly = freshUnlocked.filter(m => !prevUnlockedMedalIdsRef.current.has(m.id));
-      prevUnlockedMedalIdsRef.current = freshIds;
-      if (newly.length > 0) {
-        setNewMedals(newly);
-      }
-    } catch (err) {
-      console.error('检查勋章失败:', err);
-    }
-  }, [currentChild]);
 
   // 打开成就单：根据 timeFilter 获取对应时间范围的数据
   const handleOpenSummary = async () => {
@@ -561,17 +530,7 @@ export default function Dashboard() {
         date={selectedCalendarDate}
         tasks={selectedDateTasks}
         onClose={handleCloseDetailPopup}
-        onAfterClose={handleAfterCloseDetailPopup}
       />
-
-      {/* 勋章解锁庆祝弹层 */}
-      {newMedals.length > 0 && (
-        <MedalUnlockPopup
-          medals={newMedals}
-          childName={currentChild?.name}
-          onClose={() => setNewMedals(prev => prev.slice(1))}
-        />
-      )}
 
       {/* 月度任务总结弹窗 */}
       <MonthlySummaryModal

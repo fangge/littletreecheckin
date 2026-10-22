@@ -1,4 +1,4 @@
-import { Tree, Task, Medal, Message } from './types';
+import { Tree, Task, Message } from './types';
 
 export const TREES: Tree[] = [
   {
@@ -79,18 +79,6 @@ export const TASKS: Task[] = [
     image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAibDT0VIG9_VyU0Y7IW7NEGBQzdXXotM4EeGGNy1zxxzkgOhDcBIwumFq3OmHTS9U4BX83YmnswDS-si1XwI_lFH8ejnZ2NOrLWMWmFN921cyCsf3_ssVB9oowu3jFCtXwHi4GFZKGdH7xlK_aNPzns4R-u28UJXGBDNd98ZqTJ-FjTkKgP0e3_Jx-Nz6zqdINX9IfBUhvzw4YQyjX-18oUBf0AmGDnX6YyKFdiHA2fuvNogSohHesCoEn7G4Hkg5MT5OqTwcLeM0t',
     progress: 90
   }
-];
-
-export const MEDALS: Medal[] = [
-  { id: 'm1', name: '早起小标兵', icon: 'wb_sunny', unlocked: true, color: 'from-yellow-300 to-primary' },
-  { id: 'm2', name: '7天连续达人', icon: 'local_fire_department', unlocked: true, color: 'from-orange-400 to-red-500' },
-  { id: 'm3', name: '浇水小能手', icon: 'water_drop', unlocked: true, color: 'from-blue-400 to-blue-600' },
-  { id: 'm4', name: '水果采摘员', icon: 'nutrition', unlocked: false, color: 'from-slate-300 to-slate-400' },
-  { id: 'm5', name: '根深蒂固', icon: 'forest', unlocked: false, color: 'from-slate-300 to-slate-400' },
-  { id: 'm6', name: '闪亮之星', icon: 'stars', unlocked: true, color: 'from-purple-400 to-indigo-600' },
-  { id: 'm7', name: '环保小英雄', icon: 'eco', unlocked: true, color: 'from-emerald-400 to-teal-600' },
-  { id: 'm8', name: '快速成长期', icon: 'energy_savings_leaf', unlocked: false, color: 'from-slate-300 to-slate-400' },
-  { id: 'm9', name: '顶尖选手', icon: 'emoji_events', unlocked: false, color: 'from-slate-300 to-slate-400' }
 ];
 
 export const MESSAGES: Message[] = [

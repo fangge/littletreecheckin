@@ -11,7 +11,7 @@ import App from './App';
 const Dashboard = lazy(() => import('./views/Dashboard'));
 const CheckIn = lazy(() => import('./views/CheckIn'));
 const Messages = lazy(() => import('./views/Messages'));
-const Medals = lazy(() => import('./views/Medals'));
+const Pets = lazy(() => import('./views/Pets'));
 const ParentControl = lazy(() => import('./views/ParentControl'));
 const Store = lazy(() => import('./views/Store'));
 const FruitsHistory = lazy(() => import('./views/FruitsHistory'));
@@ -22,7 +22,6 @@ const Register = lazy(() => import('./views/Register'));
 const Login = lazy(() => import('./views/Login'));
 const Profile = lazy(() => import('./views/Profile'));
 const RewardsManagement = lazy(() => import('./views/RewardsManagement'));
-const MedalManagement = lazy(() => import('./views/MedalManagement'));
 const ForgotPassword = lazy(() => import('./views/ForgotPassword'));
 
 // 加载中的占位组件
@@ -107,10 +106,10 @@ const router = createBrowserRouter([
         ),
       },
       {
-        path: 'medals',
+        path: 'pets',
         element: (
           <ProtectedRoute>
-            <Medals />
+            <Pets />
           </ProtectedRoute>
         ),
       },
@@ -159,14 +158,6 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <RewardsManagement />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: 'medals/manage',
-        element: (
-          <ProtectedRoute>
-            <MedalManagement />
           </ProtectedRoute>
         ),
       },

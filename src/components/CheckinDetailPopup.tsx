@@ -6,7 +6,7 @@ interface CheckinDetailPopupProps {
   date: string | null;
   tasks: CalendarTask[];
   onClose: () => void;
-  /** 弹层完全消失后的回调，可用于触发勋章检查等后续操作 */
+  /** 弹层完全消失后的回调 */
   onAfterClose?: () => void;
 }
 

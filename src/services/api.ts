@@ -125,6 +125,47 @@ export interface GoalData {
   shared_child_ids?: string[];
 }
 
+export type PetSpecies = 'tao' | 'xigua' | 'ping' | 'li' | 'mei' | 'jiao';
+
+export interface PetData {
+  id: string;
+  child_id: string;
+  species: PetSpecies;
+  stage: number;
+  stage_points: number;
+  total_points: number;
+  status: 'growing' | 'grown';
+  started_at: string;
+  grown_at: string | null;
+  created_at: string;
+  updated_at: string;
+  stage_cost: number;
+  stage_remaining: number;
+  stage_progress: number;
+  total_progress: number;
+  next_stage: number | null;
+}
+
+export interface PetSettings {
+  stage_costs: number[];
+  updated_at?: string | null;
+}
+
+export interface PetsOverview {
+  settings: PetSettings;
+  active_pet: PetData | null;
+  cards: PetData[];
+  fruits_balance: number;
+}
+
+export interface FeedPetResult {
+  pet: PetData;
+  fruits_balance: number;
+  spent: number;
+  stage_up: boolean;
+  completed: boolean;
+}
+
 export interface SharedTaskProgress {
   child_id: string;
   child_name: string;
@@ -162,20 +203,6 @@ export interface TaskData {
   trees?: { name: string; image?: string };
   created_at?: string;
   updated_at?: string;
-}
-
-export interface MedalData {
-  id: string;
-  name: string;
-  icon: string;
-  color: string;
-  description?: string;
-  unlock_condition?: {
-    type: string;
-    threshold: number;
-  };
-  unlocked: boolean;
-  unlocked_at?: string;
 }
 
 export interface RewardData {
@@ -458,43 +485,41 @@ export const tasksApi = {
 };
 
 // ============================================================
-// 勋章 API
+// 宠物养成 API
 // ============================================================
-export const medalsApi = {
-  list: (childId: string) =>
-    cachedGet<{ data: MedalData[] }>(`/api/v1/children/${childId}/medals`),
+export const petsApi = {
+  overview: (childId: string) =>
+    cachedGet<{ data: PetsOverview }>(`/api/v1/children/${childId}/pets`),
 
-  listAll: () =>
-    request<{ data: MedalData[] }>(`/api/v1/medals`),
+  getSettings: (childId: string) =>
+    request<{ data: PetSettings }>(`/api/v1/children/${childId}/pet-settings`),
 
-  create: (medal: {
-    name: string;
-    icon: string;
-    color: string;
-    description?: string;
-    unlock_condition: { type: string; threshold: number };
-  }) =>
-    request<{ data: MedalData }>(`/api/v1/medals`, {
-      method: 'POST',
-      body: JSON.stringify(medal),
-    }),
-
-  update: (id: string, medal: Partial<{
-    name: string;
-    icon: string;
-    color: string;
-    description: string;
-    unlock_condition: { type: string; threshold: number };
-  }>) =>
-    request<{ data: MedalData }>(`/api/v1/medals/${id}`, {
+  updateSettings: (childId: string, stageCosts: number[]) =>
+    request<{
+      data: { settings: PetSettings; pet: PetData | null; auto_completed: boolean };
+      message: string;
+    }>(`/api/v1/children/${childId}/pet-settings`, {
       method: 'PUT',
-      body: JSON.stringify(medal),
+      body: JSON.stringify({ stage_costs: stageCosts }),
     }),
 
-  delete: (id: string) =>
-    request<{ message: string }>(`/api/v1/medals/${id}`, {
-      method: 'DELETE',
-    }),
+  adopt: (childId: string, species: PetSpecies) =>
+    request<{ data: { pet: PetData; fruits_balance: number }; message: string }>(
+      `/api/v1/children/${childId}/pets`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ species }),
+      },
+    ),
+
+  feed: (childId: string, petId: string, points: number) =>
+    request<{ data: FeedPetResult; message: string }>(
+      `/api/v1/children/${childId}/pets/${petId}/feed`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ points }),
+      },
+    ),
 };
 
 // ============================================================

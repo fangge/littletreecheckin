@@ -7,7 +7,7 @@ import Icon from '../components/Icon';
 const pathNavMap: Record<string, string> = {
   '/': 'tasks',
   '/forest': 'forest',
-  '/medals': 'medals',
+  '/pets': 'pets',
   '/store': 'store',
   '/profile': 'parent',
 };
@@ -15,7 +15,7 @@ const pathNavMap: Record<string, string> = {
 const allNavItems = [
   { id: 'tasks', label: '任务', icon: 'check_circle', path: '/' },
   { id: 'forest', label: '成长树', icon: 'park', path: '/forest' },
-  { id: 'medals', label: '勋章', icon: 'workspace_premium', path: '/medals' },
+  { id: 'pets', label: '宠物', icon: 'pets', path: '/pets' },
   { id: 'store', label: '商店', icon: 'storefront', path: '/store' },
   { id: 'parent', label: '家长中心', icon: 'family_restroom', parentOnly: true, path: '/profile' },
 ];

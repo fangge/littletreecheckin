@@ -2,6 +2,41 @@
 
 ## 版本历史
 
+### v4.8 — 宠物养成系统上线，勋章系统下线
+
+孩子可以用打卡获得的果实作为成长积分，领养桃小树、西瓜小树、苹小树、梨小树、莓小树或蕉小树，陪它从种子一路长到成长期。每只宠物毕业后会成为独立卡片，同一种宠物可以反复领养；家长可以随时调整 5 个阶段的积分门槛。原有勋章页面、勋章管理、解锁引擎与勋章数据同步移除，导航栏的勋章入口改为宠物入口。
+
+- ✅ **新增** `src/views/Pets.tsx`：宠物主页，包含领养、成长积分喂养、五阶段进度、宠物卡片册与家长规则入口
+- ✅ **新增** `src/data/pets.ts`：6 种宠物元数据、阶段名称、默认积分、配色与阶段图片路径
+- ✅ **新增** `src/components/PetCharacter.tsx`：宠物形象组件，支持物种专属待机、漂浮粒子、喂养雀跃与进化动效
+- ✅ **新增** `src/components/PetAdoptSheet.tsx`：6 种宠物领养弹层，展示五阶段进化预览
+- ✅ **新增** `src/components/PetSettingsModal.tsx`：家长调整 5 个阶段所需积分的设置弹层
+- ✅ **新增** `src/components/PetStageUpModal.tsx`：阶段进化 / 毕业收藏庆祝弹层
+- ✅ **新增** `src/components/PetCard.tsx`：已毕业宠物卡片
+- ✅ **新增** `server/src/routes/pets.ts`：宠物聚合、领养、喂养、成长规则读取与家长调整接口
+- ✅ **新增** `public/pets/stages/*.webp`：6 种宠物 × 5 个阶段的透明背景图片
+- ✅ **新增** `supabase/migrations/20261022000000_remove_medals.sql`：删除勋章表与全部勋章数据
+- ✅ **新增** `supabase/migrations/20261022000001_add_pet_system.sql`：新增宠物规则、宠物、喂养流水及 `feed_pet` / `recalculate_pet_stage` RPC
+- ✅ **删除** `src/views/Medals.tsx`、`src/views/MedalManagement.tsx`、`src/components/MedalUnlockPopup.tsx`
+- ✅ **删除** `server/src/routes/medals.ts`、`server/src/services/medalService.ts`
+- ✅ **修改** `src/router.tsx` / `src/components/Navigation.tsx`：勋章路由与导航替换为 `/pets`
+- ✅ **修改** `src/views/CheckIn.tsx` / `src/views/Dashboard.tsx`：移除打卡后勋章检测与解锁弹层
+- ✅ **修改** `src/services/api.ts`：移除勋章 API，新增 `petsApi` 与宠物类型
+
+**功能特性**：
+- 6 种宠物：桃小树、西瓜小树、苹小树、梨小树、莓小树、蕉小树
+- 5 个成长阶段：种子、幼苗、花苞、小树、成长期
+- 每阶段默认消耗 100 / 200 / 300 / 400 / 500 成长积分，家长可随时调整
+- 喂养与商店共用孩子的果实余额，1 积分 = 1 点成长能量
+- 同一时间只能养 1 只宠物；成长期喂满 500 积分后毕业，自动收藏为宠物卡片
+- 已毕业宠物永久保留，同一种宠物可以反复领养，每只独立记录投入与毕业日期
+- 家长调低门槛可能让宠物提前毕业，调高门槛会按新规则重新计算阶段
+- 6 种宠物分别拥有不同的呼吸节奏、漂浮粒子、进化与毕业动画
+
+**数据库迁移**：依次执行 `supabase/migrations/20261022000000_remove_medals.sql` 和 `supabase/migrations/20261022000001_add_pet_system.sql`
+
+---
+
 ### v4.7 — 批量任务打卡与打卡体验优化
 
 打卡页现在可以一次选择多个目标和多个日期，今日任务与历史漏打卡都能在同一个弹层中提交。批量提交会自动跳过已完成或等待审核的任务，并逐项反馈失败原因；同时优化慢请求状态和庆祝动画的重复播放体验。

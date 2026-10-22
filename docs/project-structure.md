@@ -3,6 +3,8 @@
 ```
 littletreecheckin/
 ├── src/                              # 前端源码
+│   ├── data/
+│   │   └── pets.ts                   # 宠物元数据、阶段名、默认积分与图片路径
 │   ├── contexts/
 │   │   └── AuthContext.tsx           # 全局认证状态（JWT + localStorage 缓存）
 │   ├── services/
@@ -15,12 +17,17 @@ littletreecheckin/
 │   │   ├── GoalSetting.tsx           # 设置/编辑目标（种树/修改/删除）
 │   │   ├── ParentControl.tsx         # 家长审核任务（所有孩子合并显示）
 │   │   ├── Store.tsx                 # 果实商店（孩子切换 + 兑换）
-│   │   ├── Medals.tsx                # 勋章墙（孩子切换）
+│   │   ├── Pets.tsx                  # 宠物养成（领养 / 喂养 / 宠物卡片册）
 │   │   ├── Messages.tsx              # 消息中心
 │   │   ├── Profile.tsx               # 个人管理中心（孩子管理 + 入口）
 │   │   └── RewardsManagement.tsx     # 奖品管理 + 兑换记录（独立页面）
 │   ├── components/
 │   │   ├── Navigation.tsx            # 底部导航栏
+│   │   ├── PetCharacter.tsx          # 宠物形象 + 物种专属待机/粒子动效
+│   │   ├── PetAdoptSheet.tsx         # 领养宠物弹层
+│   │   ├── PetSettingsModal.tsx      # 家长调整阶段积分
+│   │   ├── PetStageUpModal.tsx       # 阶段进化 / 毕业庆祝
+│   │   ├── PetCard.tsx               # 已毕业宠物卡片
 │   │   └── CelebrationPopup.tsx      # 打卡成功庆祝弹窗（根据进度显示不同文案）
 │   ├── App.tsx                       # 路由 + 认证守卫
 │   ├── main.tsx                      # 入口（包裹 AuthProvider）
@@ -43,20 +50,18 @@ littletreecheckin/
 │   │   │   ├── auth.ts               # 认证路由（注册/登录/me/登出）
 │   │   │   ├── children.ts           # 孩子管理 + 统计数据路由（支持时间筛选）
 │   │   │   ├── trees.ts              # 树木列表 + 目标 CRUD 路由
-│   │   │   ├── goals.ts              # 目标更新/删除路由（含勋章撤销）
+│   │   │   ├── goals.ts              # 目标更新/删除路由
 │   │   │   ├── tasks.ts              # 任务打卡 + 审核路由
-│   │   │   ├── medals.ts             # 勋章查询路由
+│   │   │   ├── pets.ts               # 宠物聚合 / 领养 / 喂养 / 成长规则路由
 │   │   │   ├── rewards.ts            # 奖励商店 + 兑换 + 奖品 CRUD 路由
 │   │   │   └── messages.ts           # 消息发送/查询/已读路由
-│   │   └── services/
-│   │       └── medalService.ts       # 勋章自动解锁 + 撤销业务逻辑
 │   ├── package.json
 │   └── tsconfig.json
 │
 ├── supabase/
 │   └── migrations/
-│       ├── 001_initial_schema.sql    # 10 张业务表 + 索引 + 触发器
-│       └── 002_seed_data.sql         # 勋章（9枚）和奖励（6个）初始数据
+│       ├── init.sql                  # 完整初始化脚本
+│       └── 20261022000001_add_pet_system.sql  # 宠物系统
 │
 ├── docs/                             # 项目文档
 │   ├── getting-started.md            # 快速开始（安装/配置/启动）

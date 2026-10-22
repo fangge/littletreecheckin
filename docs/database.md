@@ -1,6 +1,6 @@
 # 数据库设计
 
-共 10 张业务表，均使用 UUID 主键，部署在 Supabase（PostgreSQL）。
+核心业务表均使用 UUID 主键，部署在 Supabase（PostgreSQL）。
 
 ## 表结构总览
 
@@ -11,8 +11,9 @@
 | `goals` | 习惯目标 | child_id→children, duration_days, is_active |
 | `trees` | 虚拟树木 | child_id, goal_id→goals, status, level(1-5), progress(0-100) |
 | `tasks` | 每日打卡记录 | goal_id, child_id, status(pending/approved/rejected) |
-| `medals` | 勋章定义 | name, icon, color, unlock_condition(JSONB) |
-| `child_medals` | 孩子已解锁勋章 | child_id, medal_id, unlocked_at |
+| `pet_settings` | 家长级宠物成长规则 | parent_id, stage_costs(INTEGER[5]) |
+| `child_pets` | 进行中宠物 / 毕业卡片 | child_id, species, stage, stage_points, total_points, status |
+| `pet_feedings` | 宠物喂养流水 | pet_id, child_id, points, stage_before/after |
 | `rewards` | 奖励商品 | name, price(果实数), category(activity/toy/snack) |
 | `reward_redemptions` | 兑换记录 | child_id, reward_id, status(pending/completed) |
 | `messages` | 消息记录 | child_id, sender_type(parent/child/system), type(text/sticker/image) |
@@ -85,16 +86,39 @@
 | progress | integer | 打卡时的树木进度快照 |
 | reject_reason | text | 拒绝原因（可选） |
 
-### medals（勋章定义）
+### pet_settings（宠物成长规则）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| parent_id | uuid | 主键，外键 → auth.users.id |
+| stage_costs | integer[] | 5 个阶段所需积分，默认 `{100,200,300,400,500}` |
+| created_at / updated_at | timestamptz | 时间戳 |
+
+### child_pets（进行中宠物 / 毕业卡片）
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | id | uuid | 主键 |
-| name | varchar(50) | 勋章名称 |
-| icon | varchar(50) | Material Symbol 图标名 |
-| color | varchar(50) | Tailwind 颜色类名 |
-| description | text | 勋章描述 |
-| unlock_condition | jsonb | 解锁条件（见业务逻辑文档） |
+| child_id | uuid | 外键 → children.id |
+| species | text | tao / xigua / ping / li / mei / jiao |
+| stage | smallint | 0-4（种子 / 幼苗 / 花苞 / 小树 / 成长期） |
+| stage_points | integer | 当前阶段已投入积分 |
+| total_points | integer | 累计投入积分 |
+| status | text | growing / grown |
+| started_at / grown_at | timestamptz | 开始饲养 / 毕业时间 |
+
+同一孩子只能有一只 `status='growing'` 的宠物，由 `idx_child_pets_one_growing` 部分唯一索引保证。
+
+### pet_feedings（喂养流水）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | uuid | 主键 |
+| parent_id / child_id / pet_id | uuid | 关联家长、孩子、宠物 |
+| points | integer | 本次实际消耗积分 |
+| stage_before / stage_after | smallint | 喂养前后阶段 |
+| stage_points_before / after | integer | 喂养前后阶段积分 |
+| created_at | timestamptz | 喂养时间 |
 
 ### rewards（奖励商品）
 
@@ -115,5 +139,6 @@
 
 | 文件 | 说明 |
 |------|------|
-| [`supabase/migrations/001_initial_schema.sql`](../supabase/migrations/001_initial_schema.sql) | 10 张业务表 + 索引 + updated_at 触发器 |
-| [`supabase/migrations/002_seed_data.sql`](../supabase/migrations/002_seed_data.sql) | 9 枚勋章 + 6 个奖励初始数据 |
+| [`supabase/migrations/init.sql`](../supabase/migrations/init.sql) | 完整初始化脚本（表 + RLS + RPC + 默认数据） |
+| [`supabase/migrations/20261022000000_remove_medals.sql`](../supabase/migrations/20261022000000_remove_medals.sql) | 删除勋章表与勋章数据 |
+| [`supabase/migrations/20261022000001_add_pet_system.sql`](../supabase/migrations/20261022000001_add_pet_system.sql) | 宠物规则 / 宠物 / 喂养流水 + RPC |

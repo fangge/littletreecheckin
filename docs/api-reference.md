@@ -81,7 +81,7 @@ GET /api/v1/children/:childId/stats?period=month|quarter|year
 | GET | `/api/v1/children/:childId/goals` | 获取目标列表（含关联树木） |
 | PUT | `/api/v1/trees/:treeId` | 更新树木信息 |
 | PUT | `/api/v1/goals/:goalId` | 更新目标（支持修改归属孩子） |
-| DELETE | `/api/v1/goals/:goalId` | 删除目标（含关联任务/树木/勋章撤销） |
+| DELETE | `/api/v1/goals/:goalId` | 删除目标（含关联任务/树木） |
 
 ### 查询参数
 
@@ -126,11 +126,15 @@ GET /api/v1/children/:childId/stats?period=month|quarter|year
 
 ---
 
-## 勋章
+## 宠物养成
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/children/:childId/medals` | 获取全部勋章（含已解锁/未解锁状态） |
+| GET | `/api/v1/children/:childId/pets` | 宠物主页聚合（成长规则 + 进行中宠物 + 卡片 + 余额） |
+| POST | `/api/v1/children/:childId/pets` | 领养宠物，body: `{ species }` |
+| POST | `/api/v1/children/:childId/pets/:petId/feed` | 喂养宠物，body: `{ points }` |
+| GET | `/api/v1/children/:childId/pet-settings` | 读取 5 个阶段积分规则 |
+| PUT | `/api/v1/children/:childId/pet-settings` | 家长调整规则，body: `{ stage_costs: [100,200,300,400,500] }` |
 
 ---
 

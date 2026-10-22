@@ -2,7 +2,6 @@ import { Router, Response } from 'express';
 import { supabase } from '../config/supabase.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { AuthRequest } from '../types.js';
-import { checkAndUnlockMedals } from '../services/medalService.js';
 
 const router: Router = Router();
 
@@ -308,10 +307,6 @@ router.put('/:taskId/approve', authMiddleware, async (req: AuthRequest, res: Res
     .eq('child_id', taskOwner.child_id)
     .single();
 
-  // 异步检查勋章解锁（不阻塞响应）
-  checkAndUnlockMedals((await supabase.from('tasks').select('child_id').eq('id', taskId).single())?.data?.child_id ?? '')
-    .catch(console.error);
-
   res.json({
     data: updatedTask,
     message: '审核通过',
@@ -596,12 +591,6 @@ router.put('/bulk-approve', authMiddleware, async (req: AuthRequest, res: Respon
 
       results.push({ task_id: taskId, status: 'approved' });
       approvedCount++;
-
-      // 异步检测勋章（不阻塞批量处理）
-      const childId = tasks.find(t => t.id === taskId)?.child_id;
-      if (childId) {
-        checkAndUnlockMedals(childId).catch(console.error);
-      }
     } catch (err) {
       results.push({ task_id: taskId, status: 'failed', error: err instanceof Error ? err.message : '未知错误' });
     }

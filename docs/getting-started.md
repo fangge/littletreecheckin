@@ -80,36 +80,34 @@ NODE_ENV=development
 
 ## 3. 初始化数据库
 
-### 3.1 执行建表脚本
+### 3.1 执行完整初始化脚本
 
 1. 在 Supabase 控制台左侧菜单点击 **SQL Editor**
 
 2. 点击右上角 **New query**
 
-3. 复制 [`supabase/migrations/001_initial_schema.sql`](../supabase/migrations/001_initial_schema.sql) 的全部内容，粘贴到编辑器中
+3. 复制 [`supabase/migrations/init.sql`](../supabase/migrations/init.sql) 的全部内容，粘贴到编辑器中
 
 4. 点击右下角 **Run**（或按 `Ctrl/Cmd + Enter`）执行
 
-5. 看到 `Success. No rows returned` 表示执行成功
+5. 看到 `Success. No rows returned` 表示执行成功。`init.sql` 已包含全部表、RLS、RPC 和默认数据，无需再单独执行旧的 `001` / `002` 脚本。
 
-### 3.2 执行种子数据脚本
+### 3.2 验证表结构
 
-1. 再次点击 **New query**
-
-2. 复制 [`supabase/migrations/002_seed_data.sql`](../supabase/migrations/002_seed_data.sql) 的全部内容，粘贴到编辑器中
-
-3. 点击 **Run** 执行
-
-4. 执行成功后，可在左侧 **Table Editor** 中查看 `medals` 和 `rewards` 表，确认数据已插入（9 枚勋章 + 6 个奖励）
-
-### 3.3 验证表结构
-
-执行完成后，在 **Table Editor** 中应能看到以下 10 张表：
+执行完成后，在 **Table Editor** 中应能看到以下核心表：
 
 ```
-users · children · goals · trees · tasks
-medals · child_medals · rewards · reward_redemptions · messages
+profiles · children · goals · trees · tasks
+pet_settings · child_pets · pet_feedings
+rewards · reward_redemptions · messages
 ```
+
+### 3.3 已有项目升级
+
+如果数据库已经初始化过旧版本，请按顺序执行：
+
+1. [`20261022000000_remove_medals.sql`](../supabase/migrations/20261022000000_remove_medals.sql) — 删除勋章表与勋章数据
+2. [`20261022000001_add_pet_system.sql`](../supabase/migrations/20261022000001_add_pet_system.sql) — 新增宠物规则、宠物、喂养流水与 RPC
 
 ### 3.4 配置 Storage（可选，用于任务打卡图片上传）
 

@@ -37,7 +37,7 @@ export default defineConfig({
         items: [
           {text: '如何打卡', link: '/guide/checkin'},
           {text: '目标管理', link: '/guide/goals'},
-          {text: '勋章系统', link: '/guide/medals'},
+          {text: '宠物养成', link: '/guide/pets'},
           {text: '果实商店', link: '/guide/store'},
           {text: '家长功能', link: '/guide/parent'},
         ]

@@ -23,9 +23,9 @@ features:
   - title: 目标设置
     details: 创建/编辑/删除习惯目标，支持多孩子管理
     icon: 🎯
-  - title: 勋章系统
-    details: 根据累计任务、连续打卡等条件自动解锁勋章
-    icon: 🏅
+  - title: 宠物养成
+    details: 用成长积分领养小树宠，从种子一路陪到成长期
+    icon: 🐾
   - title: 果实商店
     details: 用果实兑换家长设置的实际奖励
     icon: 🛒

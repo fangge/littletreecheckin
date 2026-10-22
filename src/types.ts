@@ -1,4 +1,4 @@
-export type ViewType = 'forest' | 'tasks' | 'messages' | 'medals' | 'parent' | 'store' | 'add-goal' | 'register' | 'profile' | 'parent-control' | 'login' | 'rewards-management' | 'fruits-history';
+export type ViewType = 'forest' | 'tasks' | 'messages' | 'parent' | 'store' | 'add-goal' | 'register' | 'profile' | 'parent-control' | 'login' | 'rewards-management' | 'fruits-history';
 
 export interface Tree {
   id: string;
@@ -18,14 +18,6 @@ export interface Task {
   treeName: string;
   image: string;
   progress: number;
-}
-
-export interface Medal {
-  id: string;
-  name: string;
-  icon: string;
-  unlocked: boolean;
-  color: string;
 }
 
 export interface Reward {

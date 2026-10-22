@@ -1,6 +1,6 @@
 # 成就丛林 (Achievement Jungle) — AI 项目全景
 
-**一句话**：游戏化儿童习惯养成 PWA。家长设置目标 → 孩子每日打卡 → 家长审核 → 树木成长 + 果实奖励 → 商店兑换奖品 + 勋章解锁。
+**一句话**：游戏化儿童习惯养成 PWA。家长设置目标 → 孩子每日打卡 → 家长审核 → 树木成长 + 果实奖励 → 商店兑换奖品 + 宠物养成。
 
 ---
 
@@ -39,8 +39,9 @@
     App.tsx                   # 布局壳：Navigation + ChildModeBanner + Outlet + TodayProgressModal + UpdatePrompt
     router.tsx                # 路由定义：ProtectedRoute / PublicRoute / Suspense 懒加载
     version.ts                # APP_VERSION 常量（发版时更新）
-    types.ts                  # 前端类型定义（Tree/Task/Medal/Reward/Message）
+    types.ts                  # 前端类型定义（Tree/Task/Pet/Reward/Message）
     constants.ts              # Mock 数据常量（仅开发占位用，实际数据来自 API）
+    data/pets.ts              # 6 种宠物元数据、阶段名、默认积分与图片路径
 
     lib/
       supabase.ts             # Supabase 客户端（auth: persistSession + autoRefresh）
@@ -63,8 +64,12 @@
       Navigation.tsx           # 底部/侧边 TabBar（children 选择器 + 导航菜单）
       ChildModeBanner.tsx      # 儿童模式顶部提示条
       Icon.tsx                 # 自托管 SVG 图标组件
+      PetCharacter.tsx         # 宠物形象：阶段图 + 物种专属待机/粒子动效
+      PetAdoptSheet.tsx        # 领养宠物弹层（6 种宠物 + 五阶段预览）
+      PetSettingsModal.tsx     # 家长调整 5 个阶段积分规则
+      PetStageUpModal.tsx      # 阶段进化 / 毕业收藏庆祝弹层
+      PetCard.tsx              # 已毕业宠物卡片
       CelebrationPopup.tsx     # 树木完成的庆祝弹窗（Three.js 3D 特效）
-      MedalUnlockPopup.tsx     # 勋章解锁弹窗
       TodayProgressModal.tsx   # 今日打卡进度浮层
       ChangelogModal.tsx       # 版本更新日志弹窗
       CheckinCalendar.tsx      # 打卡日历组件
@@ -79,8 +84,7 @@
       Dashboard.tsx            # 森林主页：树木列表 + 统计数据 + 目标列表
       ParentControl.tsx        # 家长审核：待审核任务列表 + 批准/拒绝
       Store.tsx                # 果实商店：兑换奖品
-      Medals.tsx               # 勋章展示
-      MedalManagement.tsx      # 勋章管理（CRUD）
+      Pets.tsx                 # 宠物养成：领养、用成长积分喂养、阶段进化、宠物卡片册
       GoalSetting.tsx          # 目标设置（新增/编辑目标，支持共享任务）
       RewardsManagement.tsx    # 奖品管理 + 兑换审核
       Messages.tsx             # 亲子消息
@@ -108,16 +112,16 @@
       trees.ts                 # /api/v1/children/:childId/trees + dashboard-data + goals CRUD + shared-progress
       tasks.ts                 # /api/v1/children/:childId/tasks + checkin POST + approve/reject/revoke
       goals.ts                 # /api/v1/goals/:goalId PUT/DELETE（goals 的独立写操作路由）
-      medals.ts                # /api/v1/medals CRUD + /api/v1/children/:childId/medals
+      pets.ts                  # /api/v1/children/:childId/pets + pet-settings + feed
       rewards.ts               # /api/v1/rewards CRUD + redeem + redemptions
       messages.ts              # /api/v1/messages CRUD + mark read
 
-    services/
-      medalService.ts          # 勋章解锁引擎：连续打卡/总任务/树木完成/总果实/周目标
 
   supabase/migrations/
     init.sql                   # 完整初始化脚本（所有表 + RLS + RPC + 种子数据）
     002_performance_indexes.sql  ... 014_fix_tree_progress_recalculation.sql
+    20261022000000_remove_medals.sql   # 删除勋章表与勋章数据
+    20261022000001_add_pet_system.sql  # 宠物规则/宠物/喂养流水 + RPC
 
   api/
     [...path].ts               # Vercel Serverless 入口：将请求代理到 Express
@@ -132,8 +136,7 @@
 | `/` | CheckIn | ProtectedRoute | 首页每日打卡 |
 | `/forest` | Dashboard | ProtectedRoute | 森林主页（树木 + 统计 + 目标） |
 | `/messages` | Messages | ProtectedRoute | 亲子消息 |
-| `/medals` | Medals | ProtectedRoute | 勋章展示 |
-| `/medals/manage` | MedalManagement | ProtectedRoute | 勋章 CRUD 管理 |
+| `/pets` | Pets | ProtectedRoute | 宠物养成（领养 / 喂养 / 卡片册） |
 | `/store` | Store | ProtectedRoute | 果实商店兑换 |
 | `/store/fruits-history` | FruitsHistory | ProtectedRoute | 果实获取历史 |
 | `/store/redemption-history` | RedemptionHistory | ProtectedRoute | 兑换历史 |
@@ -176,7 +179,6 @@ Token 刷新: supabase-js 自动处理；前端 request() 从不手动管理 tok
     → recalculate_tree_progress (基于 approved distinct 日期数)
     → 若树木 100%: tree.status='completed', goal.is_active=false
     → INSERT 系统消息通知
-  → 异步触发 checkAndUnlockMedals (勋章检测)
 
 家长审核拒绝:
   PUT /api/v1/tasks/:taskId/reject { reason } → status='rejected'
@@ -190,17 +192,14 @@ Token 刷新: supabase-js 自动处理；前端 request() 从不手动管理 tok
 - progress = MIN(100, ROUND(100 × approvedDistinctDays / duration_days))
 - 进度 ≥100 → status='completed' → goal.is_active=false
 
-### 4. 勋章解锁引擎
-`server/src/services/medalService.ts` — 每次获取勋章列表时自动触发检测。条件类型：
-| 条件类型 | 说明 | 阈值示例 |
-|---------|------|---------|
-| consecutive_days | 连续打卡天数（只看日期，UTC+8） | 7 |
-| total_tasks | 累计 approved 任务数 | 30 / 100 / 200 |
-| trees_completed | 完成树木数 | 1 / 5 |
-| total_fruits | 累计获得果实数 | 500 |
-| weekly_goals | 一周内完成的不同目标数 | 3 |
-
-种子数据有 9 枚勋章（见 `init.sql`）。
+### 4. 宠物养成系统
+- 6 种宠物：桃小树 / 西瓜小树 / 苹小树 / 梨小树 / 莓小树 / 蕉小树；每种 5 个阶段（种子、幼苗、花苞、小树、成长期），图片位于 `public/pets/stages/{species}-{1..5}.webp`
+- 每个孩子同时只能有 1 只 `status='growing'` 的宠物；领养后从种子阶段开始
+- 阶段成本存 `pet_settings.stage_costs`（默认 `[100,200,300,400,500]`），按家长维度配置
+- 喂养使用孩子现有 `children.fruits_balance`（前端称“成长积分”，与商店共用余额）
+- `feed_pet` RPC 原子完成：校验余额 → 扣积分 → 推进阶段 → 成长期喂满 500 后 `status='grown'` 并写入 `grown_at`
+- 毕业宠物作为卡片永久保留，可反复领养同一种宠物；每张卡片独立记录累计投入与毕业日期
+- 家长可随时修改 5 个阶段积分；`recalculate_pet_stage` 会按 `total_points` 和新的成本重新分配阶段，调低门槛可能让宠物提前毕业
 
 ### 5. 共享任务（竞争模式）
 - `goals.is_shared=true` + `shared_child_ids` 包含多个孩子
@@ -239,8 +238,10 @@ POST /api/v1/rewards/:rewardId/redeem { child_id }
 | PUT | `/api/v1/tasks/:taskId/approve` | 审核通过（?bonus_fruits=） |
 | PUT | `/api/v1/tasks/:taskId/reject` | 审核拒绝 |
 | PUT | `/api/v1/tasks/:taskId/revoke` | 撤销批准 |
-| GET | `/api/v1/children/:childId/medals` | 勋章列表（自动检测解锁） |
-| GET/POST/PUT/DELETE | `/api/v1/medals` | 勋章 CRUD |
+| GET | `/api/v1/children/:childId/pets` | 宠物主页聚合（规则 + 进行中宠物 + 卡片 + 余额） |
+| POST | `/api/v1/children/:childId/pets` | 领养宠物 |
+| POST | `/api/v1/children/:childId/pets/:petId/feed` | 用成长积分喂养宠物 |
+| GET/PUT | `/api/v1/children/:childId/pet-settings` | 读取 / 家长调整阶段积分规则 |
 | GET | `/api/v1/rewards` | 奖励列表（?category=） |
 | POST | `/api/v1/rewards/:rewardId/redeem` | 兑换 |
 | GET/POST/PUT/DELETE | `/api/v1/rewards` | 奖励 CRUD |
@@ -267,8 +268,9 @@ POST /api/v1/rewards/:rewardId/redeem { child_id }
 | goals | child_id, title, duration_days, duration_minutes, fruits_per_task, is_active, is_shared, shared_child_ids(UUID[]) | 习惯目标（含共享任务） |
 | trees | child_id, goal_id, name, status(growing/completed), progress(0-100) | 每目标每孩子一棵树 |
 | tasks | goal_id, child_id, tree_id, title, status(pending/approved/rejected), checkin_time, bonus_fruits | 每日打卡记录 |
-| medals | name, icon, color, description, unlock_condition(JSONB) | 勋章定义 |
-| child_medals | child_id, medal_id, unlocked_at, UNIQUE(child_id, medal_id) | 孩子 x 勋章关联 |
+| pet_settings | parent_id(PK), stage_costs(INTEGER[5]) | 家长级 5 阶段积分规则 |
+| child_pets | child_id, species, stage(0-4), stage_points, total_points, status(growing/grown), grown_at | 进行中宠物 / 毕业卡片 |
+| pet_feedings | parent_id, child_id, pet_id, points, stage_before/after | 喂养流水（审计） |
 | rewards | name, price, category, is_active | 商店奖品 |
 | reward_redemptions | child_id, reward_id, status(pending/completed) | 兑换记录 |
 | messages | child_id, sender_type(parent/child/system), text, type(text/image/sticker), is_read | 亲子消息 |
@@ -278,11 +280,15 @@ POST /api/v1/rewards/:rewardId/redeem { child_id }
 - `get_child_stats(p_child_id, p_start_date, p_end_date)` — 聚合统计
 - `approve_task_rpc(p_task_id, p_bonus_fruits)` — 审核事务（原子化）
 - `recalculate_tree_progress(p_tree_id)` — 基于 distinct 日期重算树木进度
+- `feed_pet(p_child_id, p_pet_id, p_points)` — 原子扣积分 + 推进阶段 + 毕业
+- `recalculate_pet_stage(p_child_id)` — 家长改规则后按 total_points 重算阶段
 
 ### 关键索引
 - `idx_tasks_child_status_time` / `idx_tasks_child_checkin_time` — 加速任务查询
 - `idx_goals_shared_child_ids` (GIN) + `idx_goals_is_shared` — 加速共享任务查询
 - `idx_redemptions_child_time` / `idx_redemptions_child_status` — 加速兑换查询
+- `idx_child_pets_one_growing`（partial unique）— 保证每个孩子同时只有 1 只进行中宠物
+- `idx_child_pets_child_status` / `idx_pet_feedings_child_time` — 加速宠物与喂养记录查询
 
 ---
 
@@ -342,9 +348,10 @@ pnpm docs:dev       # VitePress 文档
 3. **时区**：所有涉日期的逻辑统一使用 UTC+8（Asia/Shanghai）。`getUTC8Today()` 在后端多处使用。
 4. **共享任务果实发放**：非共享任务直接发放；共享任务只有树木完成后的最后一次打卡才显示果实（前端 `fruits-history` 接口处理）。
 5. **树木进度回退**：撤销审核时调用 `recalculate_tree_progress`，基于真实 approved distinct 日期数重算，如果树木之前已完成则恢复为 growing。
-6. **勋章校验**：删除目标后会异步执行 `revokeInvalidMedals`，清除不再满足条件的已解锁勋章。
-7. **PWA**：根目录 `sw.js` 提供服务 Worker。`vite.config.ts` 的 `pwaVersionPlugin` 构建时自动替换缓存版本号。`main.tsx` 检测版本变化时清除旧缓存并重载页面。
-8. **调试**：URL 添加 `?debug=1` 加载 vConsole 移动端调试面板。
-9. **设计系统**：Pure Sprout（见 `DESIGN.md`）— Plus Jakarta Sans / Noto Sans SC 字体，Sprout Green (#006e18) 为主色，全圆角 pill 风格，Mint-tinted 表面色。
-10. **代码分割**：Vite 手动 chunk — `react-vendor`（react/react-dom/router）、`motion`、`three-vendor`。路由级 `lazy()` 懒加载。
-11. **双文件同步**：`AGENTS.md` 和 `CLAUDE.md` 内容完全相同，需要同时更新。
+6. **宠物阶段重算**：家长修改阶段积分后调用 `recalculate_pet_stage`，按 `total_points` 重新分配阶段；调低门槛可能直接毕业，调高门槛可能回退阶段。
+7. **宠物积分**：宠物喂养与商店共用 `children.fruits_balance`；前端显示为“成长积分”，不新增独立余额。
+8. **PWA**：根目录 `sw.js` 提供服务 Worker。`vite.config.ts` 的 `pwaVersionPlugin` 构建时自动替换缓存版本号。`main.tsx` 检测版本变化时清除旧缓存并重载页面。
+9. **调试**：URL 添加 `?debug=1` 加载 vConsole 移动端调试面板。
+10. **设计系统**：Pure Sprout（见 `DESIGN.md`）— Plus Jakarta Sans / Noto Sans SC 字体，Sprout Green (#006e18) 为主色，全圆角 pill 风格，Mint-tinted 表面色。
+11. **代码分割**：Vite 手动 chunk — `react-vendor`（react/react-dom/router）、`motion`、`three-vendor`。路由级 `lazy()` 懒加载。
+12. **双文件同步**：`AGENTS.md` 和 `CLAUDE.md` 内容完全相同，需要同时更新。
