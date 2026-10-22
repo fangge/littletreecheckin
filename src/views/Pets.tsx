@@ -329,7 +329,7 @@ export default function Pets() {
 
             <div className="text-center">
               <h1 className="text-lg font-black tracking-tight text-[#3d2a22] dark:text-[var(--text-primary)]">宠物养成</h1>
-              <p className="text-[9px] font-bold tracking-[0.26em] text-[#b49a8b]">PET GARDEN</p>
+              <p className="text-[9px] font-bold tracking-[0.26em] text-[#b49a8b] dark:text-[var(--text-muted)]">PET GARDEN</p>
             </div>
 
             {!isChildMode ? (
@@ -357,7 +357,7 @@ export default function Pets() {
                   onClick={() => setCurrentChild(child)}
                   className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition ${
                     currentChild?.id === child.id
-                      ? 'bg-[#7a4a2c] text-white shadow-sm'
+                      ? 'bg-[#7a4a2c] text-[#fffdfb] shadow-sm'
                       : 'border border-[#e8ddd2] bg-white/80 text-[#7d6357] hover:border-[#d9a98c] dark:border-[var(--border-color)] dark:bg-[var(--bg-surface)] dark:text-[var(--text-secondary)]'
                   }`}
                   aria-label={`切换到${child.name}`}
@@ -372,28 +372,28 @@ export default function Pets() {
 
         <main className="mx-auto max-w-3xl">
           {isLoading ? (
-            <div className="flex flex-col items-center justify-center px-4 py-24 text-[#b49a8b]">
+            <div className="flex flex-col items-center justify-center px-4 py-24 text-[#b49a8b] dark:text-[var(--text-muted)]">
               <div className="relative mb-4 flex size-24 items-center justify-center">
                 <span className="absolute inset-0 animate-ping rounded-full bg-[#f3d6c4]/50" />
-                <span className="relative flex size-16 items-center justify-center rounded-full bg-white shadow-md">
-                  <Icon name="pets" className="text-3xl text-[#c98a67]" />
+                <span className="relative flex size-16 items-center justify-center rounded-full bg-white shadow-md dark:bg-[var(--bg-surface)]">
+                  <Icon name="pets" className="text-3xl text-[#c98a67] dark:text-emerald-300" />
                 </span>
               </div>
               <p className="text-sm font-bold">正在唤醒小树宠…</p>
             </div>
           ) : loadError ? (
             <div className="px-4 py-16 text-center">
-              <div className="mx-auto max-w-sm rounded-3xl border border-[#f0d9c8] bg-white p-6 shadow-sm">
+              <div className="mx-auto max-w-sm rounded-3xl border border-[#f0d9c8] bg-white p-6 shadow-sm dark:border-[var(--border-color)] dark:bg-[var(--bg-surface)]">
                 <Icon name="error" className="mx-auto text-4xl text-[#d9825a]" />
                 <p className="mt-3 text-sm font-bold text-[#5d4237]">宠物花园暂时打不开</p>
-                <p className="mt-1 text-xs leading-relaxed text-[#9a7d70]">
+                <p className="mt-1 text-xs leading-relaxed text-[#9a7d70] dark:text-[var(--text-secondary)]">
                   {isMissingPetSchema
                     ? '宠物数据库还没有初始化。请先在 Supabase SQL Editor 执行 supabase/migrations/20261022000001_add_pet_system.sql，然后刷新页面。'
                     : loadError}
                 </p>
                 <button
                   onClick={() => void fetchOverview()}
-                  className="mt-4 rounded-full bg-[#7a4a2c] px-5 py-2 text-xs font-extrabold text-white"
+                  className="mt-4 rounded-full bg-[#7a4a2c] px-5 py-2 text-xs font-extrabold text-[#fffdfb] dark:bg-emerald-400 dark:text-emerald-950"
                 >
                   重新尝试
                 </button>
@@ -404,7 +404,7 @@ export default function Pets() {
               {/* 积分 & 当前宠物 */}
               {activePet ? (
                 <section className="px-4 pt-4">
-                  <div className={`relative overflow-hidden rounded-[2rem] border border-white/80 bg-gradient-to-br ${meta.heroGradient} p-4 shadow-[0_24px_60px_-32px_rgba(90,50,40,0.55)]`}>
+                  <div className={`pet-light-surface relative overflow-hidden rounded-[2rem] border border-white/80 bg-gradient-to-br ${meta.heroGradient} p-4 shadow-[0_24px_60px_-32px_rgba(90,50,40,0.55)]`}>
                     <div
                       className="pointer-events-none absolute -left-20 -top-24 size-64 rounded-full blur-3xl"
                       style={{ background: `${meta.ring}55` }}
@@ -420,22 +420,22 @@ export default function Pets() {
                           <span className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold ${meta.chip}`}>
                             第 {stage + 1} 阶段 · {PET_STAGE_LABELS[stage]}
                           </span>
-                          <span className="rounded-full bg-white/65 px-2.5 py-1 text-[10px] font-bold text-[#8d6e60]">
+                          <span className="rounded-full bg-white/65 px-2.5 py-1 text-[10px] font-bold text-[#6b4f42]">
                             {PET_STAGE_SUBTITLES[stage]}
                           </span>
                         </div>
                         <h2 className="mt-2 truncate text-2xl font-black tracking-tight text-[#3d2a22]">
                           {meta.name}
                         </h2>
-                        <p className="mt-0.5 text-[11px] font-semibold text-[#8d6e60]">{meta.tagline}</p>
+                        <p className="mt-0.5 text-[11px] font-semibold text-[#6b4f42]">{meta.tagline}</p>
                       </div>
 
                       <div className="shrink-0 rounded-2xl border border-white/70 bg-white/70 px-3 py-2 text-right shadow-sm backdrop-blur">
-                        <p className="text-[9px] font-bold tracking-[0.12em] text-[#b29a8c]">成长积分</p>
+                        <p className="text-[9px] font-bold tracking-[0.12em] text-[#8a6a5f]">成长积分</p>
                         <p className="mt-0.5 text-xl font-black leading-none text-[#7a4a2c]">
                           {formatPoints(fruitsBalance)}
                         </p>
-                        <p className="mt-0.5 text-[9px] font-semibold text-[#b29a8c]">🍎 果实余额</p>
+                        <p className="mt-0.5 text-[9px] font-semibold text-[#8a6a5f]">🍎 果实余额</p>
                       </div>
                     </div>
 
@@ -485,7 +485,7 @@ export default function Pets() {
                           style={{ background: `linear-gradient(90deg, ${meta.ring}, ${meta.accent})` }}
                         />
                       </div>
-                      <div className="mt-1.5 flex items-center justify-between text-[10px] font-semibold text-[#9a7d70]">
+                      <div className="mt-1.5 flex items-center justify-between text-[10px] font-semibold text-[#6b4f42]">
                         <span>
                           {stageRemaining > 0
                             ? `还差 ${formatPoints(stageRemaining)} 积分${activePet.stage === 4 ? '毕业' : `进入${nextStageLabel}`}`
@@ -524,7 +524,7 @@ export default function Pets() {
                               </span>
                               <span
                                 className={`text-[9px] font-extrabold ${
-                                  current ? 'text-[#5d4237]' : 'text-[#a58a7d]'
+                                  current ? 'text-[#5d4237]' : 'text-[#6b4f42]'
                                 }`}
                               >
                                 {label}
@@ -538,19 +538,19 @@ export default function Pets() {
                 </section>
               ) : (
                 <section className="px-4 pt-4">
-                  <div className="relative overflow-hidden rounded-[2rem] border border-white/80 bg-gradient-to-br from-[#fff8ee] via-[#ffeeda] to-[#ffdcc0] p-5 shadow-[0_24px_60px_-35px_rgba(120,70,40,0.5)]">
+                  <div className="pet-light-surface relative overflow-hidden rounded-[2rem] border border-white/80 bg-gradient-to-br from-[#fff8ee] via-[#ffeeda] to-[#ffdcc0] p-5 shadow-[0_24px_60px_-35px_rgba(120,70,40,0.5)]">
                     <div className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-[#ffd0a8]/60 blur-3xl" />
                     <div className="pointer-events-none absolute -bottom-20 -left-14 size-52 rounded-full bg-[#ffe4c9]/70 blur-3xl" />
 
                     <div className="relative z-10 text-center">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-white/75 px-3 py-1 text-[10px] font-extrabold tracking-[0.16em] text-[#a1765f] shadow-sm">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-white/75 px-3 py-1 text-[10px] font-extrabold tracking-[0.16em] text-[#8a5a3a] shadow-sm">
                         <Icon name="pets" className="text-sm" />
                         {cards.length > 0 ? 'NEXT FRIEND' : 'YOUR FIRST FRIEND'}
                       </span>
                       <h2 className="mt-3 text-2xl font-black tracking-tight text-[#3d2a22]">
                         {cards.length > 0 ? '花园里还缺一位新伙伴' : '领养你的第一只小树宠'}
                       </h2>
-                      <p className="mx-auto mt-1.5 max-w-sm text-xs font-medium leading-relaxed text-[#8d6e60]">
+                      <p className="mx-auto mt-1.5 max-w-sm text-xs font-medium leading-relaxed text-[#6b4f42]">
                         打卡获得的果实就是成长积分。陪它从种子、幼苗、花苞、小树一路长到成长期，毕业后会变成一张专属宠物卡片。
                       </p>
 
@@ -569,14 +569,14 @@ export default function Pets() {
                         <span className="rounded-full bg-white/75 px-3 py-1.5 text-[11px] font-extrabold text-[#7a4a2c] shadow-sm">
                           🍎 {formatPoints(fruitsBalance)} 成长积分可用
                         </span>
-                        <span className="rounded-full bg-white/60 px-3 py-1.5 text-[11px] font-bold text-[#9a7d70]">
+                        <span className="rounded-full border border-white/80 bg-white/85 px-3 py-1.5 text-[11px] font-bold text-[#6b4f42]">
                           已收藏 {cards.length} 张卡片
                         </span>
                       </div>
 
                       <button
                         onClick={handleOpenAdopt}
-                        className="mt-4 inline-flex w-full max-w-xs items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#f2a35f] to-[#e07b3f] px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-[#e07b3f]/25 transition active:scale-[0.98]"
+                        className="mt-4 inline-flex w-full max-w-xs items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#f2a35f] to-[#e07b3f] px-5 py-3.5 text-sm font-black text-[#fffdfb] shadow-lg shadow-[#e07b3f]/25 transition active:scale-[0.98]"
                       >
                         <Icon name="pets" className="text-lg" />
                         选择一只宠物
@@ -598,7 +598,7 @@ export default function Pets() {
                           1 积分 = 1 点成长能量 · 和商店共用果实余额
                         </p>
                       </div>
-                      <span className="shrink-0 rounded-full bg-[#fff3e6] px-2.5 py-1 text-[10px] font-extrabold text-[#a1765f]">
+                      <span className="shrink-0 rounded-full bg-[#fff3e6] px-2.5 py-1 text-[10px] font-extrabold text-[#8a5a3a] dark:border dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200">
                         可用 {formatPoints(fruitsBalance)}
                       </span>
                     </div>
@@ -612,8 +612,8 @@ export default function Pets() {
                             onClick={() => setFeedAmount(preset)}
                             className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-extrabold transition ${
                               selected
-                                ? 'bg-[#7a4a2c] text-white shadow-sm'
-                                : 'bg-[#fbf3ea] text-[#8d6e60] hover:bg-[#f6e9dc]'
+                                ? 'bg-[#7a4a2c] text-[#fffdfb] shadow-sm dark:bg-emerald-400 dark:text-emerald-950'
+                                : 'bg-[#fbf3ea] text-[#8d6e60] hover:bg-[#f6e9dc] dark:border dark:border-[var(--border-color)] dark:bg-[var(--bg-card)] dark:text-[var(--text-secondary)] dark:hover:bg-[var(--bg-card)]'
                             }`}
                           >
                             +{preset}
@@ -625,8 +625,8 @@ export default function Pets() {
                         disabled={feedAll <= 0}
                         className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-extrabold transition disabled:opacity-40 ${
                           feedAmount === feedAll && feedAll > 0
-                            ? 'bg-[#7a4a2c] text-white shadow-sm'
-                            : 'bg-[#fbf3ea] text-[#8d6e60] hover:bg-[#f6e9dc]'
+                            ? 'bg-[#7a4a2c] text-[#fffdfb] shadow-sm dark:bg-emerald-400 dark:text-emerald-950'
+                            : 'bg-[#fbf3ea] text-[#8d6e60] hover:bg-[#f6e9dc] dark:border dark:border-[var(--border-color)] dark:bg-[var(--bg-card)] dark:text-[var(--text-secondary)] dark:hover:bg-[var(--bg-card)]'
                         }`}
                       >
                         全部（{formatPoints(feedAll)}）
@@ -634,7 +634,7 @@ export default function Pets() {
                     </div>
 
                     <div className="mt-3 flex items-center gap-2.5">
-                      <div className="flex min-w-0 flex-1 items-center gap-2 rounded-2xl border border-[#ead9cc] bg-[#fffaf5] px-3 py-2.5">
+                      <div className="flex min-w-0 flex-1 items-center gap-2 rounded-2xl border border-[#ead9cc] bg-[#fffaf5] px-3 py-2.5 dark:border-[var(--border-color)] dark:bg-[#0b1220]">
                         <span className="text-lg">🍎</span>
                         <input
                           type="number"
@@ -643,7 +643,7 @@ export default function Pets() {
                           max={Math.max(1, feedAll)}
                           value={Number.isFinite(feedAmount) ? feedAmount : ''}
                           onChange={(event) => setFeedAmount(Number(event.target.value))}
-                          className="min-w-0 flex-1 bg-transparent text-lg font-black text-[#4a3027] outline-none"
+                          className="min-w-0 flex-1 bg-transparent text-lg font-black text-[#4a3027] outline-none dark:text-[var(--text-primary)]"
                           aria-label="本次喂养积分"
                         />
                         <span className="shrink-0 text-[10px] font-bold text-[#b39b8e] dark:text-[var(--text-muted)]">积分</span>
@@ -651,7 +651,7 @@ export default function Pets() {
                       <button
                         onClick={() => void handleFeed()}
                         disabled={plannedFeed <= 0 || isFeeding}
-                        className={`flex shrink-0 items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r ${meta.buttonGradient} px-4 py-3 text-sm font-black text-white shadow-lg transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45`}
+                        className={`flex shrink-0 items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r ${meta.buttonGradient} px-4 py-3 text-sm font-black text-[#fffdfb] shadow-lg transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45`}
                       >
                         {isFeeding ? (
                           <>
@@ -670,7 +670,7 @@ export default function Pets() {
                     {fruitsBalance <= 0 ? (
                       <button
                         onClick={() => navigate('/')}
-                        className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#fff5e9] px-3 py-2 text-[11px] font-extrabold text-[#a1765f] transition hover:bg-[#ffeeda]"
+                        className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#fff5e9] px-3 py-2 text-[11px] font-extrabold text-[#8a5a3a] transition hover:bg-[#ffeeda] dark:bg-emerald-400/10 dark:text-emerald-200 dark:hover:bg-emerald-400/15"
                       >
                         积分不够啦，去完成任务赚果实
                         <Icon name="arrow_forward" className="text-sm" />
@@ -694,7 +694,7 @@ export default function Pets() {
                   <div>
                     <div className="flex items-center gap-1.5">
                       <h3 className="text-lg font-black tracking-tight text-[#3d2a22] dark:text-[var(--text-primary)]">宠物卡片册</h3>
-                      <span className="rounded-full bg-[#f3e6da] px-2 py-0.5 text-[10px] font-extrabold text-[#a1765f]">
+                      <span className="rounded-full bg-[#f3e6da] px-2 py-0.5 text-[10px] font-extrabold text-[#a1765f] dark:border dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200">
                         {cards.length} 张
                       </span>
                     </div>
@@ -705,7 +705,7 @@ export default function Pets() {
                   {!activePet && (
                     <button
                       onClick={handleOpenAdopt}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#7a4a2c] px-3 py-1.5 text-[11px] font-extrabold text-white shadow-sm transition hover:bg-[#633a22]"
+                      className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#7a4a2c] px-3 py-1.5 text-[11px] font-extrabold text-[#fffdfb] shadow-sm transition hover:bg-[#633a22] dark:bg-emerald-400 dark:text-emerald-950 dark:hover:bg-emerald-300"
                     >
                       <Icon name="add" className="text-sm" />
                       再养一只
@@ -715,7 +715,7 @@ export default function Pets() {
 
                 {cardsWithSerial.length === 0 ? (
                   <div className="rounded-[1.6rem] border border-dashed border-[#e2cdbd] bg-white/55 px-5 py-9 text-center dark:border-[var(--border-color)] dark:bg-[var(--bg-surface)]/60">
-                    <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-[#f7eadf] text-2xl">
+                    <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-[#f7eadf] text-2xl dark:bg-emerald-400/10">
                       🗂️
                     </div>
                     <p className="mt-3 text-sm font-black text-[#5d4237] dark:text-[var(--text-primary)]">还没有宠物卡片</p>
@@ -749,7 +749,7 @@ export default function Pets() {
                     }}
                     className="flex w-full items-center gap-3 rounded-2xl border border-[#efe0d4] bg-white/65 px-4 py-3 text-left transition hover:border-[#ddb99f] dark:border-[var(--border-color)] dark:bg-[var(--bg-surface)]/70"
                   >
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#fff3e6] text-[#b57a4f]">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#fff3e6] text-[#b57a4f] dark:bg-emerald-400/10 dark:text-emerald-200">
                       <Icon name="shield_person" className="text-lg" />
                     </span>
                     <span className="min-w-0 flex-1">
@@ -777,8 +777,8 @@ export default function Pets() {
               exit={{ opacity: 0, y: 16, scale: 0.97 }}
               className={`fixed bottom-24 left-1/2 z-[110] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-2xl px-4 py-3 text-center text-xs font-bold shadow-xl backdrop-blur lg:bottom-8 ${
                 error
-                  ? 'bg-red-500/95 text-white'
-                  : 'bg-[#3d2a22]/92 text-white'
+                  ? 'bg-red-500/95 text-[#fffdfb]'
+                  : 'bg-[#3d2a22]/92 text-[#fffdfb]'
               }`}
               role="status"
             >
@@ -848,17 +848,17 @@ export default function Pets() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 16, scale: 0.96 }}
                 transition={{ type: 'spring', stiffness: 260, damping: 24 }}
-                className={`relative w-full max-w-sm overflow-hidden rounded-[2rem] border border-white/80 bg-gradient-to-br ${getPetMeta(selectedCard.species).gradient} shadow-2xl`}
+                className={`pet-light-surface relative w-full max-w-sm overflow-hidden rounded-[2rem] border border-white/80 bg-gradient-to-br ${getPetMeta(selectedCard.species).gradient} shadow-2xl`}
                 onClick={(event) => event.stopPropagation()}
               >
                 <div className="px-5 pb-5 pt-5">
                   <div className="flex items-start justify-between">
-                    <span className="rounded-full bg-white/75 px-2.5 py-1 text-[10px] font-extrabold tracking-[0.14em] text-[#8d6e60]">
+                    <span className="rounded-full bg-white/75 px-2.5 py-1 text-[10px] font-extrabold tracking-[0.14em] text-[#6b4f42]">
                       PET CARD · No.{String(selectedCardNumber).padStart(2, '0')}
                     </span>
                     <button
                       onClick={() => setSelectedCard(null)}
-                      className="flex size-8 items-center justify-center rounded-full bg-white/70 text-[#8d6e60] shadow-sm"
+                      className="flex size-8 items-center justify-center rounded-full bg-white/70 text-[#6b4f42] shadow-sm"
                       aria-label="关闭"
                     >
                       <Icon name="close" className="text-base" />
@@ -880,10 +880,10 @@ export default function Pets() {
                     <h3 className="text-2xl font-black tracking-tight text-[#3d2a22]">
                       {getPetMeta(selectedCard.species).name}
                     </h3>
-                    <p className="text-[9px] font-bold tracking-[0.24em] text-[#9a7d70]">
+                    <p className="text-[9px] font-bold tracking-[0.24em] text-[#6b4f42]">
                       {getPetMeta(selectedCard.species).en}
                     </p>
-                    <p className="mt-1 text-xs font-semibold text-[#8d6e60]">
+                    <p className="mt-1 text-xs font-semibold text-[#6b4f42]">
                       {getPetMeta(selectedCard.species).tagline}
                     </p>
                   </div>
@@ -896,13 +896,13 @@ export default function Pets() {
                       ['毕业日期', formatDate(selectedCard.grown_at)],
                     ].map(([label, value]) => (
                       <div key={label} className="rounded-2xl bg-white/70 px-3 py-2.5">
-                        <p className="text-[9px] font-bold tracking-wide text-[#b29a8c]">{label}</p>
+                        <p className="text-[9px] font-bold tracking-wide text-[#8a6a5f]">{label}</p>
                         <p className="mt-0.5 text-xs font-black text-[#5d4237]">{value}</p>
                       </div>
                     ))}
                   </div>
 
-                  <div className="mt-3 rounded-2xl bg-white/55 px-3 py-2 text-center text-[10px] font-medium leading-relaxed text-[#9a7d70]">
+                  <div className="mt-3 rounded-2xl bg-white/55 px-3 py-2 text-center text-[10px] font-medium leading-relaxed text-[#6b4f42]">
                     {PET_STAGE_SUBTITLES[4]} · 这是{currentChild?.name ? `${currentChild.name}的` : '你的'}第 {selectedCardSerial} 只
                     {getPetMeta(selectedCard.species).name}
                   </div>

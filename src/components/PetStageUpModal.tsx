@@ -80,7 +80,7 @@ export default function PetStageUpModal({
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 18, scale: 0.95 }}
         transition={{ type: 'spring', stiffness: 260, damping: 22 }}
-        className="relative w-full max-w-md overflow-hidden rounded-[2rem] border border-white/80 bg-[#fffdfb] shadow-[0_30px_90px_-25px_rgba(80,30,40,0.55)]"
+        className="pet-light-surface relative w-full max-w-md overflow-hidden rounded-[2rem] border border-white/80 bg-[#fffdfb] shadow-[0_30px_90px_-25px_rgba(80,30,40,0.55)]"
         onClick={(event) => event.stopPropagation()}
       >
         <div className={`relative overflow-hidden bg-gradient-to-br ${meta.heroGradient} px-6 pb-4 pt-7 text-center`}>
@@ -94,11 +94,11 @@ export default function PetStageUpModal({
           />
 
           <div className="relative z-10">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/75 px-3 py-1 text-[11px] font-extrabold tracking-[0.18em] text-[#8a5a4c] shadow-sm backdrop-blur">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/75 px-3 py-1 text-[11px] font-extrabold tracking-[0.18em] text-[#7a4a2c] shadow-sm backdrop-blur">
               {completed ? 'PET CARD · 毕业收藏' : 'STAGE UP · 成长时刻'}
             </span>
             <h2 className="mt-3 text-2xl font-black tracking-tight text-[#3f2a24]">{title}</h2>
-            <p className="mx-auto mt-1.5 max-w-xs text-xs font-medium leading-relaxed text-[#8a6a5f]">{subtitle}</p>
+            <p className="mx-auto mt-1.5 max-w-xs text-xs font-medium leading-relaxed text-[#6b4f42]">{subtitle}</p>
           </div>
 
           <div className="relative z-10 mt-1 flex justify-center">
@@ -115,7 +115,7 @@ export default function PetStageUpModal({
           </div>
 
           {!completed && (
-            <div className="relative z-10 -mt-2 flex items-center justify-center gap-3 text-[11px] font-bold text-[#8a6a5f]">
+            <div className="relative z-10 -mt-2 flex items-center justify-center gap-3 text-[11px] font-bold text-[#6b4f42]">
               <span className="rounded-full bg-white/70 px-3 py-1 shadow-sm">
                 {PET_STAGE_LABELS[Math.min(4, Math.max(0, previousStage))]}
               </span>
@@ -130,14 +130,14 @@ export default function PetStageUpModal({
             <div className="relative z-10 mx-auto mt-1 max-w-[260px] rounded-2xl border border-white/80 bg-white/70 px-4 py-3 text-left shadow-sm backdrop-blur">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[10px] font-bold tracking-[0.18em] text-[#b09588]">PET CARD</p>
+                  <p className="text-[10px] font-bold tracking-[0.18em] text-[#6b4f42]">PET CARD</p>
                   <p className="text-sm font-black text-[#3f2a24]">{meta.name}</p>
                 </div>
                 <span className="rounded-full px-2.5 py-1 text-[10px] font-extrabold" style={{ background: `${meta.ring}33`, color: meta.accentDeep }}>
                   {PET_STAGE_LABELS[4]}
                 </span>
               </div>
-              <div className="mt-2 flex items-center justify-between text-[10px] font-semibold text-[#9a7d70]">
+              <div className="mt-2 flex items-center justify-between text-[10px] font-semibold text-[#6b4f42]">
                 <span>累计投入 {formatPoints(totalPoints)} 积分</span>
                 <span>{childName ? `${childName}的伙伴` : '成长纪念'}</span>
               </div>
@@ -146,7 +146,7 @@ export default function PetStageUpModal({
         </div>
 
         <div className="px-5 pb-5 pt-1">
-          <div className="mb-4 flex items-center justify-center gap-2 text-[11px] font-semibold text-[#a58a7d]">
+          <div className="mb-4 flex items-center justify-center gap-2 text-[11px] font-semibold text-[#6b4f42]">
             <span className="inline-flex items-center gap-1 rounded-full bg-[#f8f0ea] px-2.5 py-1">
               <span className="text-sm">✨</span>
               本次投入 {formatPoints(spent)} 积分

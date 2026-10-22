@@ -27,14 +27,14 @@ export default function PetCard({ pet, serial, cardNumber, index, onClick }: Pet
       whileHover={{ y: -4 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className={`pet-card-shine group relative overflow-hidden rounded-[1.5rem] border border-white/85 bg-gradient-to-br ${meta.gradient} p-3 text-left shadow-[0_16px_35px_-22px_rgba(90,50,40,0.65)]`}
+      className={`pet-light-surface pet-card-shine group relative overflow-hidden rounded-[1.5rem] border border-white/85 bg-gradient-to-br ${meta.gradient} p-3 text-left shadow-[0_16px_35px_-22px_rgba(90,50,40,0.65)]`}
       aria-label={`查看${meta.name}宠物卡片`}
     >
       <div className="flex items-start justify-between gap-2">
-        <span className="rounded-full bg-white/75 px-2 py-0.5 text-[9px] font-extrabold tracking-[0.12em] text-[#8d6e60] shadow-sm">
+        <span className="rounded-full bg-white/75 px-2 py-0.5 text-[9px] font-extrabold tracking-[0.12em] text-[#6b4f42] shadow-sm">
           No.{String(cardNumber).padStart(2, '0')}
         </span>
-        <span className="rounded-full bg-white/70 px-2 py-0.5 text-[9px] font-bold text-[#9a7d70]">
+        <span className="rounded-full bg-white/70 px-2 py-0.5 text-[9px] font-bold text-[#6b4f42]">
           {grownDate}
         </span>
       </div>
@@ -61,14 +61,14 @@ export default function PetCard({ pet, serial, cardNumber, index, onClick }: Pet
         <div className="flex items-end justify-between gap-2">
           <div className="min-w-0">
             <p className="truncate text-sm font-black tracking-tight text-[#3d2a22]">{meta.name}</p>
-            <p className="text-[9px] font-bold tracking-[0.14em] text-[#9a7d70]">{meta.en}</p>
+            <p className="text-[9px] font-bold tracking-[0.14em] text-[#6b4f42]">{meta.en}</p>
           </div>
           <span className="shrink-0 text-[10px] font-extrabold" style={{ color: meta.accentDeep }}>
             第 {serial} 只
           </span>
         </div>
         <div className="mt-1.5 flex items-center justify-between rounded-xl bg-white/65 px-2.5 py-1.5">
-          <span className="text-[9px] font-bold text-[#9a7d70]">累计投入</span>
+          <span className="text-[9px] font-bold text-[#6b4f42]">累计投入</span>
           <span className="text-[10px] font-black text-[#7a4a2c]">{formatPoints(pet.total_points)} 积分</span>
         </div>
       </div>

@@ -58,23 +58,23 @@ export default function PetSettingsModal({
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 40, opacity: 0, scale: 0.98 }}
             transition={{ type: 'spring', stiffness: 280, damping: 26 }}
-            className="relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-[2rem] border border-white/80 bg-[#fffdfb] p-5 shadow-2xl sm:rounded-[2rem] sm:p-6"
+            className="pet-light-surface relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-[2rem] border border-white/80 bg-[#fffdfb] p-5 shadow-2xl sm:rounded-[2rem] sm:p-6"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <div className="mb-1 flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#b28f7f]">
+                <div className="mb-1 flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#8a6a5f]">
                   <Icon name="shield_person" className="text-sm" />
                   家长设置
                 </div>
                 <h2 className="text-xl font-black tracking-tight text-[#3d2a22]">成长积分规则</h2>
-                <p className="mt-1 text-xs font-medium leading-relaxed text-[#9a7d70]">
+                <p className="mt-1 text-xs font-medium leading-relaxed text-[#6b4f42]">
                   为 5 个阶段分别设置所需积分。家长可以随时调整{childName ? `，${childName}的宠物会按新规则重新计算` : '，进行中的宠物会按新规则重新计算'}。
                 </p>
               </div>
               <button
                 onClick={onClose}
-                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f7efe9] text-[#8d6e60] transition hover:bg-[#efe3db]"
+                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f7efe9] text-[#6b4f42] transition hover:bg-[#efe3db]"
                 aria-label="关闭"
               >
                 <Icon name="close" className="text-lg" />
@@ -92,7 +92,7 @@ export default function PetSettingsModal({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-extrabold text-[#5d4237]">{label}</p>
-                    <p className="text-[10px] font-medium text-[#b39b8e]">
+                    <p className="text-[10px] font-medium text-[#8a6a5f]">
                       {index === 4 ? '喂满后毕业，收藏为宠物卡片' : '喂满后进入下一阶段'}
                     </p>
                   </div>
@@ -107,7 +107,7 @@ export default function PetSettingsModal({
                       className="w-20 rounded-xl border border-[#ecd9cc] bg-[#fffaf6] px-2 py-2 text-right text-sm font-black text-[#4a3027] outline-none transition focus:border-[#e9a98e] focus:ring-2 focus:ring-[#f6c9b6]"
                       aria-label={`${label}所需积分`}
                     />
-                    <span className="text-[10px] font-bold text-[#b39b8e]">分</span>
+                    <span className="text-[10px] font-bold text-[#8a6a5f]">分</span>
                   </div>
                 </div>
               ))}
@@ -115,14 +115,14 @@ export default function PetSettingsModal({
 
             <div className="mt-4 flex items-center justify-between rounded-2xl bg-[#fff6ec] px-4 py-3">
               <div>
-                <p className="text-[10px] font-bold tracking-wide text-[#b28f7f]">从种子到毕业共需要</p>
+                <p className="text-[10px] font-bold tracking-wide text-[#8a6a5f]">从种子到毕业共需要</p>
                 <p className="text-lg font-black text-[#7a4a2c]">
                   {invalid ? '—' : formatPoints(total)} <span className="text-xs font-bold">积分</span>
                 </p>
               </div>
               <button
                 onClick={() => setDraft(DEFAULT_STAGE_COSTS.map(String))}
-                className="rounded-full bg-white px-3 py-1.5 text-[11px] font-extrabold text-[#a1765f] shadow-sm transition hover:bg-[#fff1e5]"
+                className="rounded-full bg-white px-3 py-1.5 text-[11px] font-extrabold text-[#8a5a3a] shadow-sm transition hover:bg-[#fff1e5]"
               >
                 恢复默认
               </button>
@@ -135,7 +135,7 @@ export default function PetSettingsModal({
             <div className="mt-5 flex gap-2.5">
               <button
                 onClick={onClose}
-                className="flex-1 rounded-2xl border border-[#ecd9cc] bg-white px-4 py-3 text-sm font-extrabold text-[#8d6e60] transition hover:bg-[#fff8f2]"
+                className="flex-1 rounded-2xl border border-[#ecd9cc] bg-white px-4 py-3 text-sm font-extrabold text-[#6b4f42] transition hover:bg-[#fff8f2]"
               >
                 取消
               </button>

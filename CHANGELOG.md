@@ -22,6 +22,7 @@
 - ✅ **修改** `src/router.tsx` / `src/components/Navigation.tsx`：勋章路由与导航替换为 `/pets`
 - ✅ **修改** `src/views/CheckIn.tsx` / `src/views/Dashboard.tsx`：移除打卡后勋章检测与解锁弹层
 - ✅ **修改** `src/services/api.ts`：移除勋章 API，新增 `petsApi` 与宠物类型
+- ✅ **优化** 宠物模块暗黑模式：浅色卡片使用真实白色表面，提高阶段积分、卡片标签与说明文字对比度，喂养区芯片改为薄荷绿/主色高对比样式
 
 **功能特性**：
 - 6 种宠物：桃小树、西瓜小树、苹小树、梨小树、莓小树、蕉小树
