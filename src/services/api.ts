@@ -122,6 +122,7 @@ export interface GoalData {
   is_active: boolean;
   fruits_per_task?: number;
   is_shared?: boolean;
+  is_challenge?: boolean;
   shared_child_ids?: string[];
 }
 
@@ -197,7 +198,7 @@ export interface TaskData {
   image_url?: string;
   progress: number;
   reject_reason?: string;
-  goals?: { title: string; icon?: string; fruits_per_task?: number };
+  goals?: { title: string; icon?: string; fruits_per_task?: number; is_challenge?: boolean };
   fruits_earned?: number;
   bonus_fruits?: number;
   trees?: { name: string; image?: string };
@@ -291,6 +292,7 @@ export interface FruitsHistoryItem {
   bonus_fruits: number;
   goal_icon?: string | null;
   is_shared?: boolean;
+  is_challenge?: boolean;
   source?: 'task' | 'gift';
   event_time?: string;
   gift_reason?: string;
@@ -371,6 +373,7 @@ export const treesApi = {
     reward_tree_name?: string;
     fruits_per_task?: number;
     is_shared?: boolean;
+    is_challenge?: boolean;
     shared_child_ids?: string[];
   }) =>
     request<{ data: { goal: GoalData; tree: TreeData } }>(
@@ -397,6 +400,7 @@ export const treesApi = {
     reward_tree_name?: string;
     child_id?: string;
     fruits_per_task?: number;
+    is_challenge?: boolean;
     shared_child_ids?: string[];
   }) =>
     request<{ data: GoalData }>(

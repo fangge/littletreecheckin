@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { treesApi, Child, GoalData } from '../services/api';
 
 import Icon from '../components/Icon';
-type TaskType = 'independent' | 'shared';
+type TaskType = 'independent' | 'shared' | 'challenge';
 
 const ICONS = [
   'auto_stories', 'fitness_center', 'brush', 'piano',
@@ -70,9 +70,15 @@ export default function GoalSetting() {
     : currentChild;
 
   const [selectedChild, setSelectedChild] = useState<Child | null>(initialChild);
-  // 任务类型：独立任务 or 共享任务（编辑模式下根据 editGoal.is_shared 初始化）
+  // 任务类型：独立任务 / 共享任务 / 挑战任务（编辑模式下根据 editGoal 初始化）
   const [taskType, setTaskType] = useState<TaskType>(
-    isEditMode && editGoal?.is_shared ? 'shared' : 'independent'
+    isEditMode
+      ? editGoal?.is_shared
+        ? 'shared'
+        : editGoal?.is_challenge
+          ? 'challenge'
+          : 'independent'
+      : 'independent'
   );
   // 共享任务参与孩子（编辑模式下预填充已有参与孩子，新建模式默认全选）
   const allChildren = user?.children ?? [];
@@ -106,6 +112,9 @@ export default function GoalSetting() {
   const [fruitsPerTaskValue, setFruitsPerTaskValue] = useState<string>(
     editGoal?.fruits_per_task ? String(editGoal.fruits_per_task) : '10'
   );
+
+  const isSharedMode = taskType === 'shared' || (isEditMode && editGoal?.is_shared);
+  const isChallengeMode = taskType === 'challenge' || (isEditMode && editGoal?.is_challenge);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -154,7 +163,6 @@ export default function GoalSetting() {
     }
 
     // 共享任务：至少需要2个孩子，且完成条件必须填写
-    const isSharedMode = taskType === 'shared' || (isEditMode && editGoal?.is_shared);
     if (isSharedMode) {
       if (sharedChildIds.length < 2) {
         setError('共享任务至少需要选择2个孩子');
@@ -163,6 +171,11 @@ export default function GoalSetting() {
       // 总次数模式：dailyCountValue 有值；总天数模式：durationValue 有值
       if (!dailyCountValue && (!durationValue || isNaN(parseFloat(durationValue)) || parseFloat(durationValue) <= 0)) {
         setError('请填写完成条件：总天数或总次数');
+        return;
+      }
+    } else if (isChallengeMode) {
+      if (!selectedChild) {
+        setError('请先选择孩子');
         return;
       }
     } else if (!selectedChild) {
@@ -176,9 +189,9 @@ export default function GoalSetting() {
       ? 365
       : toDays(numDuration, durationUnit);
     const numDaily = dailyValue ? parseFloat(dailyValue) : 0;
-    const durationMinutes = (!isSharedMode && dailyValue && !isNaN(numDaily)) ? toMinutes(numDaily, dailyUnit) : 0;
+    const durationMinutes = (!isSharedMode && !isChallengeMode && dailyValue && !isNaN(numDaily)) ? toMinutes(numDaily, dailyUnit) : 0;
     const numDailyCount = dailyCountValue ? parseInt(dailyCountValue, 10) : null;
-    const dailyCount = dailyCountValue && !isNaN(numDailyCount!) && numDailyCount! > 0 ? numDailyCount : null;
+    const dailyCount = dailyCountValue && !isSharedMode && !isChallengeMode && !isNaN(numDailyCount!) && numDailyCount! > 0 ? numDailyCount : null;
     const numFruitsPerTask = fruitsPerTaskValue ? parseInt(fruitsPerTaskValue, 10) : 10;
     const fruitsPerTask = !isNaN(numFruitsPerTask) && numFruitsPerTask > 0 ? numFruitsPerTask : 10;
 
@@ -197,6 +210,7 @@ export default function GoalSetting() {
           reward_tree_name: rewardTreeName.trim() || title.trim(),
           child_id: !editGoal.is_shared && selectedChild && selectedChild.id !== editGoal.childId ? selectedChild.id : undefined,
           fruits_per_task: fruitsPerTask,
+          is_challenge: isChallengeMode,
           shared_child_ids: editGoal.is_shared ? sharedChildIds : undefined,
         });
         // 如果修改了归属孩子，自动切换 currentChild 到新孩子
@@ -221,6 +235,21 @@ export default function GoalSetting() {
         const firstChild = allChildren.find(c => c.id === sharedChildIds[0]);
         if (firstChild && firstChild.id !== currentChild?.id) {
           setCurrentChild(firstChild);
+        }
+      } else if (taskType === 'challenge') {
+        // 挑战任务：单孩子，连续打卡不能断，完成后一次性发放果实
+        await treesApi.createGoal(selectedChild!.id, {
+          title: title.trim(),
+          icon: selectedIcon,
+          duration_days: durationDays,
+          duration_minutes: 0,
+          daily_count: null,
+          reward_tree_name: rewardTreeName.trim() || title.trim(),
+          fruits_per_task: fruitsPerTask,
+          is_challenge: true,
+        });
+        if (selectedChild!.id !== currentChild?.id) {
+          setCurrentChild(selectedChild!);
         }
       } else {
         // 独立任务：新建目标，切换 currentChild 到所选孩子
@@ -316,15 +345,27 @@ export default function GoalSetting() {
           <span className="text-primary">{isEditMode ? '成长之树' : '成长之树？'}</span>
         </h3>
 
-        {/* 任务类型选择（仅新建模式且有多个孩子时显示） */}
-        {!isEditMode && allChildren.length > 1 && (
+        {/* 任务类型选择（仅新建模式显示） */}
+        {!isEditMode && (
           <div className="mb-6">
             <p className="text-slate-700 dark:text-[var(--text-primary)] text-base font-bold ml-1 mb-3">
               任务类型 <span className="text-red-400">*</span>
             </p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className={`grid ${allChildren.length > 1 ? 'grid-cols-3' : 'grid-cols-2'} gap-2 sm:gap-3`}>
               <button
-                className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${
+                className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all ${
+                  taskType === 'challenge'
+                    ? 'bg-primary/10 border-primary text-primary'
+                    : 'bg-white dark:bg-[var(--bg-card)] border-slate-200 dark:border-[var(--border-color)] text-slate-600 dark:text-[var(--text-secondary)] hover:border-primary/40'
+                }`}
+                onClick={() => { setTaskType('challenge'); setDurationUnit('days'); }}
+              >
+                <Icon name="emoji_events" className="text-2xl" />
+                <span className="text-sm font-bold">挑战任务</span>
+                <span className="text-xs opacity-70 text-center">连续打卡不能断</span>
+              </button>
+              <button
+                className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all ${
                   taskType === 'independent'
                     ? 'bg-primary/10 border-primary text-primary'
                     : 'bg-white dark:bg-[var(--bg-card)] border-slate-200 dark:border-[var(--border-color)] text-slate-600 dark:text-[var(--text-secondary)] hover:border-primary/40'
@@ -335,24 +376,26 @@ export default function GoalSetting() {
                 <span className="text-sm font-bold">独立任务</span>
                 <span className="text-xs opacity-70 text-center">单个孩子完成</span>
               </button>
-              <button
-                className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${
-                  taskType === 'shared'
-                    ? 'bg-primary/10 border-primary text-primary'
-                    : 'bg-white dark:bg-[var(--bg-card)] border-slate-200 dark:border-[var(--border-color)] text-slate-600 dark:text-[var(--text-secondary)] hover:border-primary/40'
-                }`}
-                onClick={() => setTaskType('shared')}
-              >
-                <Icon name="group" className="text-2xl" />
-                <span className="text-sm font-bold">共享任务</span>
-                <span className="text-xs opacity-70 text-center">多孩子竞争完成</span>
-              </button>
+              {allChildren.length > 1 && (
+                <button
+                  className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all ${
+                    taskType === 'shared'
+                      ? 'bg-primary/10 border-primary text-primary'
+                      : 'bg-white dark:bg-[var(--bg-card)] border-slate-200 dark:border-[var(--border-color)] text-slate-600 dark:text-[var(--text-secondary)] hover:border-primary/40'
+                  }`}
+                  onClick={() => setTaskType('shared')}
+                >
+                  <Icon name="group" className="text-2xl" />
+                  <span className="text-sm font-bold">共享任务</span>
+                  <span className="text-xs opacity-70 text-center">多孩子竞争完成</span>
+                </button>
+              )}
             </div>
           </div>
         )}
 
-        {/* 独立任务：孩子选择（多孩子时显示，新建独立任务和编辑独立任务模式均支持，编辑共享任务时不显示） */}
-        {(taskType === 'independent' || (isEditMode && !editGoal?.is_shared)) && user?.children && user.children.length > 1 && (
+        {/* 非共享任务：孩子选择（多孩子时显示） */}
+        {taskType !== 'shared' && user?.children && user.children.length > 1 && (
           <div className="mb-6">
             <p className="text-slate-700 text-base font-bold ml-1 mb-3">
               为哪个孩子设置目标 <span className="text-red-400">*</span>
@@ -470,7 +513,7 @@ export default function GoalSetting() {
         </div>
 
         {/* 共享任务：完成条件二选一（总天数 or 总次数） */}
-        {(taskType === 'shared' || (isEditMode && editGoal?.is_shared)) ? (
+        {isSharedMode ? (
           <div className="mb-6">
             <h3 className="text-slate-700 dark:text-[var(--text-primary)] text-base font-bold ml-1 pb-3">
               完成条件 <span className="text-red-400">*</span>
@@ -564,6 +607,52 @@ export default function GoalSetting() {
                   </p>
                 )}
               </>
+            )}
+          </div>
+        ) : isChallengeMode ? (
+          <div className="mb-6">
+            <h3 className="text-slate-700 dark:text-[var(--text-primary)] text-base font-bold ml-1 pb-3">
+              挑战天数 <span className="text-red-400">*</span>
+            </h3>
+            <div className="mb-3 flex items-center gap-1.5 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-amber-700 text-xs">
+              <Icon name="emoji_events" className="text-sm" />
+              连续打卡不能断，完成后才能一次性获得果实
+            </div>
+
+            <div className="flex gap-2 mb-3">
+              {QUICK_DAYS.map(days => (
+                <button
+                  key={days}
+                  className={`flex-1 py-2 rounded-xl text-sm font-bold border-2 transition-all ${
+                    durationValue === String(days) && durationUnit === 'days'
+                      ? 'bg-primary/20 border-primary text-primary'
+                      : 'bg-white dark:bg-[var(--bg-card)] border-slate-200 dark:border-[var(--border-color)] text-slate-500 dark:text-[var(--text-secondary)] hover:border-primary/40'
+                  }`}
+                  onClick={() => handleDurationQuickSelect(days)}
+                  aria-label={`挑战${days}天`}
+                >
+                  {days}天
+                </button>
+              ))}
+            </div>
+
+            <div className="relative">
+              <input
+                className="form-input w-full rounded-xl border-2 border-primary/20 bg-white dark:bg-[var(--bg-card)] text-slate-900 dark:text-[var(--text-primary)] h-12 placeholder:text-slate-400 px-4 text-lg font-bold focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all pr-16"
+                type="number"
+                min="1"
+                max="365"
+                placeholder="自定义天数"
+                value={durationValue}
+                onChange={e => setDurationValue(e.target.value)}
+                aria-label="挑战天数"
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">天</span>
+            </div>
+            {durationValue && !isNaN(parseFloat(durationValue)) && (
+              <p className="text-xs text-slate-400 mt-2 ml-1">
+                连续坚持 <span className="text-primary font-bold">{Math.max(1, Math.min(365, Math.round(parseFloat(durationValue))))}</span> 天即完成挑战
+              </p>
             )}
           </div>
         ) : (
@@ -720,11 +809,13 @@ export default function GoalSetting() {
           </>
         )}
 
-        {/* 每次获得果实数 */}
+        {/* 果实奖励 */}
         <div className="mb-6">
           <h3 className="text-slate-700 text-base font-bold ml-1 pb-3">
-            每次获得果实数
-            <span className="text-slate-400 text-xs font-normal ml-2">（默认10个）</span>
+            {isChallengeMode ? '完成挑战奖励果实数' : '每次获得果实数'}
+            <span className="text-slate-400 text-xs font-normal ml-2">
+              {isChallengeMode ? '（完成时一次性发放）' : '（默认10个）'}
+            </span>
           </h3>
 
           <div className="relative">
@@ -736,14 +827,16 @@ export default function GoalSetting() {
               placeholder="10"
               value={fruitsPerTaskValue}
               onChange={e => setFruitsPerTaskValue(e.target.value)}
-              aria-label="每次获得果实数"
+              aria-label={isChallengeMode ? '完成挑战奖励果实数' : '每次获得果实数'}
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-lg">🍎</span>
           </div>
 
           {fruitsPerTaskValue && !isNaN(parseInt(fruitsPerTaskValue, 10)) && parseInt(fruitsPerTaskValue, 10) > 0 && (
             <p className="text-xs text-slate-400 mt-2 ml-1">
-              每次任务审核通过后获得 <span className="text-primary font-bold">{fruitsPerTaskValue}</span> 个果实
+              {isChallengeMode
+                ? <>完成挑战后一次性获得 <span className="text-primary font-bold">{fruitsPerTaskValue}</span> 个果实</>
+                : <>每次任务审核通过后获得 <span className="text-primary font-bold">{fruitsPerTaskValue}</span> 个果实</>}
             </p>
           )}
         </div>

@@ -68,15 +68,34 @@ export default function CheckIn() {
         childrenApi.getFruitsHistory(currentChild.id),
       ]);
 
-      const activeTrees = treesRes.data.filter(tree => tree.status !== 'completed');
-      setTrees(activeTrees);
+      // 已完成的任务默认不展示，但若任务是当天才完结的，仍需展示出来
+      // 这样孩子当天能看到自己的树刚刚长成，第二天再进入森林主页查看。
+      const today = getUTC8Today();
+      const utc8Offset = 8 * 60 * 60 * 1000;
+      const completedTodayGoalIds = new Set(
+        tasksRes.data
+          .filter(task => {
+            if (task.status !== 'approved' || !task.goal_id) return false;
+            const taskDate = new Date(
+              new Date(task.checkin_time).getTime() + utc8Offset
+            )
+              .toISOString()
+              .split('T')[0];
+            return taskDate === today;
+          })
+          .map(task => task.goal_id)
+      );
+      const displayTrees = treesRes.data.filter(
+        tree =>
+          tree.status !== 'completed' ||
+          (tree.goal_id && completedTodayGoalIds.has(tree.goal_id))
+      );
+      setTrees(displayTrees);
       setGoals(goalsRes.data);
       setFruitsBalance(fruitsHistoryRes.fruits_balance);
-      const today = getUTC8Today();
       setTodayFruitsEarned(
         fruitsHistoryRes.data
           .filter(item => {
-            const utc8Offset = 8 * 60 * 60 * 1000;
             return new Date(new Date(item.checkin_time).getTime() + utc8Offset)
               .toISOString()
               .split('T')[0] === today;
@@ -85,10 +104,10 @@ export default function CheckIn() {
       );
       // 保存全量任务数据，供切换树时复用（避免重复网络请求）
       setAllTasks(tasksRes.data);
-      if (activeTrees.length > 0) {
+      if (displayTrees.length > 0) {
         setSelectedTree((prev) => {
-          const stillExists = activeTrees.find((t) => t.id === prev?.id);
-          return stillExists || activeTrees[0];
+          const stillExists = displayTrees.find((t) => t.id === prev?.id);
+          return stillExists || displayTrees[0];
         });
       } else {
         setSelectedTree(null);
@@ -96,7 +115,6 @@ export default function CheckIn() {
 
       // 按 "日期_goal_id" 建立任务映射（只保留最新的一条，因为列表已按时间倒序）
       // 使用 UTC+8 时区的日期，避免跨时区导致的日期判断错误
-      const utc8Offset = 8 * 60 * 60 * 1000;
       const taskMap: Record<string, TaskData> = {};
       for (const task of tasksRes.data) {
         // 将 checkin_time 转换为 UTC+8 时区的日期再比较
@@ -208,6 +226,7 @@ export default function CheckIn() {
   const currentGoal = currentTree?.goal_id
     ? (goals.find((g) => g.id === currentTree.goal_id) ?? null)
     : null;
+  const isChallenge = currentGoal?.is_challenge === true;
   const todayTask = getTaskForTreeOnDate(currentTree, selectedDate);
   const hasCheckedInToday = !!todayTask;
   const taskStatus = todayTask?.status;
@@ -521,8 +540,9 @@ export default function CheckIn() {
                         >
                           {sortedTrees.map((tree) => {
                             const treeTask = getTaskForTreeOnDate(tree, selectedDate);
+                            const challengeMark = goals.find(g => g.id === tree.goal_id)?.is_challenge ? ' 🔥挑战' : '';
                             const statusIcon = tree.status === 'completed' ? ' ✅已长成' : treeTask?.status === 'approved' ? ' ✓' : treeTask?.status === 'pending' ? ' ⏳' : '';
-                            return <option key={tree.id} value={tree.id}>{tree.name}{statusIcon}</option>;
+                            return <option key={tree.id} value={tree.id}>{tree.name}{statusIcon}{challengeMark}</option>;
                           })}
                         </select>
                       )}
@@ -598,7 +618,7 @@ export default function CheckIn() {
                     <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all duration-700 dark:from-emerald-500 dark:to-teal-400" style={{ width: `${selectedTree?.status === 'completed' ? 100 : (currentTree?.progress ?? 0)}%` }} />
                   </div>
                   <div className="mt-1 flex items-center justify-between px-0.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                    <span className="flex items-center gap-1 font-bold text-emerald-700 dark:text-emerald-300"><Icon name="check_circle" size="12px" />已打卡 {currentTree?.completed_days || 0} / {currentGoal?.duration_days || 0} 天</span>
+                    <span className="flex items-center gap-1 font-bold text-emerald-700 dark:text-emerald-300"><Icon name="check_circle" size="12px" />{isChallenge ? '连续打卡' : '已打卡'} {currentTree?.completed_days || 0} / {currentGoal?.duration_days || 0} 天</span>
                     <button onClick={() => setShowCheckinHistory(true)} className="flex items-center text-[10px] text-slate-400 transition-colors hover:text-emerald-600">记录 <Icon name="chevron_right" size="12px" /></button>
                   </div>
                 </div>
@@ -610,6 +630,13 @@ export default function CheckIn() {
                   <div className={`flex items-center justify-between gap-2 rounded-2xl border px-4 py-3 text-sm font-medium ${statusInfo.bg} ${statusInfo.color}`}>
                     <div className="flex items-center gap-2"><Icon name={taskStatus === 'approved' ? 'check_circle' : taskStatus === 'rejected' ? 'cancel' : 'hourglass_empty'} className="text-lg" />{statusInfo.text}</div>
                     {todayTask?.checkin_time && <span className="shrink-0 text-xs opacity-70">{formatCheckinTime(todayTask.checkin_time)}</span>}
+                  </div>
+                )}
+
+                {isChallenge && (
+                  <div className="flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-900/20 dark:text-amber-300">
+                    <span className="text-base">🔥</span>
+                    <span className="flex-1">挑战任务：连续打卡不能断，完成后才能获得果实</span>
                   </div>
                 )}
 

@@ -398,7 +398,7 @@ router.get('/:childId/fruits-history', authMiddleware, async (req: AuthRequest, 
 
   const { data: tasks, error } = await supabase
     .from('tasks')
-    .select('id, title, checkin_time, bonus_fruits, goal_id, goals(icon, fruits_per_task, is_shared), trees(status)')
+    .select('id, title, checkin_time, bonus_fruits, goal_id, goals(icon, fruits_per_task, is_shared, is_challenge), trees(status)')
     .eq('child_id', childId)
     .eq('status', 'approved')
     .order('checkin_time', { ascending: false })
@@ -422,22 +422,23 @@ router.get('/:childId/fruits-history', authMiddleware, async (req: AuthRequest, 
     return;
   }
 
-  // 找出每个共享目标中最新的打卡记录 ID（按 checkin_time 降序，第一条即最新）
-  const sharedGoalLatestTaskMap = new Map<string, string>(); // goal_id -> task_id
+  // 找出每个共享/挑战目标中最新的打卡记录 ID（按 checkin_time 降序，第一条即最新）
+  const completionGoalLatestTaskMap = new Map<string, string>(); // goal_id -> task_id
   for (const task of (tasks || []) as Record<string, any>[]) {
-    const isShared = task.goals?.is_shared ?? false;
-    if (isShared && !sharedGoalLatestTaskMap.has(task.goal_id)) {
-      sharedGoalLatestTaskMap.set(task.goal_id, task.id);
+    const needsCompletion = (task.goals?.is_shared || task.goals?.is_challenge) ?? false;
+    if (needsCompletion && !completionGoalLatestTaskMap.has(task.goal_id)) {
+      completionGoalLatestTaskMap.set(task.goal_id, task.id);
     }
   }
 
   const taskItems = (tasks || []).map((task: Record<string, any>) => {
     const isShared = task.goals?.is_shared ?? false;
+    const isChallenge = task.goals?.is_challenge ?? false;
     const treeCompleted = task.trees?.status === 'completed';
-    const isLatestForSharedGoal = sharedGoalLatestTaskMap.get(task.goal_id) === task.id;
+    const isLatestForCompletionGoal = completionGoalLatestTaskMap.get(task.goal_id) === task.id;
 
-    // 共享任务：只有树木已完成且是最后一次打卡时才显示果实
-    const showFruits = !isShared || (treeCompleted && isLatestForSharedGoal);
+    // 共享/挑战任务：只有树木已完成且是最后一次打卡时才显示果实
+    const showFruits = (!isShared && !isChallenge) || (treeCompleted && isLatestForCompletionGoal);
 
     return {
       id: task.id,
@@ -448,6 +449,7 @@ router.get('/:childId/fruits-history', authMiddleware, async (req: AuthRequest, 
       bonus_fruits: showFruits ? (task.bonus_fruits ?? 0) : 0,
       goal_icon: task.goals?.icon ?? null,
       is_shared: isShared,
+      is_challenge: isChallenge,
       source: 'task' as const,
     };
   });

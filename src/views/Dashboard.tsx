@@ -513,6 +513,19 @@ export default function Dashboard() {
                         <p className="text-xs text-slate-500 dark:text-[var(--text-muted)] truncate">{goal?.title || '成长目标'}</p>
                       </div>
                     </div>
+                    {goal?.is_shared && (
+                      <button
+                        onClick={() => {
+                          setShowCompletedTrees(false);
+                          navigate(`/shared-task/${goal.id}`);
+                        }}
+                        className="shrink-0 flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400 whitespace-nowrap active:scale-95 transition-transform"
+                        aria-label="查看共享任务详情"
+                      >
+                        <Icon name="group" className="text-[10px]" />
+                        共享任务
+                      </button>
+                    )}
                     <span className="text-emerald-700 dark:text-emerald-400 text-xs font-bold shrink-0 flex items-center gap-1">
                       <Icon name="check_circle" filled className="text-sm" />
                       已长成

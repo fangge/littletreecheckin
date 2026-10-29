@@ -32,7 +32,7 @@ router.get('/:childId/tasks', authMiddleware, async (req: AuthRequest, res: Resp
     .from('tasks')
     .select(`
       id, goal_id, title, type, status, checkin_time, image_url, progress, reject_reason, created_at, updated_at,
-      goals(title, icon, fruits_per_task),
+      goals(title, icon, fruits_per_task, is_challenge),
       trees(name, image)
     `)
     .eq('child_id', childId)
@@ -418,27 +418,45 @@ router.put('/:taskId/revoke', authMiddleware, async (req: AuthRequest, res: Resp
     return;
   }
 
-  // 获取基础果实数
+  // 获取基础果实数及是否为挑战任务
   let baseFruits = 10;
+  let isChallenge = false;
   if (task.goal_id) {
     const { data: goalInfo } = await supabase
       .from('goals')
-      .select('fruits_per_task')
+      .select('fruits_per_task, is_challenge')
       .eq('id', task.goal_id)
       .single();
     if (goalInfo) {
       baseFruits = goalInfo.fruits_per_task ?? 10;
+      isChallenge = goalInfo.is_challenge === true;
     }
   }
 
-  // 计算需要扣除的总果实数
   const bonusFruits = task.bonus_fruits ?? 0;
-  const totalFruitsToDeduct = baseFruits + bonusFruits;
+
+  // 挑战任务：果实只在挑战完成时一次性发放，因此撤销时先判断该树当前是否已完成
+  let treeWasCompleted = false;
+  if (task.tree_id) {
+    const { data: tree } = await supabase
+      .from('trees')
+      .select('status')
+      .eq('id', task.tree_id)
+      .single();
+    treeWasCompleted = tree?.status === 'completed';
+  }
+
+  let challengeRewardDeducted = false;
+  let challengeStillCompleted = false;
+
+  // 非挑战任务：按本次批准的果实扣除；挑战任务：完成奖励在撤销后确认需要再扣
+  const totalFruitsToDeduct = isChallenge ? 0 : baseFruits + bonusFruits;
+  const previewDeduct = isChallenge && treeWasCompleted ? baseFruits : totalFruitsToDeduct;
 
   // 检查果实余额是否足够扣除
-  if (child.fruits_balance < totalFruitsToDeduct) {
+  if (previewDeduct > 0 && child.fruits_balance < previewDeduct) {
     res.status(400).json({
-      error: `果实余额不足，当前余额: ${child.fruits_balance}，需扣除: ${totalFruitsToDeduct}`,
+      error: `果实余额不足，当前余额: ${child.fruits_balance}，需扣除: ${previewDeduct}`,
     });
     return;
   }
@@ -457,12 +475,14 @@ router.put('/:taskId/revoke', authMiddleware, async (req: AuthRequest, res: Resp
     return;
   }
 
-  // 2. 扣除果实余额
-  await supabase
-    .from('children')
-    .update({ fruits_balance: child.fruits_balance - totalFruitsToDeduct })
-    .eq('id', task.child_id)
-    .eq('parent_id', req.user!.id);
+  // 2. 扣除果实余额（非挑战任务）
+  if (!isChallenge && totalFruitsToDeduct > 0) {
+    await supabase
+      .from('children')
+      .update({ fruits_balance: child.fruits_balance - totalFruitsToDeduct })
+      .eq('id', task.child_id)
+      .eq('parent_id', req.user!.id);
+  }
 
   // 3. 重新计算树木进度（撤销后始终重新计算，基于实际已批准的 distinct 日期数）
   if (task.tree_id) {
@@ -492,14 +512,40 @@ router.put('/:taskId/revoke', authMiddleware, async (req: AuthRequest, res: Resp
     }
   }
 
+  // 挑战任务：撤销后若树从已完成回退为生长中，说明连续记录已断，扣除完成奖励
+  if (isChallenge && treeWasCompleted && task.tree_id) {
+    const { data: treeAfterRecalc } = await supabase
+      .from('trees')
+      .select('status')
+      .eq('id', task.tree_id)
+      .single();
+    challengeStillCompleted = treeAfterRecalc?.status === 'completed';
+    if (!challengeStillCompleted) {
+      await supabase
+        .from('children')
+        .update({ fruits_balance: child.fruits_balance - baseFruits })
+        .eq('id', task.child_id)
+        .eq('parent_id', req.user!.id);
+      challengeRewardDeducted = true;
+    }
+  }
+
   // 4. 发送系统消息通知
-  const fruitMsg = bonusFruits > 0
-    ? `扣除 ${totalFruitsToDeduct} 个果实（含额外奖励 ${bonusFruits} 个）`
-    : `扣除 ${totalFruitsToDeduct} 个果实`;
+  const fruitMsg = isChallenge
+    ? (challengeRewardDeducted
+      ? `连续打卡记录已中断，需要重新开始挑战，并扣除 ${baseFruits} 个果实`
+      : (treeWasCompleted && challengeStillCompleted)
+        ? '挑战任务仍处于完成状态'
+        : '连续打卡记录已中断，需要重新开始挑战')
+    : (bonusFruits > 0
+      ? `扣除 ${totalFruitsToDeduct} 个果实（含额外奖励 ${bonusFruits} 个）`
+      : `扣除 ${totalFruitsToDeduct} 个果实`);
   await supabase.from('messages').insert({
     child_id: task.child_id,
     sender_type: 'system',
-    text: `📝 家长撤回了任务"${updatedTask.title}"的审核，${fruitMsg}。请重新提交打卡~`,
+    text: isChallenge
+      ? `📝 家长撤回了挑战任务"${updatedTask.title}"的审核，${fruitMsg}。`
+      : `📝 家长撤回了任务"${updatedTask.title}"的审核，${fruitMsg}。请重新提交打卡~`,
     type: 'text',
     is_read: false,
   });

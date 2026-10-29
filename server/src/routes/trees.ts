@@ -26,6 +26,50 @@ const getOwnedChildIds = async (parentId: string): Promise<string[]> => {
   return (data || []).map(child => child.id);
 };
 
+// 将 ISO 时间字符串转换为 UTC+8 日期（YYYY-MM-DD）
+const toUTC8Date = (isoString: string): string =>
+  new Date(new Date(isoString).getTime() + 8 * 60 * 60 * 1000)
+    .toISOString()
+    .split('T')[0];
+
+// 根据目标类型计算完成进度：
+// - 普通/共享任务：按已批准的不同日期数计算
+// - 挑战任务：按截至最新日期的连续打卡天数计算
+const computeGoalProgress = (
+  dates: string[],
+  durationDays: number,
+  isChallenge: boolean
+): { completedDays: number; progress: number; isCompleted: boolean } => {
+  const uniqueDates = Array.from(new Set(dates)).sort();
+
+  if (!isChallenge) {
+    const completedDays = uniqueDates.length;
+    const progress = Math.min(100, Math.ceil((completedDays / durationDays) * 100));
+    return { completedDays, progress, isCompleted: progress >= 100 };
+  }
+
+  let streak = 0;
+  let prevDate: string | null = null;
+  for (let i = uniqueDates.length - 1; i >= 0; i--) {
+    if (prevDate === null) {
+      streak = 1;
+    } else {
+      const diffMs =
+        new Date(`${prevDate}T00:00:00+08:00`).getTime() -
+        new Date(`${uniqueDates[i]}T00:00:00+08:00`).getTime();
+      if (diffMs === 24 * 60 * 60 * 1000) {
+        streak += 1;
+      } else {
+        break;
+      }
+    }
+    prevDate = uniqueDates[i];
+  }
+
+  const progress = Math.min(100, Math.ceil((streak / durationDays) * 100));
+  return { completedDays: streak, progress, isCompleted: streak >= durationDays };
+};
+
 // GET /api/v1/children/:childId/dashboard-data
 // 聚合接口：一次请求返回树木列表(含enriched字段) + 统计数据 + 目标列表 + 今日签到状态
 // 将原来 Dashboard 需要调用的 trees + stats + goals 三个接口合并为一个，
@@ -95,7 +139,7 @@ router.get('/:childId/dashboard-data', authMiddleware, async (req: AuthRequest, 
     // 目标列表（包含共享任务）
     supabase
       .from('goals')
-      .select(`id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, fruits_per_task, is_shared, shared_child_ids, child_id, created_at`)
+      .select(`id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, fruits_per_task, is_shared, is_challenge, shared_child_ids, child_id, created_at`)
       .or(`child_id.eq.${childId},shared_child_ids.cs.{${childId}}`)
       .order('created_at', { ascending: false }),
 
@@ -151,9 +195,13 @@ router.get('/:childId/dashboard-data', authMiddleware, async (req: AuthRequest, 
   // 去重
   const uniqueGoalIds = [...new Set(goalIds)];
 
-  let completedDaysMap = new Map<string, number>();
   let checkedInTodaySet = new Set<string>();
   let goalDurationMap = new Map<string, number>();
+  let goalProgressMap = new Map<string, { completedDays: number; progress: number; isCompleted: boolean }>();
+  const challengeGoalIdSet = new Set(
+    (goals || []).filter((g: { is_challenge?: boolean }) => g.is_challenge).map((g: { id: string }) => g.id)
+  );
+  const approvedDaysByGoal = new Map<string, Set<string>>();
 
   if (uniqueGoalIds.length > 0) {
     // 批量查询已完成天数和今日签到状态（并行执行）
@@ -167,10 +215,10 @@ router.get('/:childId/dashboard-data', authMiddleware, async (req: AuthRequest, 
           .gte('checkin_time', `${today}T00:00:00+08:00`)
           .lte('checkin_time', `${today}T23:59:59.999+08:00`);
       })(),
-      supabase.from('goals').select('id, duration_days').in('id', uniqueGoalIds),
+      supabase.from('goals').select('id, duration_days, is_challenge').in('id', uniqueGoalIds),
     ]);
 
-    // 构建 completedDaysMap（统计每个 goal 下已批准任务的不同日期数，UTC+8 时区）
+    // 构建 approvedDaysByGoal（统计每个 goal 下已批准任务的不同日期数，UTC+8 时区）
     // 使用 Set 去重，避免同一天多次打卡重复计算
     if (uniqueGoalIds.length > 0) {
       const { data: approvedWithDates } = await supabase
@@ -180,23 +228,14 @@ router.get('/:childId/dashboard-data', authMiddleware, async (req: AuthRequest, 
         .eq('child_id', childId)
         .eq('status', 'approved');
 
-      const approvedDaysByGoal = new Map<string, Set<string>>();
       for (const task of approvedWithDates || []) {
         if (task.goal_id && task.checkin_time) {
-          const utc8Offset = 8 * 60 * 60 * 1000;
-          const dateStr = new Date(
-            new Date(task.checkin_time).getTime() + utc8Offset
-          ).toISOString().split('T')[0];
+          const dateStr = toUTC8Date(task.checkin_time);
           if (!approvedDaysByGoal.has(task.goal_id)) {
             approvedDaysByGoal.set(task.goal_id, new Set());
           }
           approvedDaysByGoal.get(task.goal_id)!.add(dateStr);
         }
-      }
-
-      // 将 Set size 写入 completedDaysMap
-      for (const [gid, dateSet] of approvedDaysByGoal) {
-        completedDaysMap.set(gid, dateSet.size);
       }
     }
 
@@ -208,6 +247,19 @@ router.get('/:childId/dashboard-data', authMiddleware, async (req: AuthRequest, 
     // 构建 goalDurationMap
     for (const g of goalsDurationRes.data || []) {
       goalDurationMap.set(g.id, g.duration_days);
+      if (g.is_challenge) challengeGoalIdSet.add(g.id);
+    }
+
+    for (const gid of uniqueGoalIds) {
+      const dates = Array.from(approvedDaysByGoal.get(gid) || []);
+      goalProgressMap.set(
+        gid,
+        computeGoalProgress(
+          dates,
+          goalDurationMap.get(gid) || 30,
+          challengeGoalIdSet.has(gid)
+        )
+      );
     }
   }
 
@@ -235,9 +287,11 @@ router.get('/:childId/dashboard-data', authMiddleware, async (req: AuthRequest, 
   // enrich 树木数据
   const enrichedTrees = (trees || []).map(tree => {
     const isSharedCompleted = tree.goal_id ? sharedCompletedGoalIdsDash.has(tree.goal_id) : false;
-    const completedDays = tree.goal_id ? (completedDaysMap.get(tree.goal_id) || 0) : 0;
-    const durationDays = tree.goal_id ? (goalDurationMap.get(tree.goal_id) || 30) : 30;
-    const calculatedProgress = isSharedCompleted ? 100 : Math.min(100, Math.ceil((completedDays / durationDays) * 100));
+    const progressInfo = tree.goal_id ? goalProgressMap.get(tree.goal_id) : undefined;
+    const completedDays = progressInfo?.completedDays ?? 0;
+    const calculatedProgress = isSharedCompleted
+      ? 100
+      : (progressInfo?.progress ?? 0);
     return {
       ...tree,
       status: isSharedCompleted ? 'completed' : tree.status,
@@ -251,12 +305,13 @@ router.get('/:childId/dashboard-data', authMiddleware, async (req: AuthRequest, 
   // enrich 目标数据
   const enrichedGoals = (goals || []).map(goal => {
     const isSharedCompletedGoal = goal.is_shared && sharedCompletedGoalIdsDash.has(goal.id);
-    const completedDays = completedDaysMap.get(goal.id) || 0;
+    const progressInfo = goalProgressMap.get(goal.id);
+    const completedDays = progressInfo?.completedDays ?? 0;
     return {
       ...goal,
       completed_days: completedDays,
       checked_in_today: checkedInTodaySet.has(goal.id),
-      calculated_progress: isSharedCompletedGoal ? 100 : Math.min(100, Math.ceil((completedDays / (goal.duration_days || 30)) * 100)),
+      calculated_progress: isSharedCompletedGoal ? 100 : (progressInfo?.progress ?? 0),
     };
   });
 
@@ -316,7 +371,7 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
 
   const ownedChildIds = await getOwnedChildIds(req.user!.id);
   const { data: goalOwnership } = goalIds.length > 0
-    ? await supabase.from('goals').select('id, child_id, is_shared, shared_child_ids').in('id', goalIds)
+    ? await supabase.from('goals').select('id, child_id, is_shared, is_challenge, shared_child_ids').in('id', goalIds)
     : { data: [] };
   const visibleGoalIds = new Set(
     (goalOwnership || [])
@@ -335,10 +390,10 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
     return;
   }
 
-  // 批量查询已完成天数（approved 任务数，仅限该孩子）
+  // 批量查询已完成天数（approved 任务，仅限该孩子）
   const { data: approvedTasks } = await supabase
     .from('tasks')
-    .select('goal_id')
+    .select('goal_id, checkin_time')
     .eq('child_id', childId)
     .in('goal_id', goalIds)
     .eq('status', 'approved');
@@ -365,11 +420,14 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
     .gte('checkin_time', `${today}T00:00:00+08:00`)
     .lte('checkin_time', `${today}T23:59:59.999+08:00`);
 
-  // 统计每个 goal 的已完成天数
-  const completedDaysMap = new Map<string, number>();
+  // 统计每个 goal 的已批准日期（按 UTC+8 去重）
+  const approvedDaysByGoal = new Map<string, Set<string>>();
   for (const task of approvedTasks || []) {
-    if (task.goal_id) {
-      completedDaysMap.set(task.goal_id, (completedDaysMap.get(task.goal_id) || 0) + 1);
+    if (task.goal_id && task.checkin_time) {
+      if (!approvedDaysByGoal.has(task.goal_id)) {
+        approvedDaysByGoal.set(task.goal_id, new Set());
+      }
+      approvedDaysByGoal.get(task.goal_id)!.add(toUTC8Date(task.checkin_time));
     }
   }
 
@@ -378,14 +436,25 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
     (todayTasks || []).map((t: { goal_id: string }) => t.goal_id).filter(Boolean)
   );
 
-  // 批量查询 goal 的 duration_days 用于准确计算 progress
+  // 批量查询 goal 的 duration_days 和是否挑战任务，用于准确计算 progress
   const { data: goalsData } = await supabase
     .from('goals')
-    .select('id, duration_days')
+    .select('id, duration_days, is_challenge')
     .in('id', goalIds);
   const goalDurationMap = new Map<string, number>();
+  const challengeGoalIdSet = new Set<string>();
   for (const g of goalsData || []) {
     goalDurationMap.set(g.id, g.duration_days);
+    if (g.is_challenge) challengeGoalIdSet.add(g.id);
+  }
+
+  const goalProgressMap = new Map<string, { completedDays: number; progress: number; isCompleted: boolean }>();
+  for (const gid of goalIds) {
+    const dates = Array.from(approvedDaysByGoal.get(gid) || []);
+    goalProgressMap.set(
+      gid,
+      computeGoalProgress(dates, goalDurationMap.get(gid) || 30, challengeGoalIdSet.has(gid))
+    );
   }
 
   // 共享任务：检查是否有任何参与孩子的树已完成，是则当前孩子的树也标记为已完成
@@ -410,10 +479,9 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
 
   const enrichedTrees = trees.map(tree => {
     const isSharedCompleted = tree.goal_id ? sharedCompletedGoalIds.has(tree.goal_id) : false;
-    const completedDays = tree.goal_id ? (completedDaysMap.get(tree.goal_id) || 0) : 0;
-    const durationDays = tree.goal_id ? (goalDurationMap.get(tree.goal_id) || 30) : 30;
-    // 动态计算 progress：基于实际完成天数/目标天数，向上取整
-    const calculatedProgress = isSharedCompleted ? 100 : Math.min(100, Math.ceil((completedDays / durationDays) * 100));
+    const progressInfo = tree.goal_id ? goalProgressMap.get(tree.goal_id) : undefined;
+    const completedDays = progressInfo?.completedDays ?? 0;
+    const calculatedProgress = isSharedCompleted ? 100 : (progressInfo?.progress ?? 0);
     return {
       ...tree,
       status: isSharedCompleted ? 'completed' : tree.status,
@@ -431,7 +499,7 @@ router.get('/:childId/trees', authMiddleware, async (req: AuthRequest, res: Resp
 // 支持共享任务：is_shared=true 时，shared_child_ids 中的每个孩子都会创建独立的树木
 router.post('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { childId } = req.params;
-  const { title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, fruits_per_task, is_shared, shared_child_ids } = req.body;
+  const { title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, fruits_per_task, is_shared, is_challenge, shared_child_ids } = req.body;
 
   if (!title || !duration_days) {
     res.status(400).json({ error: '目标标题和持续天数不能为空' });
@@ -458,7 +526,8 @@ router.post('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Res
   }
 
   // 共享任务：验证所有参与孩子都存在
-  const isShared = is_shared === true;
+  const isChallenge = is_challenge === true;
+  const isShared = is_shared === true && !isChallenge;
   let participantIds: string[] = [childId];
 
   if (isShared && Array.isArray(shared_child_ids) && shared_child_ids.length > 1) {
@@ -491,14 +560,15 @@ router.post('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Res
       icon: icon || null,
       duration_days,
       duration_minutes: duration_minutes || 0,
-      daily_count: daily_count || null,
+      daily_count: isChallenge ? null : (daily_count || null),
       reward_tree_name: reward_tree_name || title,
       is_active: true,
       fruits_per_task: fruits_per_task && fruits_per_task > 0 ? Math.round(fruits_per_task) : 10,
       is_shared: isShared,
+      is_challenge: isChallenge,
       shared_child_ids: isShared ? participantIds : [],
     })
-    .select('id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, fruits_per_task, is_shared, shared_child_ids, created_at')
+    .select('id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, fruits_per_task, is_shared, is_challenge, shared_child_ids, created_at')
     .single();
 
   if (goalError || !goal) {
@@ -533,7 +603,11 @@ router.post('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Res
 
   res.status(201).json({
     data: { goal, tree: primaryTree, trees },
-    message: isShared ? `共享任务创建成功，已为 ${participantIds.length} 个孩子种下树木` : '目标创建成功，树木已种下',
+    message: isShared
+      ? `共享任务创建成功，已为 ${participantIds.length} 个孩子种下树木`
+      : isChallenge
+        ? '挑战任务创建成功，连续打卡不能断，完成后才能获得果实'
+        : '目标创建成功，树木已种下',
   });
 });
 
@@ -767,7 +841,7 @@ router.get('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Resp
   let query = supabase
     .from('goals')
     .select(`
-      id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, fruits_per_task, is_shared, shared_child_ids, child_id, created_at,
+      id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, fruits_per_task, is_shared, is_challenge, shared_child_ids, child_id, created_at,
       trees(id, name, image, status, progress, goal_id, child_id)
     `)
     .or(`child_id.eq.${childId},shared_child_ids.cs.{${childId}}`)
@@ -801,20 +875,35 @@ router.get('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Resp
     return;
   }
 
-  // 批量查询已完成天数（approved 任务数，按 goal_id + child_id 分组）
+  // 批量查询已完成天数（approved 任务，仅限当前孩子）
   const { data: approvedTasks } = await supabase
     .from('tasks')
-    .select('goal_id, child_id')
+    .select('goal_id, child_id, checkin_time')
     .in('goal_id', goalIds)
     .eq('child_id', childId)
     .eq('status', 'approved');
 
-  // 统计每个 goal 的已完成天数（当前孩子）
-  const completedDaysMap = new Map<string, number>();
+  // 统计每个 goal 的已批准日期（按 UTC+8 去重）
+  const approvedDaysByGoal = new Map<string, Set<string>>();
   for (const task of approvedTasks || []) {
-    if (task.goal_id) {
-      completedDaysMap.set(task.goal_id, (completedDaysMap.get(task.goal_id) || 0) + 1);
+    if (task.goal_id && task.checkin_time) {
+      if (!approvedDaysByGoal.has(task.goal_id)) {
+        approvedDaysByGoal.set(task.goal_id, new Set());
+      }
+      approvedDaysByGoal.get(task.goal_id)!.add(toUTC8Date(task.checkin_time));
     }
+  }
+
+  const challengeGoalIdSet = new Set(
+    goals.filter((g: { is_challenge?: boolean }) => g.is_challenge).map((g: { id: string }) => g.id)
+  );
+  const goalProgressMap = new Map<string, { completedDays: number; progress: number; isCompleted: boolean }>();
+  for (const goal of goals) {
+    const dates = Array.from(approvedDaysByGoal.get(goal.id) || []);
+    goalProgressMap.set(
+      goal.id,
+      computeGoalProgress(dates, goal.duration_days || 30, challengeGoalIdSet.has(goal.id))
+    );
   }
 
   // 查询哪些 goal 是共享任务（共享任务任何孩子打卡都算当前孩子已完成）
@@ -870,9 +959,9 @@ router.get('/:childId/goals', authMiddleware, async (req: AuthRequest, res: Resp
   // 共享任务只返回当前孩子的树木
   const enrichedGoals = goals.map(goal => {
     const isSharedCompleted = goal.is_shared && completedSharedGoalIdsGoals.has(goal.id);
-    const completedDays = completedDaysMap.get(goal.id) || 0;
-    const durationDays = goal.duration_days || 30;
-    const calculatedProgress = isSharedCompleted ? 100 : Math.min(100, Math.ceil((completedDays / durationDays) * 100));
+    const progressInfo = goalProgressMap.get(goal.id);
+    const completedDays = progressInfo?.completedDays ?? 0;
+    const calculatedProgress = isSharedCompleted ? 100 : (progressInfo?.progress ?? 0);
     // 共享任务：只保留当前孩子的树木
     const filteredTrees = (goal.trees || []).filter((tree: any) => tree.child_id === childId);
     return {

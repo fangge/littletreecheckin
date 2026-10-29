@@ -35,11 +35,27 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
               </button>
             </div>
             <div className="overflow-y-auto max-h-[60vh] px-6 py-4 space-y-4">
-              {/* v4.8 */}
+              {/* v4.9 */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v4.8</span>
+                  <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded">v4.9</span>
                   <span className="text-sm text-slate-500 dark:text-[var(--text-muted)]">最新</span>
+                </div>
+                <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">挑战任务上线，连续打卡不能断</h4>
+                <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">
+                  新增挑战任务类型，连续打卡不能断，完成后一次性获得果实；当天长成的树当天仍会展示，共享任务在已长成弹层中也能直接查看进度。
+                </p>
+                <ul className="text-xs text-slate-500 dark:text-[var(--text-muted)] space-y-1 ml-2">
+                  <li>• 新增挑战任务：连续打卡不能断，完成后一次性获得果实</li>
+                  <li>• 当天长成的树，当天仍能在打卡页看到</li>
+                  <li>• 已长成树木弹层中，共享任务可直接查看进度</li>
+                  <li>• 家长审核挑战任务时明确显示完成奖励</li>
+                </ul>
+              </div>
+              {/* v4.8 */}
+              <div className="space-y-2 pt-4 border-t border-primary/5 dark:border-[var(--border-color)]">
+                <div className="flex items-center gap-2">
+                  <span className="bg-slate-100 dark:bg-[var(--bg-card)] text-slate-600 dark:text-[var(--text-secondary)] text-xs font-bold px-2 py-0.5 rounded">v4.8</span>
                 </div>
                 <h4 className="text-slate-900 dark:text-[var(--text-primary)] text-sm font-bold">宠物养成系统上线</h4>
                 <p className="text-slate-600 dark:text-[var(--text-secondary)] text-xs leading-relaxed">

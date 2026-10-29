@@ -71,8 +71,24 @@ const TaskCard = ({ task, notes, bonusFruits, processingId, showChildName, onQui
         <div className="px-4 pb-4 space-y-3">
           {task.goals?.fruits_per_task != null && task.goals.fruits_per_task > 0 && (
             <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-[var(--text-muted)]">
-              <span>基础奖励：</span>
-              <span className="font-bold text-primary">{task.goals.fruits_per_task} 🍎</span>
+              {task.goals?.is_challenge ? (
+                <>
+                  <span>完成挑战奖励：</span>
+                  <span className="font-bold text-primary">{task.goals.fruits_per_task} 🍎</span>
+                  <span className="text-amber-500">（连续打卡完成时一次性发放）</span>
+                </>
+              ) : (
+                <>
+                  <span>基础奖励：</span>
+                  <span className="font-bold text-primary">{task.goals.fruits_per_task} 🍎</span>
+                </>
+              )}
+            </div>
+          )}
+          {task.goals?.is_challenge && (
+            <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+              <span className="text-sm">🔥</span>
+              <span>挑战任务：连续打卡不能断，完成前不发放果实</span>
             </div>
           )}
           <div className="space-y-2">
@@ -100,9 +116,10 @@ const TaskCard = ({ task, notes, bonusFruits, processingId, showChildName, onQui
               </button>
             ))}
           </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">额外奖励果实</label>
-            <div className="flex items-center gap-2">
+          {!task.goals?.is_challenge && (
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">额外奖励果实</label>
+              <div className="flex items-center gap-2">
               <button
                 className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-lg flex items-center justify-center hover:bg-primary hover:text-white transition-colors disabled:opacity-40"
                 onClick={() => onBonusFruitsChange(prev => ({ ...prev, [task.id]: Math.max(0, (prev[task.id] ?? 0) - 1) }))}
@@ -129,8 +146,9 @@ const TaskCard = ({ task, notes, bonusFruits, processingId, showChildName, onQui
                   共 {(task.goals?.fruits_per_task ?? 0) + (bonusFruits[task.id] ?? 0)} 🍎
                 </span>
               )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
         <div className="flex border-t border-primary/5 dark:border-[var(--border-color)]">
           <button className="flex-1 py-4 flex items-center justify-center gap-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-colors border-r border-primary/5 dark:border-[var(--border-color)] disabled:opacity-50" onClick={() => onReject(task)} disabled={processingId === task.id} aria-label="拒绝任务">
@@ -271,7 +289,7 @@ export default function ParentControl() {
   const handleApprove = async (task: TaskWithChild) => {
     setProcessingId(task.id);
     try {
-      const bonus = bonusFruits[task.id] ?? 0;
+      const bonus = task.goals?.is_challenge ? 0 : (bonusFruits[task.id] ?? 0);
       await tasksApi.approve(task.id, bonus > 0 ? bonus : undefined);
       const note = notes[task.id];
       if (note && task.childId) await messagesApi.send(task.childId, note);
@@ -319,6 +337,7 @@ export default function ParentControl() {
       const taskIds = childPendingTasks.map(t => t.id);
       const notesMap: Record<string, { bonus_fruits?: number }> = {};
       for (const t of childPendingTasks) {
+        if (t.goals?.is_challenge) continue;
         const bonus = bonusFruits[t.id] ?? 0;
         if (bonus > 0) {
           notesMap[t.id] = { bonus_fruits: bonus };

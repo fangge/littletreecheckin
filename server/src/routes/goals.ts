@@ -8,7 +8,7 @@ const router: Router = Router();
 // PUT /api/v1/goals/:goalId  (更新目标信息)
 router.put('/:goalId', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   const { goalId } = req.params;
-  const { title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, child_id, fruits_per_task } = req.body;
+  const { title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, child_id, fruits_per_task, is_challenge } = req.body;
 
   if (duration_days !== undefined && (duration_days < 1 || duration_days > 365)) {
     res.status(400).json({ error: '持续天数必须在1-365之间' });
@@ -81,13 +81,14 @@ router.put('/:goalId', authMiddleware, async (req: AuthRequest, res: Response): 
   if (reward_tree_name !== undefined) updateData.reward_tree_name = reward_tree_name;
   if (child_id !== undefined) updateData.child_id = child_id;
   if (fruits_per_task !== undefined && fruits_per_task > 0) updateData.fruits_per_task = Math.round(fruits_per_task);
+  if (is_challenge !== undefined) updateData.is_challenge = is_challenge === true;
 
   const { data: updatedGoal, error: goalError } = await supabase
     .from('goals')
     .update(updateData)
     .eq('id', goalId)
     .eq('child_id', goal.child_id)
-    .select('id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, fruits_per_task, created_at, child_id')
+    .select('id, title, icon, duration_days, duration_minutes, daily_count, reward_tree_name, is_active, fruits_per_task, is_shared, is_challenge, shared_child_ids, created_at, child_id')
     .single();
 
   if (goalError || !updatedGoal) {
